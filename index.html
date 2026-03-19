@@ -27,7 +27,7 @@
   @media (max-width: 600px) { .controls-row1, .controls-row2 { padding: 10px 16px; } }
   .table-container { padding: 16px 24px; overflow-x: auto; }
   .result-info { font-size: 12px; color: #aaa; margin-bottom: 10px; }
-  table { width: 100%; border-collapse: collapse; min-width: 560px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e8e6e0; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e8e6e0; }
   thead tr { background: #f0ede8; border-bottom: 1px solid #ddd; }
   thead th { padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #555; letter-spacing: 0.04em; white-space: nowrap; }
   tbody tr { border-bottom: 1px solid #f0ede8; transition: background 0.1s; }
@@ -37,7 +37,7 @@
   .item-cell { display: flex; align-items: center; gap: 10px; }
   .item-img { width: 70px; height: 70px; border-radius: 6px; border: 1px solid #e0ddd5; background: #f5f4f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; }
   .item-img img { width: 100%; height: 100%; object-fit: cover; }
-  .item-name { font-weight: 600; font-size: 13px; color: #1a1a1a; }
+  .item-name { font-weight: 600; font-size: 13px; color: #1a1a1a; word-break: break-all; }
   .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
   .mat-list { display: flex; flex-direction: column; gap: 3px; }
   .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; }
@@ -93,15 +93,14 @@
 
 <div class="table-container">
   <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
-   <p>※ 副材料の数量は最小数を表記しています</p>
-   <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
-  </div>
+    <p>※ 副材料の数量は最小数を表記しています</p>
+    <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
   <div class="result-info" id="result-info"></div>
   <table>
     <thead>
       <tr>
-        <th style="width:200px">アイテム名</th>
-        <th>製作材料</th>
+        <th style="width:28%">アイテム名</th>
+        <th style="width:auto">製作材料</th>
         <th style="width:80px">作成個数</th>
         <th style="width:90px">副材料</th>
       </tr>
