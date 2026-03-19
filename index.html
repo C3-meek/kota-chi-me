@@ -108,9 +108,12 @@ const quantities = {};
 const expanded = {};
 
 function fmtQty(raw, multiplier) {
-  const num = parseFloat(raw);
-  if (!isNaN(num) && String(raw).trim() !== '') return `×${num * multiplier}`;
-  return raw ? String(raw) : '';
+  if (!raw || String(raw).trim() === '') return '';
+  const s = String(raw).trim();
+  if (s.includes('～')) return s;  // 範囲表記はそのまま
+  const num = parseFloat(s);
+  if (!isNaN(num)) return `×${num * multiplier}`;
+  return s;  // テキストメモはそのまま
 }
 
 async function loadData() {
