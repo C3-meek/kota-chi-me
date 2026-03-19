@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>黒い砂漠 家具作成レシピ検索</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+    background: #0f0e17;
+    color: #e8d5a3;
+    min-height: 100vh;
+  }
+
+  /* ── ヘッダー ── */
+  header {
+    background: #1a1628;
+    border-bottom: 1px solid #3a2e1a;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-logo {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: #8a7040;
+    text-transform: uppercase;
+  }
+  .header-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #e8d5a3;
+  }
+  .header-right {
+    margin-left: auto;
+    font-size: 12px;
+    color: #5a4e38;
+  }
+
+  /* ── コントロール ── */
+  .controls {
+    padding: 16px 24px;
+    background: #161220;
+    border-bottom: 1px solid #2a2040;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+  .search-wrap::before {
+    content: '🔍';
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    background: #1e1830;
+    border: 1px solid #3a2e50;
+    border-radius: 8px;
+    color: #e8d5a3;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus { border-color: #c8a84b; }
+  input[type="text"]::placeholder { color: #5a4e70; }
+
+  .cat-btn {
+    padding: 7px 16px;
+    border: 1px solid #3a2e50;
+    border-radius: 20px;
+    background: transparent;
+    color: #8a7a9a;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .cat-btn:hover { border-color: #c8a84b; color: #e8d5a3; }
+  .cat-btn.active {
+    background: #c8a84b;
+    color: #1a1628;
+    border-color: #c8a84b;
+    font-weight: 600;
+  }
+
+  /* ── テーブル ── */
+  .table-container {
+    padding: 20px 24px;
+    overflow-x: auto;
+  }
+  .result-info {
+    font-size: 12px;
+    color: #5a4e50;
+    margin-bottom: 12px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+  }
+  thead tr {
+    background: #1e1630;
+    border-bottom: 1px solid #3a2e50;
+  }
+  thead th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    color: #c8a84b;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid #1e1a2a;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: #1a1530; }
+  tbody td {
+    padding: 12px 14px;
+    vertical-align: top;
+    font-size: 13px;
+  }
+
+  /* アイテムセル */
+  .item-cell { display: flex; align-items: center; gap: 10px; }
+  .item-img {
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    border: 1px solid #3a2e1a;
+    background: #1e1630;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .item-img img { width: 100%; height: 100%; object-fit: cover; }
+  .item-name { font-weight: 600; font-size: 14px; color: #e8d5a3; }
+
+  .cat-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    background: #2a2040;
+    color: #c8a84b;
+    border: 1px solid #3a2e50;
+    margin-top: 3px;
+  }
+
+  /* 材料 */
+  .mat-list { display: flex; flex-direction: column; gap: 4px; }
+  .mat-item { font-size: 12px; color: #a09080; }
+  .mat-qty { color: #e8d5a3; font-weight: 600; }
+
+  /* 個数入力 */
+  input[type="number"] {
+    width: 60px;
+    padding: 6px 8px;
+    background: #1e1830;
+    border: 1px solid #3a2e50;
+    border-radius: 6px;
+    color: #e8d5a3;
+    font-size: 13px;
+    text-align: center;
+    outline: none;
+  }
+  input[type="number"]:focus { border-color: #c8a84b; }
+
+  /* 副材料ボタン */
+  .expand-btn {
+    padding: 6px 12px;
+    border: 1px solid #3a2e50;
+    border-radius: 6px;
+    background: transparent;
+    color: #8a7a9a;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .expand-btn:hover { border-color: #c8a84b; color: #e8d5a3; }
+  .expand-btn.open { background: #2a2040; border-color: #c8a84b; color: #c8a84b; }
+
+  /* 副材料展開行 */
+  .sub-row td {
+    background: #12101e;
+    padding: 10px 14px 10px 30px;
+    border-bottom: 1px solid #1e1a2a;
+  }
+  .sub-section { margin-bottom: 10px; }
+  .sub-parent-label {
+    font-size: 11px;
+    color: #6a5e70;
+    margin-bottom: 4px;
+  }
+  .sub-parent-name { color: #c8a84b; font-weight: 600; }
+  .sub-mat { font-size: 12px; color: #8a7a9a; padding-left: 12px; }
+  .sub-mat-qty { color: #e8d5a3; font-weight: 600; }
+
+  /* ローディング・エラー */
+  .state-msg {
+    text-align: center;
+    padding: 60px 20px;
+    color: #5a4e70;
+    font-size: 14px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 24px; height: 24px;
+    border: 2px solid #3a2e50;
+    border-top-color: #c8a84b;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Notion埋め込み時は縮小される可能性を考慮 */
+  @media (max-width: 600px) {
+    header { padding: 12px 16px; }
+    .controls { padding: 12px 16px; }
+    .table-container { padding: 12px 16px; }
+    .header-title { font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="header-logo">Black Desert Online</div>
+    <div class="header-title">家具作成レシピ検索</div>
+  </div>
+  <div class="header-right" id="last-updated"></div>
+</header>
+
+<div class="controls">
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="アイテム名・材料名で検索...">
+  </div>
+  <div id="cat-buttons">
+    <button class="cat-btn active" onclick="setCategory('all', this)">すべて</button>
+  </div>
+</div>
+
+<div class="table-container">
+  <div class="result-info" id="result-info"></div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:200px">アイテム名</th>
+        <th>製作材料</th>
+        <th style="width:80px">作成個数</th>
+        <th style="width:90px">副材料</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr>
+        <td colspan="4" class="state-msg">
+          <div class="spinner"></div>
+          <div>データを読み込んでいます...</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// ============================================================
+//  ★ここだけ書き換えてください★
+// ============================================================
+const SHEET_ID = 'YOUR_SHEET_ID_HERE';
+// スプレッドシートのURLの /d/ と /edit の間の文字列
+// 例: https://docs.google.com/spreadsheets/d/1aBcD.../edit
+//                                           ↑ここ
+// ============================================================
+
+const SHEET_NAME = 'Sheet1'; // シート名（デフォルトは Sheet1）
+
+let allData = [];
+let currentCat = 'all';
+const quantities = {};
+const expanded = {};
+
+// データ取得
+async function loadData() {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    const json = JSON.parse(text.replace(/^[^(]+\(|\);?\s*$/g, ''));
+    allData = parseSheet(json);
+    buildCategoryButtons();
+    render();
+    const now = new Date();
+    document.getElementById('last-updated').textContent =
+      `最終更新: ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  } catch (e) {
+    document.getElementById('tbody').innerHTML =
+      `<tr><td colspan="4" class="state-msg">
+        ⚠️ データの読み込みに失敗しました。<br>
+        SHEET_IDが正しいか、スプレッドシートが公開されているか確認してください。
+      </td></tr>`;
+    console.error(e);
+  }
+}
+
+// スプレッドシートのデータをパース
+function parseSheet(json) {
+  const rows = json.table.rows;
+  const cols = json.table.cols.map(c => c.label);
+  const idx = k => cols.indexOf(k);
+
+  return rows.map(row => {
+    const v = i => row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '';
+    const n = k => v(idx(k));
+
+    // 材料を配列化
+    const mats = [];
+    for (let i = 1; i <= 6; i++) {
+      const name = n(`mat${i}_name`);
+      const qty  = parseFloat(n(`mat${i}_qty`)) || 0;
+      if (name) mats.push({ name, qty });
+    }
+
+    // 副材料を辞書化 { 親材料名: [{name, qty}, ...] }
+    const submats = {};
+    for (let i = 1; i <= 3; i++) {
+      const parent = n(`sub${i}_parent`);
+      const name   = n(`sub${i}_name`);
+      const qty    = parseFloat(n(`sub${i}_qty`)) || 0;
+      if (parent && name) {
+        if (!submats[parent]) submats[parent] = [];
+        submats[parent].push({ name, qty });
+      }
+    }
+
+    return {
+      name:      n('name'),
+      category:  n('category'),
+      image_url: n('image_url'),
+      mats,
+      submats,
+    };
+  }).filter(r => r.name);
+}
+
+// カテゴリボタン生成
+function buildCategoryButtons() {
+  const cats = [...new Set(allData.map(r => r.category).filter(Boolean))];
+  const wrap = document.getElementById('cat-buttons');
+  wrap.innerHTML = `<button class="cat-btn active" onclick="setCategory('all',this)">すべて</button>`;
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.textContent = cat;
+    btn.onclick = function() { setCategory(cat, this); };
+    wrap.appendChild(btn);
+  });
+}
+
+function setCategory(cat, el) {
+  currentCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  render();
+}
+
+function render() {
+  const q = document.getElementById('search').value.toLowerCase();
+  const rows = allData.filter(r => {
+    if (currentCat !== 'all' && r.category !== currentCat) return false;
+    if (q) {
+      const inName = r.name.toLowerCase().includes(q);
+      const inMat  = r.mats.some(m => m.name.toLowerCase().includes(q));
+      if (!inName && !inMat) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('result-info').textContent =
+    rows.length ? `${rows.length}件のレシピを表示中` : '';
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+    return;
+  }
+
+  rows.forEach(r => {
+    const key = r.name;
+    if (!quantities[key]) quantities[key] = 1;
+    const qty = quantities[key];
+    const isOpen = expanded[key];
+    const hasSub = Object.keys(r.submats).length > 0;
+
+    // メイン行
+    const tr = document.createElement('tr');
+    const imgHTML = r.image_url
+      ? `<img src="${r.image_url}" alt="${r.name}" onerror="this.parentNode.textContent='🪑'">`
+      : '🪑';
+
+    tr.innerHTML = `
+      <td>
+        <div class="item-cell">
+          <div class="item-img">${imgHTML}</div>
+          <div>
+            <div class="item-name">${r.name}</div>
+            <span class="cat-badge">${r.category}</span>
+          </div>
+        </div>
+      </td>
+      <td>
+        <div class="mat-list">
+          ${r.mats.map(m =>
+            `<div class="mat-item">${m.name} <span class="mat-qty">×${m.qty * qty}</span></div>`
+          ).join('')}
+        </div>
+      </td>
+      <td>
+        <input type="number" min="1" max="9999" value="${qty}"
+          oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()">
+      </td>
+      <td>
+        ${hasSub
+          ? `<button class="expand-btn ${isOpen ? 'open' : ''}"
+              onclick="expanded['${key}']=!expanded['${key}'];render()">
+              ${isOpen ? '▲ 閉じる' : '▼ 副材料'}
+            </button>`
+          : '<span style="color:#3a2e50;font-size:11px">—</span>'}
+      </td>
+    `;
+    tbody.appendChild(tr);
+
+    // 副材料展開行
+    if (isOpen && hasSub) {
+      const subtr = document.createElement('tr');
+      subtr.className = 'sub-row';
+      const subHTML = Object.entries(r.submats).map(([parent, items]) => `
+        <div class="sub-section">
+          <div class="sub-parent-label">▸ <span class="sub-parent-name">${parent}</span> を作るための材料</div>
+          ${items.map(s =>
+            `<div class="sub-mat">${s.name} <span class="sub-mat-qty">×${s.qty * qty}</span></div>`
+          ).join('')}
+        </div>
+      `).join('');
+      subtr.innerHTML = `<td colspan="4">${subHTML}</td>`;
+      tbody.appendChild(subtr);
+    }
+  });
+}
+
+// 検索
+document.getElementById('search').addEventListener('input', render);
+
+// 起動
+loadData();
+</script>
+</body>
+</html>
