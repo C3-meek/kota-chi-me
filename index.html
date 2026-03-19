@@ -83,7 +83,7 @@
 </div>
 
 <div class="table-container">
-  <div style="font-size:11px;color:#aaa;margin-bottom:8px;">※ 副材料の数量は最小数を表記しています。熟練度が上がると計算値よりも少ない量で作り終えることができます。</div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:8px;">※ 副材料の数量は最小獲得数を表記しています</div>
   <div class="result-info" id="result-info"></div>
   <table>
     <thead>
@@ -101,10 +101,10 @@
 </div>
 
 <script>
-const SHEET_ID   = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
-const SHEET_NAME = 'Sheet1';
-let allData = [];
-let currentCat = 'all';
+const SHEET_ID = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
+let SHEETS = [];          // スプレッドシートから動的取得
+let allData = [];         // 全シートのデータ（tag付き）
+let currentTag = 'all';
 const quantities = {};
 const expanded = {};
 
@@ -117,13 +117,29 @@ function fmtQty(raw, multiplier, tilde) {
 }
 
 async function loadData() {
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
   try {
-    const res  = await fetch(url);
-    const text = await res.text();
-    const json = JSON.parse(text.replace(/^[^(]+\(|\);?\s*$/g, ''));
-    allData = parseSheet(json);
-    buildCategoryButtons();
+    // スプレッドシートの「_sheets」シートからシート一覧を取得
+    // _sheetsシートのA列にシート名を縦に並べる運用
+    const configUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=_sheets`;
+    const configRes  = await fetch(configUrl);
+    const configText = await configRes.text();
+    const configJson = JSON.parse(configText.replace(/^[^(]+\(|\);?\s*$/g, ''));
+    SHEETS = configJson.table.rows
+      .map(r => r.c[0] ? String(r.c[0].v || r.c[0].f || '').trim() : '')
+      .filter(Boolean);
+
+    // 全シートのデータを並行取得
+    const results = await Promise.all(SHEETS.map(async sheet => {
+      try {
+        const url  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}`;
+        const res  = await fetch(url);
+        const text = await res.text();
+        const json = JSON.parse(text.replace(/^[^(]+\(|\);?\s*$/g, ''));
+        return parseSheet(json, sheet);
+      } catch(e) { return []; }
+    }));
+    allData = results.flat();
+    buildTagButtons();
     render();
     const now = new Date();
     const y = now.getFullYear();
@@ -137,7 +153,7 @@ async function loadData() {
   }
 }
 
-function parseSheet(json) {
+function parseSheet(json, tag) {
   const cols = json.table.cols.map(c => c.label);
   const idx  = k => cols.indexOf(k);
 
@@ -173,30 +189,29 @@ function parseSheet(json) {
           const tilde = n(`sub${g}_s${s}_m${m}_tilde`) === '1';
           if (name) mats.push({ name, qty, tilde });
         }
-        if (proc || mats.length) steps.push({ connector, proc, mats, result_name, result_qty, result_tilde });
+        if (proc || mats.length || result_name) steps.push({ connector, proc, mats, result_name, result_qty, result_tilde });
       }
       if (steps.length) subgroups.push({ parent, steps });
     }
 
-    return { name: n('name'), category: n('category'), image_url: n('image_url'), mats, subgroups };
+    return { name: n('name'), category: n('category'), image_url: n('image_url'), tag, mats, subgroups };
   }).filter(r => r.name);
 }
 
-function buildCategoryButtons() {
-  const cats = [...new Set(allData.map(r => r.category).filter(Boolean))];
+function buildTagButtons() {
   const wrap = document.getElementById('cat-buttons');
-  wrap.innerHTML = `<button class="cat-btn active" onclick="setCategory('all',this)">すべて</button>`;
-  cats.forEach(cat => {
+  wrap.innerHTML = `<button class="cat-btn active" onclick="setTag('all',this)">すべて</button>`;
+  SHEETS.forEach(tag => {
     const btn = document.createElement('button');
     btn.className = 'cat-btn';
-    btn.textContent = cat;
-    btn.onclick = function() { setCategory(cat, this); };
+    btn.textContent = tag;
+    btn.onclick = function() { setTag(tag, this); };
     wrap.appendChild(btn);
   });
 }
 
-function setCategory(cat, el) {
-  currentCat = cat;
+function setTag(tag, el) {
+  currentTag = tag;
   document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   render();
@@ -205,7 +220,7 @@ function setCategory(cat, el) {
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
   const rows = allData.filter(r => {
-    if (currentCat !== 'all' && r.category !== currentCat) return false;
+    if (currentTag !== 'all' && r.tag !== currentTag) return false;
     if (q) {
       const inName = r.name.toLowerCase().includes(q);
       const inMat  = r.mats.some(m => m.name.toLowerCase().includes(q));
