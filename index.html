@@ -157,6 +157,15 @@
 </div>
 
 <script>
+// 数量表示: 数字なら作成個数倍、テキストならそのまま
+function fmtQty(raw, multiplier) {
+  const num = parseFloat(raw);
+  if (!isNaN(num) && String(raw).trim() !== '') {
+    return `×${num * multiplier}`;
+  }
+  return raw ? String(raw) : '—';
+}
+
 const SHEET_ID   = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
 const SHEET_NAME = 'Sheet1';
 let allData = [];
@@ -194,7 +203,8 @@ function parseSheet(json) {
     const mats = [];
     for (let i = 1; i <= 6; i++) {
       const name = n(`mat${i}_name`);
-      const qty = parseFloat(n(`mat${i}_qty`)) || 0;
+      const qtyRaw = n(`mat${i}_qty`);
+      const qty = qtyRaw;
       if (name) mats.push({ name, qty });
     }
     const subgroups = [];
@@ -204,7 +214,7 @@ function parseSheet(json) {
       const steps = [];
       for (let s = 1; s <= 3; s++) {
         const name = n(`sub${g}_${s}_name`);
-        const qty = parseFloat(n(`sub${g}_${s}_qty`)) || 0;
+        const qty = n(`sub${g}_${s}_qty`);
         const proc = n(`sub${g}_${s}_proc`);
         if (name) steps.push({ name, qty, proc });
       }
@@ -273,7 +283,7 @@ function render() {
 
     tr.innerHTML = `
       <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
-      <td><div class="mat-list">${r.mats.map(m => `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">×${m.qty * qty}</span></div>`).join('')}</div></td>
+      <td><div class="mat-list">${r.mats.map(m => `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>`).join('')}</div></td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
         ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 副材料'}</button>`
@@ -288,7 +298,7 @@ function render() {
         const stepsHTML = g.steps.map((s, i) => {
           const procBadge = s.proc ? `<span class="proc-badge">${s.proc}</span>` : '';
           const arrow = i < g.steps.length - 1 ? `<div class="step-arrow">↓</div>` : '';
-          return `<div class="sub-step"><span class="sub-step-name">${s.name}</span><span class="sub-step-qty">×${s.qty * qty}</span>${procBadge}</div>${arrow}`;
+          return `<div class="sub-step"><span class="sub-step-name">${s.name}</span><span class="sub-step-qty">${fmtQty(s.qty, qty)}</span>${procBadge}</div>${arrow}`;
         }).join('');
         return `<div class="sub-group"><div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div><div class="sub-steps">${stepsHTML}</div></div>`;
       }).join('');
