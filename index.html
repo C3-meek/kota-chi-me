@@ -83,6 +83,7 @@
 </div>
 
 <div class="table-container">
+  <div style="font-size:11px;color:#aaa;margin-bottom:8px;">※ 副材料の数量は最小獲得数を表記しています</div>
   <div class="result-info" id="result-info"></div>
   <table>
     <thead>
@@ -107,12 +108,11 @@ let currentCat = 'all';
 const quantities = {};
 const expanded = {};
 
-function fmtQty(raw, multiplier) {
+function fmtQty(raw, multiplier, tilde) {
   if (!raw || String(raw).trim() === '') return '';
   const s = String(raw).trim();
-  if (s.includes('～')) return s;  // 範囲表記はそのまま
   const num = parseFloat(s);
-  if (!isNaN(num)) return `×${num * multiplier}`;
+  if (!isNaN(num)) return `×${num * multiplier}${tilde ? '～' : ''}`;
   return s;  // テキストメモはそのまま
 }
 
@@ -148,9 +148,10 @@ function parseSheet(json) {
     // 通常材料（最大6種）
     const mats = [];
     for (let i = 1; i <= 6; i++) {
-      const name = n(`mat${i}_name`);
-      const qty  = n(`mat${i}_qty`);
-      if (name) mats.push({ name, qty });
+      const name  = n(`mat${i}_name`);
+      const qty   = n(`mat${i}_qty`);
+      const tilde = n(`mat${i}_tilde`) === '1';
+      if (name) mats.push({ name, qty, tilde });
     }
 
     // 副材料グループ（最大5グループ × 5ステップ × 6材料）
@@ -162,15 +163,17 @@ function parseSheet(json) {
       for (let s = 1; s <= 5; s++) {
         const connector   = s > 1 ? n(`sub${g}_s${s}_connector`) : '';
         const proc        = n(`sub${g}_s${s}_proc`);
-        const result_name = n(`sub${g}_s${s}_result_name`);
-        const result_qty  = n(`sub${g}_s${s}_result_qty`);
+        const result_name  = n(`sub${g}_s${s}_result_name`);
+        const result_qty   = n(`sub${g}_s${s}_result_qty`);
+        const result_tilde = n(`sub${g}_s${s}_result_tilde`) === '1';
         const mats = [];
         for (let m = 1; m <= 6; m++) {
-          const name = n(`sub${g}_s${s}_m${m}_name`);
-          const qty  = n(`sub${g}_s${s}_m${m}_qty`);
-          if (name) mats.push({ name, qty });
+          const name  = n(`sub${g}_s${s}_m${m}_name`);
+          const qty   = n(`sub${g}_s${s}_m${m}_qty`);
+          const tilde = n(`sub${g}_s${s}_m${m}_tilde`) === '1';
+          if (name) mats.push({ name, qty, tilde });
         }
-        if (proc || mats.length) steps.push({ connector, proc, mats, result_name, result_qty });
+        if (proc || mats.length) steps.push({ connector, proc, mats, result_name, result_qty, result_tilde });
       }
       if (steps.length) subgroups.push({ parent, steps });
     }
@@ -239,7 +242,7 @@ function render() {
     tr.innerHTML = `
       <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
       <td><div class="mat-list">${r.mats.map(m =>
-        `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>`
+        `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
       ).join('')}</div></td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
@@ -259,10 +262,10 @@ function render() {
           const procHTML = s.proc
             ? `<span class="proc-badge">${s.proc}</span>` : '';
           const matsHTML = s.mats.map(m =>
-            `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty, qty)}</span></div>`
+            `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
           ).join('');
           const resultHTML = s.result_name
-            ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? ' ' + fmtQty(s.result_qty, qty) : ''}</div>` : '';
+            ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? ' ' + fmtQty(s.result_qty, qty, s.result_tilde) : ''}</div>` : '';
           return `
             ${connectorHTML}
             <div class="sub-step">
