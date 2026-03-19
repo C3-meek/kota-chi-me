@@ -150,19 +150,19 @@ function parseSheet(json) {
       if (name) mats.push({ name, qty });
     }
 
-    // 副材料グループ（最大3グループ × 3ステップ × 4材料）
+    // 副材料グループ（最大5グループ × 5ステップ × 6材料）
     const subgroups = [];
-    for (let g = 1; g <= 3; g++) {
+    for (let g = 1; g <= 5; g++) {
       const parent = n(`sub${g}_parent`);
       if (!parent) continue;
       const steps = [];
-      for (let s = 1; s <= 3; s++) {
+      for (let s = 1; s <= 5; s++) {
         const connector   = s > 1 ? n(`sub${g}_s${s}_connector`) : '';
         const proc        = n(`sub${g}_s${s}_proc`);
         const result_name = n(`sub${g}_s${s}_result_name`);
         const result_qty  = n(`sub${g}_s${s}_result_qty`);
         const mats = [];
-        for (let m = 1; m <= 4; m++) {
+        for (let m = 1; m <= 6; m++) {
           const name = n(`sub${g}_s${s}_m${m}_name`);
           const qty  = n(`sub${g}_s${s}_m${m}_qty`);
           if (name) mats.push({ name, qty });
