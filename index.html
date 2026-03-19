@@ -20,6 +20,11 @@
   .cat-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; color: #666; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .cat-btn:hover { border-color: #888; color: #1a1a1a; }
   .cat-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-weight: 600; }
+  .controls-row1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 24px; background: #fff; border-bottom: 0.5px solid #f0ede8; }
+  .controls-row2 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 24px 10px; background: #faf9f6; border-bottom: 1px solid #e8e6e0; }
+  .controls-row2 .cat-btn { font-size: 11px; padding: 4px 12px; border-radius: 20px; }
+  .controls-row2 .cat-btn.active { background: #555; border-color: #555; }
+  @media (max-width: 600px) { .controls-row1, .controls-row2 { padding: 10px 16px; } }
   .table-container { padding: 16px 24px; overflow-x: auto; }
   .result-info { font-size: 12px; color: #aaa; margin-bottom: 10px; }
   table { width: 100%; border-collapse: collapse; min-width: 560px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e8e6e0; }
@@ -60,7 +65,7 @@
   .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
   .spinner { display: inline-block; width: 22px; height: 22px; border: 2px solid #eee; border-top-color: #888; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  @media (max-width: 600px) { header, .controls, .table-container { padding: 12px 16px; } .header-title { font-size: 16px; } }
+  @media (max-width: 600px) { header, .table-container { padding: 12px 16px; } .header-title { font-size: 16px; } }
 </style>
 </head>
 <body>
@@ -73,13 +78,17 @@
   <div class="header-right" id="last-updated"></div>
 </header>
 
-<div class="controls">
+<div class="controls-row1">
   <div class="search-wrap">
     <input type="text" id="search" placeholder="アイテム名・材料名で検索...">
   </div>
-  <div id="cat-buttons">
-    <button class="cat-btn active" onclick="setCategory('all',this)">すべて</button>
+  <div id="tag-buttons">
+    <button class="cat-btn active" onclick="setTag('all',this)">すべて</button>
   </div>
+</div>
+<div class="controls-row2" id="cat-row" style="display:none;">
+  <span style="font-size:11px;color:#aaa;margin-right:4px;">カテゴリ：</span>
+  <div id="cat-buttons"></div>
 </div>
 
 <div class="table-container">
@@ -105,6 +114,7 @@ const SHEET_ID = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
 let SHEETS = [];          // スプレッドシートから動的取得
 let allData = [];         // 全シートのデータ（tag付き）
 let currentTag = 'all';
+let currentCat = 'all';
 const quantities = {};
 const expanded = {};
 
@@ -199,7 +209,7 @@ function parseSheet(json, tag) {
 }
 
 function buildTagButtons() {
-  const wrap = document.getElementById('cat-buttons');
+  const wrap = document.getElementById('tag-buttons');
   wrap.innerHTML = `<button class="cat-btn active" onclick="setTag('all',this)">すべて</button>`;
   SHEETS.forEach(tag => {
     const btn = document.createElement('button');
@@ -210,9 +220,42 @@ function buildTagButtons() {
   });
 }
 
+function buildCatButtons(tag) {
+  const catRow  = document.getElementById('cat-row');
+  const catWrap = document.getElementById('cat-buttons');
+  if (tag === 'all') {
+    catRow.style.display = 'none';
+    currentCat = 'all';
+    return;
+  }
+  // そのタグのカテゴリ一覧
+  const cats = [...new Set(
+    allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean)
+  )].sort();
+  if (cats.length === 0) { catRow.style.display = 'none'; currentCat = 'all'; return; }
+  catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
+  cats.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.textContent = cat;
+    btn.onclick = function() { setCat(cat, this); };
+    catWrap.appendChild(btn);
+  });
+  catRow.style.display = 'flex';
+}
+
 function setTag(tag, el) {
   currentTag = tag;
-  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  currentCat = 'all';
+  document.querySelectorAll('#tag-buttons .cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  buildCatButtons(tag);
+  render();
+}
+
+function setCat(cat, el) {
+  currentCat = cat;
+  document.querySelectorAll('#cat-buttons .cat-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   render();
 }
@@ -221,6 +264,7 @@ function render() {
   const q = document.getElementById('search').value.toLowerCase();
   const rows = allData.filter(r => {
     if (currentTag !== 'all' && r.tag !== currentTag) return false;
+    if (currentCat !== 'all' && r.category !== currentCat) return false;
     if (q) {
       const inName = r.name.toLowerCase().includes(q);
       const inMat  = r.mats.some(m => m.name.toLowerCase().includes(q));
