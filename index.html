@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>黒い砂漠 加工・製作レシピ検索</title>
+<title>黒い砂漠 家具作成レシピ検索</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
@@ -73,7 +73,7 @@
 <header>
   <div>
     <div class="header-logo">Black Desert Online</div>
-    <div class="header-title">加工・製作レシピ検索</div>
+    <div class="header-title">家具作成レシピ検索</div>
   </div>
   <div class="header-right" id="last-updated"></div>
 </header>
@@ -95,6 +95,7 @@
   <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
     <p>※ 副材料の数量は最小数を表記しています</p>
     <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
+  </div>
   <div class="result-info" id="result-info"></div>
   <table>
     <thead>
@@ -184,18 +185,18 @@ function parseSheet(json, tag) {
 
     // 副材料グループ（最大5グループ × 5ステップ × 6材料）
     const subgroups = [];
-    for (let g = 1; g <= 5; g++) {
+    for (let g = 1; g <= 7; g++) {
       const parent = n(`sub${g}_parent`);
       if (!parent) continue;
       const steps = [];
-      for (let s = 1; s <= 5; s++) {
+      for (let s = 1; s <= 10; s++) {
         const connector   = s > 1 ? n(`sub${g}_s${s}_connector`) : '';
         const proc        = n(`sub${g}_s${s}_proc`);
         const result_name  = n(`sub${g}_s${s}_result_name`);
         const result_qty   = n(`sub${g}_s${s}_result_qty`);
         const result_tilde = n(`sub${g}_s${s}_result_tilde`) === '1';
         const mats = [];
-        for (let m = 1; m <= 6; m++) {
+        for (let m = 1; m <= 10; m++) {
           const name  = n(`sub${g}_s${s}_m${m}_name`);
           const qty   = n(`sub${g}_s${s}_m${m}_qty`);
           const tilde = n(`sub${g}_s${s}_m${m}_tilde`) === '1';
@@ -206,7 +207,7 @@ function parseSheet(json, tag) {
       if (steps.length) subgroups.push({ parent, steps });
     }
 
-    return { name: n('name'), category: n('category'), image_url: n('image_url'), tag, mats, subgroups };
+    return { name: n('name'), category: n('category'), image_url: n('image_url'), craft_level: n('製作所レベル'), craft_cities: n('製作できる都市'), tag, mats, subgroups };
   }).filter(r => r.name);
 }
 
