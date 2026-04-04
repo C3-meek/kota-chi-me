@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>黒い砂漠 製作レシピ検索</title>
+<title>黒い砂漠 家具作成レシピ検索</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
@@ -78,7 +78,7 @@
 <header>
   <div>
     <div class="header-logo">Black Desert Online</div>
-    <div class="header-title">製作レシピ検索</div>
+    <div class="header-title">家具作成レシピ検索</div>
   </div>
   <div class="header-right" id="last-updated"></div>
 </header>
@@ -100,22 +100,21 @@
   <img id="lightbox-img" src="" alt="">
 </div>
 <div class="table-container">
-  <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
-   <p>※ 副材料の数量は最小数を表記しています</p>
-   <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
-  </div>
+  <div style="font-size:11px;color:#aaa;margin-bottom:8px;">※ 副材料の数量は最小獲得数を表記しています</div>
   <div class="result-info" id="result-info"></div>
   <table>
     <thead>
       <tr>
         <th style="width:28%">アイテム名</th>
         <th style="width:auto">製作材料</th>
+        <th style="width:80px">製作所Lv</th>
+        <th style="width:100px">製作できる都市</th>
         <th style="width:80px">作成個数</th>
         <th style="width:90px">副材料</th>
       </tr>
     </thead>
     <tbody id="tbody">
-      <tr><td colspan="4" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
+      <tr><td colspan="6" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
     </tbody>
   </table>
 </div>
@@ -169,7 +168,7 @@ async function loadData() {
     document.getElementById('last-updated').textContent = `最終更新: ${y}-${m}-${d}`;
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="4" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
+      `<tr><td colspan="6" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
     console.error(e);
   }
 }
@@ -293,7 +292,7 @@ function render() {
   tbody.innerHTML = '';
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
     return;
   }
 
@@ -314,6 +313,8 @@ function render() {
       <td><div class="mat-list">${r.mats.map(m =>
         `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
       ).join('')}</div></td>
+      <td style="text-align:center;font-size:12px;">${r.craft_level ? `<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:10px;padding:2px 8px;white-space:nowrap;">Lv.${r.craft_level}</span>` : '<span style="color:#ddd">—</span>'}</td>
+      <td style="font-size:11px;color:#555;line-height:1.6;">${r.craft_cities ? r.craft_cities.split(',').map(c => `<div>・${c.trim()}</div>`).join('') : '<span style="color:#ddd">—</span>'}</td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
         ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 副材料'}</button>`
@@ -354,7 +355,7 @@ function render() {
         `;
       }).join('');
 
-      subtr.innerHTML = `<td colspan="4">${subHTML}</td>`;
+      subtr.innerHTML = `<td colspan="6">${subHTML}</td>`;
       tbody.appendChild(subtr);
     }
   });
