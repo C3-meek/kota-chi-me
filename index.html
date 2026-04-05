@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>黒い砂漠 家具作成レシピ検索</title>
+<title>黒い砂漠 加工・製作レシピ検索</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
@@ -48,7 +48,7 @@
   .expand-btn:hover { border-color: #888; color: #1a1a1a; }
   .expand-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
 
-  /* 副材料展開行 */
+  /* 材料細分化展開行 */
   .sub-row td { background: #faf9f6; padding: 10px 14px 12px 32px; border-bottom: 1px solid #f0ede8; }
   .sub-group { margin-bottom: 14px; }
   .sub-group:last-child { margin-bottom: 0; }
@@ -101,7 +101,7 @@
 </div>
 <div class="table-container">
   <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
-   <p>※ 副材料の数量は単純計算した最小数を表記しています</p>
+   <p>※ 細分化材料の数量は単純計算した最小数を表記しています</p>
    <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p> 
   </div>
   <div class="result-info" id="result-info"></div>
@@ -113,7 +113,7 @@
         <th style="width:8%">製作所Lv</th>
         <th style="width:14%">製作できる都市</th>
         <th style="width:8%">作成個数</th>
-        <th style="width:8%">副材料</th>
+        <th style="width:8%">材料細分化</th>
       </tr>
     </thead>
     <tbody id="tbody">
@@ -320,7 +320,7 @@ function render() {
       <td style="font-size:11px;color:#555;line-height:1.6;">${r.craft_cities ? r.craft_cities.split(',').map(c => `<div>・${c.trim()}</div>`).join('') : '<span style="color:#ddd">—</span>'}</td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
-        ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 副材料'}</button>`
+        ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 材料細分化'}</button>`
         : '<span style="color:#ddd;font-size:11px">—</span>'}</td>
     `;
     tbody.appendChild(tr);
