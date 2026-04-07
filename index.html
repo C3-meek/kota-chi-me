@@ -109,14 +109,13 @@
       <tr>
         <th style="width:22%">アイテム名</th>
         <th style="width:auto">製作材料</th>
-        <th style="width:8%">製作所Lv</th>
-        <th style="width:14%">製作できる都市</th>
+        <th style="width:20%">製作できる都市 / 製作所Lv</th>
         <th style="width:8%">作成個数</th>
         <th style="width:8%">材料細分化</th>
       </tr>
     </thead>
     <tbody id="tbody">
-      <tr><td colspan="6" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
+      <tr><td colspan="5" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
     </tbody>
   </table>
 </div>
@@ -170,7 +169,7 @@ async function loadData() {
     document.getElementById('last-updated').textContent = `最終更新: ${y}-${m}-${d}`;
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="6" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
+      `<tr><td colspan="5" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
     console.error(e);
   }
 }
@@ -216,7 +215,15 @@ function parseSheet(json, tag) {
       if (steps.length) subgroups.push({ parent, steps });
     }
 
-    return { name: n('name'), category: n('category'), image_url: n('image_url'), craft_level: n('製作所レベル'), craft_cities: n('製作できる都市'), tag, mats, subgroups };
+    // 都市×レベルのペア（最大10）
+    const cities = [];
+    for (let c = 1; c <= 10; c++) {
+      const cityName  = n(`city${c}_name`);
+      const cityLevel = n(`city${c}_level`);
+      if (cityName) cities.push({ name: cityName, level: cityLevel });
+    }
+
+    return { name: n('name'), category: n('category'), image_url: n('image_url'), cities, tag, mats, subgroups };
   }).filter(r => r.name);
 }
 
@@ -294,7 +301,7 @@ function render() {
   tbody.innerHTML = '';
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
     return;
   }
 
@@ -315,8 +322,13 @@ function render() {
       <td><div class="mat-list">${r.mats.map(m =>
         `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
       ).join('')}</div></td>
-      <td style="text-align:center;font-size:12px;">${r.craft_level ? `<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:10px;padding:2px 8px;white-space:nowrap;">Lv.${r.craft_level}</span>` : '<span style="color:#ddd">—</span>'}</td>
-      <td style="font-size:11px;color:#555;line-height:1.6;">${r.craft_cities ? r.craft_cities.split(',').map(c => `<div>・${c.trim()}</div>`).join('') : '<span style="color:#ddd">—</span>'}</td>
+      <td style="font-size:11px;color:#555;line-height:1.8;">${r.cities && r.cities.length
+        ? r.cities.map(c =>
+            `<div>・${c.name}${c.level
+              ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>`
+              : ''}</div>`
+          ).join('')
+        : '<span style="color:#ddd">—</span>'}</td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
         ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 材料細分化'}</button>`
@@ -357,7 +369,7 @@ function render() {
         `;
       }).join('');
 
-      subtr.innerHTML = `<td colspan="6">${subHTML}</td>`;
+      subtr.innerHTML = `<td colspan="5">${subHTML}</td>`;
       tbody.appendChild(subtr);
     }
   });
