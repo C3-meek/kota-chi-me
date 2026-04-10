@@ -1,3 +1,4 @@
+<!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -11,7 +12,10 @@
   .header-logo { font-size: 10px; letter-spacing: 0.12em; color: #aaa; text-transform: uppercase; }
   .header-title { font-size: 18px; font-weight: 700; color: #1a1a1a; }
   .header-right { margin-left: auto; font-size: 12px; color: #999; }
-  .controls { padding: 12px 24px; background: #fff; border-bottom: 1px solid #e8e6e0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .controls-row1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 24px; background: #fff; border-bottom: 0.5px solid #f0ede8; }
+  .controls-row2 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 24px 10px; background: #faf9f6; border-bottom: 1px solid #e8e6e0; }
+  .controls-row2 .cat-btn { font-size: 11px; padding: 4px 12px; border-radius: 20px; }
+  .controls-row2 .cat-btn.active { background: #555; border-color: #555; }
   .search-wrap { position: relative; flex: 1; min-width: 200px; }
   .search-wrap::before { content: '🔍'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
   input[type="text"] { width: 100%; padding: 8px 12px 8px 32px; background: #f5f4f0; border: 1px solid #ddd; border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s; }
@@ -20,10 +24,6 @@
   .cat-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; color: #666; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .cat-btn:hover { border-color: #888; color: #1a1a1a; }
   .cat-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-weight: 600; }
-  .controls-row1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 24px; background: #fff; border-bottom: 0.5px solid #f0ede8; }
-  .controls-row2 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 24px 10px; background: #faf9f6; border-bottom: 1px solid #e8e6e0; }
-  .controls-row2 .cat-btn { font-size: 11px; padding: 4px 12px; border-radius: 20px; }
-  .controls-row2 .cat-btn.active { background: #555; border-color: #555; }
   @media (max-width: 600px) { .controls-row1, .controls-row2 { padding: 10px 16px; } }
   .table-container { padding: 16px 24px; overflow-x: auto; }
   .result-info { font-size: 12px; color: #aaa; margin-bottom: 10px; }
@@ -39,6 +39,10 @@
   .item-img img { width: 100%; height: 100%; object-fit: cover; }
   .item-name { font-weight: 600; font-size: 13px; color: #1a1a1a; word-break: break-all; }
   .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
+  /* 効果バッジ（料理専用） */
+  .effect-wrap { margin-top: 5px; }
+  .effect-label { font-size: 10px; color: #f57f17; font-weight: 600; margin-bottom: 2px; }
+  .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
   .mat-list { display: flex; flex-direction: column; gap: 3px; }
   .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; }
   .mat-qty { color: #1a1a1a; font-weight: 600; }
@@ -47,7 +51,6 @@
   .expand-btn { padding: 5px 11px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #888; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
   .expand-btn:hover { border-color: #888; color: #1a1a1a; }
   .expand-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-
   /* 副材料展開行 */
   .sub-row td { background: #faf9f6; padding: 10px 14px 12px 32px; border-bottom: 1px solid #f0ede8; }
   .sub-group { margin-bottom: 14px; }
@@ -103,44 +106,52 @@
   <div style="font-size:11px;color:#aaa;margin-bottom:8px;">
    <p>※ 細分化材料の数量は単純計算した最小数を表記しています</p>
    <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
+  </div>
   <div class="result-info" id="result-info"></div>
   <table>
-    <thead>
+    <thead id="table-head">
       <tr>
         <th style="width:22%">アイテム名</th>
         <th style="width:auto">製作材料</th>
-        <th style="width:20%">製作できる都市 / 製作所Lv</th>
+        <th style="width:8%">製作所Lv</th>
+        <th style="width:14%">製作できる都市</th>
         <th style="width:8%">作成個数</th>
         <th style="width:8%">材料細分化</th>
       </tr>
     </thead>
     <tbody id="tbody">
-      <tr><td colspan="5" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
+      <tr><td colspan="6" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
     </tbody>
   </table>
 </div>
 
 <script>
 const SHEET_ID = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
-let SHEETS = [];          // スプレッドシートから動的取得
-let allData = [];         // 全シートのデータ（tag付き）
+// 効果列を持つシート名（GAS側の EFFECT_SHEETS と合わせる）
+const EFFECT_SHEET_NAMES = ['料理'];
+
+let SHEETS = [];
+let allData = [];
 let currentTag = 'all';
 let currentCat = 'all';
 const quantities = {};
 const expanded = {};
+
+// 現在表示中のタグが効果列を持つかどうか
+function isEffectTag(tag) {
+  return tag !== 'all' && EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+}
 
 function fmtQty(raw, multiplier, tilde) {
   if (!raw || String(raw).trim() === '') return '';
   const s = String(raw).trim();
   const num = parseFloat(s);
   if (!isNaN(num)) return `×${num * multiplier}${tilde ? '～' : ''}`;
-  return s;  // テキストメモはそのまま
+  return s;
 }
 
 async function loadData() {
   try {
-    // スプレッドシートの「_sheets」シートからシート一覧を取得
-    // _sheetsシートのA列にシート名を縦に並べる運用
     const configUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=_sheets`;
     const configRes  = await fetch(configUrl);
     const configText = await configRes.text();
@@ -149,7 +160,6 @@ async function loadData() {
       .map(r => r.c[0] ? String(r.c[0].v || r.c[0].f || '').trim() : '')
       .filter(Boolean);
 
-    // 全シートのデータを並行取得
     const results = await Promise.all(SHEETS.map(async sheet => {
       try {
         const url  = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(sheet)}`;
@@ -163,13 +173,10 @@ async function loadData() {
     buildTagButtons();
     render();
     const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth()+1).padStart(2,'0');
-    const d = String(now.getDate()).padStart(2,'0');
-    document.getElementById('last-updated').textContent = `最終更新: ${y}-${m}-${d}`;
+    document.getElementById('last-updated').textContent = `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="5" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
+      `<tr><td colspan="6" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
     console.error(e);
   }
 }
@@ -177,12 +184,12 @@ async function loadData() {
 function parseSheet(json, tag) {
   const cols = json.table.cols.map(c => c.label);
   const idx  = k => cols.indexOf(k);
+  const hasEffect = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
 
   return json.table.rows.map(row => {
     const v = i => (row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '');
     const n = k => { const i = idx(k); return i >= 0 ? String(v(i)).trim() : ''; };
 
-    // 通常材料（最大6種）
     const mats = [];
     for (let i = 1; i <= 6; i++) {
       const name  = n(`mat${i}_name`);
@@ -191,7 +198,6 @@ function parseSheet(json, tag) {
       if (name) mats.push({ name, qty, tilde });
     }
 
-    // 副材料グループ（最大5グループ × 5ステップ × 6材料）
     const subgroups = [];
     for (let g = 1; g <= 7; g++) {
       const parent = n(`sub${g}_parent`);
@@ -215,15 +221,20 @@ function parseSheet(json, tag) {
       if (steps.length) subgroups.push({ parent, steps });
     }
 
-    // 都市×レベルのペア（最大10）
-    const cities = [];
-    for (let c = 1; c <= 10; c++) {
-      const cityName  = n(`city${c}_name`);
-      const cityLevel = n(`city${c}_level`);
-      if (cityName) cities.push({ name: cityName, level: cityLevel });
-    }
+    // 効果は料理シートのみ取得
+    const effect = hasEffect ? n('effect') : '';
 
-    return { name: n('name'), category: n('category'), image_url: n('image_url'), cities, tag, mats, subgroups };
+    return {
+      name: n('name'),
+      category: n('category'),
+      image_url: n('image_url'),
+      craft_level: n('製作所レベル'),
+      craft_cities: n('製作できる都市'),
+      effect,
+      tag,
+      mats,
+      subgroups
+    };
   }).filter(r => r.name);
 }
 
@@ -242,15 +253,8 @@ function buildTagButtons() {
 function buildCatButtons(tag) {
   const catRow  = document.getElementById('cat-row');
   const catWrap = document.getElementById('cat-buttons');
-  if (tag === 'all') {
-    catRow.style.display = 'none';
-    currentCat = 'all';
-    return;
-  }
-  // そのタグのカテゴリ一覧
-  const cats = [...new Set(
-    allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean)
-  )].sort();
+  if (tag === 'all') { catRow.style.display = 'none'; currentCat = 'all'; return; }
+  const cats = [...new Set(allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean))].sort();
   if (cats.length === 0) { catRow.style.display = 'none'; currentCat = 'all'; return; }
   catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
   cats.forEach(cat => {
@@ -269,6 +273,7 @@ function setTag(tag, el) {
   document.querySelectorAll('#tag-buttons .cat-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
   buildCatButtons(tag);
+  updateTableHeader(tag);
   render();
 }
 
@@ -279,8 +284,38 @@ function setCat(cat, el) {
   render();
 }
 
+// タグに応じてテーブルヘッダーを切り替え（料理タグでは「効果」列を追加）
+function updateTableHeader(tag) {
+  const thead = document.getElementById('table-head');
+  if (isEffectTag(tag)) {
+    thead.innerHTML = `
+      <tr>
+        <th style="width:20%">アイテム名</th>
+        <th style="width:auto">製作材料</th>
+        <th style="width:16%">🍽 効果</th>
+        <th style="width:7%">製作所Lv</th>
+        <th style="width:12%">製作できる都市</th>
+        <th style="width:7%">作成個数</th>
+        <th style="width:8%">材料細分化</th>
+      </tr>`;
+  } else {
+    thead.innerHTML = `
+      <tr>
+        <th style="width:22%">アイテム名</th>
+        <th style="width:auto">製作材料</th>
+        <th style="width:8%">製作所Lv</th>
+        <th style="width:14%">製作できる都市</th>
+        <th style="width:8%">作成個数</th>
+        <th style="width:8%">材料細分化</th>
+      </tr>`;
+  }
+}
+
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
+  const showEffect = isEffectTag(currentTag);
+  const colSpan = showEffect ? 7 : 6;
+
   const rows = allData.filter(r => {
     if (currentTag !== 'all' && r.tag !== currentTag) return false;
     if (currentCat !== 'all' && r.category !== currentCat) return false;
@@ -291,7 +326,8 @@ function render() {
         g.parent.toLowerCase().includes(q) ||
         g.steps.some(s => s.mats.some(m => m.name.toLowerCase().includes(q)))
       );
-      if (!inName && !inMat && !inSub) return false;
+      const inEffect = r.effect && r.effect.toLowerCase().includes(q);
+      if (!inName && !inMat && !inSub && !inEffect) return false;
     }
     return true;
   }).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
@@ -301,7 +337,7 @@ function render() {
   tbody.innerHTML = '';
 
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${colSpan}" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
     return;
   }
 
@@ -314,21 +350,24 @@ function render() {
 
     const tr = document.createElement('tr');
     const imgHTML = r.image_url
-      ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🪑'">`
-      : '🪑';
+      ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`
+      : (r.tag === '料理' ? '🍽' : '🪑');
+
+    // 効果セル（料理タグのみ）
+    const effectCell = showEffect
+      ? `<td>${r.effect
+          ? `<div class="effect-text">${r.effect.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+          : '<span style="color:#ddd;font-size:11px">—</span>'}</td>`
+      : '';
 
     tr.innerHTML = `
       <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
       <td><div class="mat-list">${r.mats.map(m =>
         `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
       ).join('')}</div></td>
-      <td style="font-size:11px;color:#555;line-height:1.8;">${r.cities && r.cities.length
-        ? r.cities.map(c =>
-            `<div>・${c.name}${c.level
-              ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>`
-              : ''}</div>`
-          ).join('')
-        : '<span style="color:#ddd">—</span>'}</td>
+      ${effectCell}
+      <td style="text-align:center;font-size:12px;">${r.craft_level ? `<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:10px;padding:2px 8px;white-space:nowrap;">Lv.${r.craft_level}</span>` : '<span style="color:#ddd">—</span>'}</td>
+      <td style="font-size:11px;color:#555;line-height:1.6;">${r.craft_cities ? r.craft_cities.split(',').map(c => `<div>・${c.trim()}</div>`).join('') : '<span style="color:#ddd">—</span>'}</td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
         ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 材料細分化'}</button>`
@@ -369,7 +408,7 @@ function render() {
         `;
       }).join('');
 
-      subtr.innerHTML = `<td colspan="5">${subHTML}</td>`;
+      subtr.innerHTML = `<td colspan="${colSpan}">${subHTML}</td>`;
       tbody.appendChild(subtr);
     }
   });
