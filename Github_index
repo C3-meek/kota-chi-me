@@ -1,0 +1,830 @@
+<!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>黒い砂漠 加工・製作レシピ検索</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
+        background: #f5f4f0;
+        color: #1a1a1a;
+        min-height: 100vh;
+      }
+      header {
+        background: #fff;
+        border-bottom: 1px solid #e0ddd5;
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+      }
+      .header-logo {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        color: #aaa;
+        text-transform: uppercase;
+      }
+      .header-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: #1a1a1a;
+      }
+      .header-right {
+        margin-left: auto;
+        font-size: 12px;
+        color: #999;
+      }
+      .controls-row1 {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding: 12px 24px;
+        background: #fff;
+        border-bottom: 0.5px solid #f0ede8;
+      }
+      .controls-row2 {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        padding: 8px 24px 10px;
+        background: #faf9f6;
+        border-bottom: 1px solid #e8e6e0;
+      }
+      .controls-row2 .cat-btn {
+        font-size: 11px;
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+      .controls-row2 .cat-btn.active {
+        background: #555;
+        border-color: #555;
+      }
+      .search-wrap {
+        position: relative;
+        flex: 1;
+        min-width: 200px;
+      }
+      .search-wrap::before {
+        content: "🔍";
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 13px;
+        pointer-events: none;
+      }
+      input[type="text"] {
+        width: 100%;
+        padding: 8px 12px 8px 32px;
+        background: #f5f4f0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        color: #1a1a1a;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      input[type="text"]:focus {
+        border-color: #888;
+        background: #fff;
+      }
+      input[type="text"]::placeholder {
+        color: #bbb;
+      }
+      .cat-btn {
+        padding: 6px 14px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        background: #fff;
+        color: #666;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .cat-btn:hover {
+        border-color: #888;
+        color: #1a1a1a;
+      }
+      .cat-btn.active {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #1a1a1a;
+        font-weight: 600;
+      }
+      @media (max-width: 600px) {
+        .controls-row1,
+        .controls-row2 {
+          padding: 10px 16px;
+        }
+      }
+      .table-container {
+        padding: 16px 24px;
+        overflow-x: auto;
+      }
+      .result-info {
+        font-size: 12px;
+        color: #aaa;
+        margin-bottom: 10px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #e8e6e0;
+      }
+      thead tr {
+        background: #f0ede8;
+        border-bottom: 1px solid #ddd;
+      }
+      thead th {
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #555;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      tbody tr {
+        border-bottom: 1px solid #f0ede8;
+        transition: background 0.1s;
+      }
+      tbody tr:last-child {
+        border-bottom: none;
+      }
+      tbody tr:hover {
+        background: #faf9f6;
+      }
+      tbody td {
+        padding: 11px 14px;
+        vertical-align: top;
+        font-size: 13px;
+      }
+      .item-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .item-img {
+        width: 70px;
+        height: 70px;
+        border-radius: 6px;
+        border: 1px solid #e0ddd5;
+        background: #f5f4f0;
+        overflow: hidden;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+      }
+      .item-img img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .item-name {
+        font-weight: 600;
+        font-size: 13px;
+        color: #1a1a1a;
+        word-break: break-all;
+      }
+      .cat-badge {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 10px;
+        background: #f0ede8;
+        color: #666;
+        border: 1px solid #e0ddd5;
+        margin-top: 3px;
+      }
+      .effect-text {
+        font-size: 11px;
+        color: #795548;
+        line-height: 1.6;
+        background: #fff8e1;
+        border: 1px solid #ffe082;
+        border-radius: 6px;
+        padding: 4px 8px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .mat-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+      .mat-item {
+        font-size: 12px;
+        color: #555;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .mat-qty {
+        color: #1a1a1a;
+        font-weight: 600;
+      }
+      input[type="number"] {
+        width: 58px;
+        padding: 5px 8px;
+        background: #f5f4f0;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        color: #1a1a1a;
+        font-size: 13px;
+        text-align: center;
+        outline: none;
+      }
+      input[type="number"]:focus {
+        border-color: #888;
+        background: #fff;
+      }
+      .expand-btn {
+        padding: 5px 11px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fff;
+        color: #888;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .expand-btn:hover {
+        border-color: #888;
+        color: #1a1a1a;
+      }
+      .expand-btn.open {
+        background: #1a1a1a;
+        color: #fff;
+        border-color: #1a1a1a;
+      }
+      .sub-row td {
+        background: #faf9f6;
+        padding: 10px 14px 12px 32px;
+        border-bottom: 1px solid #f0ede8;
+      }
+      .sub-group {
+        margin-bottom: 14px;
+      }
+      .sub-group:last-child {
+        margin-bottom: 0;
+      }
+      .sub-parent-label {
+        font-size: 11px;
+        color: #aaa;
+        margin-bottom: 7px;
+      }
+      .sub-parent-name {
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .sub-steps {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding-left: 8px;
+      }
+      .sub-step {
+        background: #fff;
+        border: 0.5px solid #e8e6e0;
+        border-radius: 6px;
+        padding: 7px 10px;
+        margin-bottom: 2px;
+      }
+      .proc-badge {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 4px;
+        font-size: 10px;
+        background: #e8eaf6;
+        color: #1a237e;
+        border: 1px solid #9fa8da;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+      .step-mats {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .step-mat {
+        font-size: 12px;
+        color: #555;
+        display: flex;
+        gap: 5px;
+        align-items: center;
+      }
+      .step-mat-qty {
+        color: #1a1a1a;
+        font-weight: 600;
+      }
+      .step-result {
+        font-size: 12px;
+        color: #2e7d32;
+        font-weight: 600;
+        margin-top: 5px;
+        padding-top: 5px;
+        border-top: 1px dashed #e0ddd5;
+      }
+      .step-connector {
+        text-align: center;
+        font-size: 12px;
+        color: #1565c0;
+        padding: 3px 0;
+        font-weight: 600;
+      }
+      .state-msg {
+        text-align: center;
+        padding: 60px 20px;
+        color: #bbb;
+        font-size: 14px;
+      }
+      .spinner {
+        display: inline-block;
+        width: 22px;
+        height: 22px;
+        border: 2px solid #eee;
+        border-top-color: #888;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 10px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .lightbox {
+        display: none;
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        cursor: zoom-out;
+      }
+      .lightbox.active { display: flex; }
+      .lightbox img {
+        max-width: 90vw;
+        max-height: 90vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+      }
+      .item-img img {
+        cursor: zoom-in;
+        transition: opacity 0.15s;
+      }
+      .item-img img:hover { opacity: 0.85; }
+      @media (max-width: 600px) {
+        header, .table-container { padding: 12px 16px; }
+        .header-title { font-size: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <div class="header-logo">Black Desert Online</div>
+        <div class="header-title">加工・製作レシピ検索</div>
+      </div>
+      <div class="header-right" id="last-updated"></div>
+    </header>
+
+    <div class="controls-row1">
+      <div class="search-wrap">
+        <input
+          type="text"
+          id="search"
+          placeholder="アイテム名・材料名・効果で検索..."
+        />
+      </div>
+      <div id="tag-buttons">
+        <button class="cat-btn active" onclick="setTag('all', this)">
+          すべて
+        </button>
+      </div>
+    </div>
+    <div class="controls-row2" id="cat-row" style="display: none">
+      <span style="font-size: 11px; color: #aaa; margin-right: 4px">カテゴリ：</span>
+      <div id="cat-buttons"></div>
+    </div>
+
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+      <img id="lightbox-img" src="" alt="" />
+    </div>
+
+    <div class="table-container">
+      <div style="font-size: 11px; color: #aaa; margin-bottom: 8px">
+        <p>※ 細分化材料の数量は単純計算した最小数を表記しています</p>
+        <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
+      </div>
+      <div class="result-info" id="result-info"></div>
+      <table>
+        <thead id="table-head">
+          <tr>
+            <th style="width: 22%">アイテム名</th>
+            <th style="width: auto">製作材料</th>
+            <th style="width: 20%">製作できる都市 / 製作所Lv</th>
+            <th style="width: 8%">作成個数</th>
+            <th style="width: 8%">材料細分化</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr>
+            <td colspan="5" class="state-msg">
+              <div class="spinner"></div>
+              <div>データを読み込んでいます...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <script>
+      // ============================================================
+      // ★ ここを書き換えてください
+      // ============================================================
+      const SUPABASE_URL  = 'https://xxxxxxxxxxxx.supabase.co';
+      const SUPABASE_ANON = 'eyJxxxxxxxxxxxxxxxxxxxxxxxx';
+
+      // 効果列を持つシート名
+      const EFFECT_SHEET_NAMES = ['料理'];
+
+      const { createClient } = supabase;
+      const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+      let SHEETS = [];
+      let allData = [];
+      let currentTag = 'all';
+      let currentCat = 'all';
+      const quantities = {};
+      const expanded = {};
+
+      // ── ユーティリティ ──
+      function isEffectTag(tag) {
+        return tag !== 'all' && EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+      }
+
+      function fmtQty(raw, multiplier, tilde) {
+        if (!raw || String(raw).trim() === '') return '';
+        const s = String(raw).trim();
+        const num = parseFloat(s);
+        if (!isNaN(num)) return `×${num * multiplier}${tilde ? '～' : ''}`;
+        return s;
+      }
+
+      // ── データ読み込み（Supabase版） ──
+      async function loadData() {
+        try {
+          // 1. シート一覧を取得
+          const { data: sheetsData, error: sheetsError } = await sb
+            .from('sheets')
+            .select('id, name')
+            .order('sort_order');
+
+          if (sheetsError) throw sheetsError;
+          SHEETS = (sheetsData || []).map(s => s.name);
+
+          // 2. レシピ全件を関連テーブルごと取得
+          const { data: recipes, error: recipesError } = await sb
+            .from('recipes')
+            .select(`
+              id,
+              name,
+              category,
+              image_url,
+              effect,
+              sheets(name),
+              recipe_cities(sort_order, city_name, city_level),
+              recipe_mats(sort_order, mat_name, mat_qty),
+              recipe_subgroups(
+                id,
+                sort_order,
+                parent,
+                recipe_steps(
+                  id,
+                  sort_order,
+                  connector,
+                  proc,
+                  result_name,
+                  result_qty,
+                  recipe_step_mats(sort_order, mat_name, mat_qty)
+                )
+              )
+            `)
+            .order('name');
+
+          if (recipesError) throw recipesError;
+
+          // 3. 取得データをallDataへ変換
+          allData = (recipes || []).map(r => parseRecipe(r));
+
+          buildTagButtons();
+          render();
+
+          const now = new Date();
+          document.getElementById('last-updated').textContent =
+            `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        } catch (e) {
+          document.getElementById('tbody').innerHTML =
+            `<tr><td colspan="5" class="state-msg">⚠️ データの読み込みに失敗しました。<br>Supabaseの接続設定を確認してください。<br><small style="color:#ccc;">${e.message || ''}</small></td></tr>`;
+          console.error(e);
+        }
+      }
+
+      // ── レシピ行をallDataの形式へ変換 ──
+      function parseRecipe(r) {
+        const tag = r.sheets ? r.sheets.name : '';
+        const hasEffect = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+
+        // 都市
+        const cities = (r.recipe_cities || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(c => ({ name: c.city_name || '', level: c.city_level || '' }));
+
+        // 製作材料
+        const mats = (r.recipe_mats || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(m => ({ name: m.mat_name || '', qty: m.mat_qty || '', tilde: false }));
+
+        // 副材料グループ
+        const subgroups = (r.recipe_subgroups || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(sg => {
+            const steps = (sg.recipe_steps || [])
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((step, si) => {
+                const stepMats = (step.recipe_step_mats || [])
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map(sm => ({ name: sm.mat_name || '', qty: sm.mat_qty || '', tilde: false }));
+                return {
+                  connector: si > 0 ? (step.connector || '') : '',
+                  proc: step.proc || '',
+                  mats: stepMats,
+                  result_name: step.result_name || '',
+                  result_qty: step.result_qty || '',
+                  result_tilde: false,
+                };
+              });
+            return { parent: sg.parent || '', steps };
+          });
+
+        return {
+          name: r.name || '',
+          category: r.category || '',
+          image_url: r.image_url || '',
+          effect: hasEffect ? (r.effect || '') : '',
+          tag,
+          cities,
+          mats,
+          subgroups,
+        };
+      }
+
+      // ── タグボタン構築 ──
+      function buildTagButtons() {
+        const wrap = document.getElementById('tag-buttons');
+        wrap.innerHTML = `<button class="cat-btn active" onclick="setTag('all',this)">すべて</button>`;
+        SHEETS.forEach(tag => {
+          const btn = document.createElement('button');
+          btn.className = 'cat-btn';
+          btn.textContent = tag;
+          btn.onclick = function() { setTag(tag, this); };
+          wrap.appendChild(btn);
+        });
+      }
+
+      // ── カテゴリボタン構築 ──
+      function buildCatButtons(tag) {
+        const catRow  = document.getElementById('cat-row');
+        const catWrap = document.getElementById('cat-buttons');
+        if (tag === 'all') {
+          catRow.style.display = 'none';
+          currentCat = 'all';
+          return;
+        }
+        const cats = [...new Set(
+          allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean)
+        )].sort();
+        if (cats.length === 0) {
+          catRow.style.display = 'none';
+          currentCat = 'all';
+          return;
+        }
+        catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
+        cats.forEach(cat => {
+          const btn = document.createElement('button');
+          btn.className = 'cat-btn';
+          btn.textContent = cat;
+          btn.onclick = function() { setCat(cat, this); };
+          catWrap.appendChild(btn);
+        });
+        catRow.style.display = 'flex';
+      }
+
+      function setTag(tag, el) {
+        currentTag = tag;
+        currentCat = 'all';
+        document.querySelectorAll('#tag-buttons .cat-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        buildCatButtons(tag);
+        updateTableHeader(tag);
+        render();
+      }
+
+      function setCat(cat, el) {
+        currentCat = cat;
+        document.querySelectorAll('#cat-buttons .cat-btn').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        render();
+      }
+
+      // ── テーブルヘッダー切り替え ──
+      function updateTableHeader(tag) {
+        const thead = document.getElementById('table-head');
+        if (isEffectTag(tag)) {
+          thead.innerHTML = `
+            <tr>
+              <th style="width:20%">アイテム名</th>
+              <th style="width:auto">製作材料</th>
+              <th style="width:16%">🍽 効果</th>
+              <th style="width:18%">製作できる都市 / 製作所Lv</th>
+              <th style="width:7%">作成個数</th>
+              <th style="width:8%">材料細分化</th>
+            </tr>`;
+        } else {
+          thead.innerHTML = `
+            <tr>
+              <th style="width:22%">アイテム名</th>
+              <th style="width:auto">製作材料</th>
+              <th style="width:20%">製作できる都市 / 製作所Lv</th>
+              <th style="width:8%">作成個数</th>
+              <th style="width:8%">材料細分化</th>
+            </tr>`;
+        }
+      }
+
+      // ── レンダリング ──
+      function render() {
+        const q = document.getElementById('search').value.toLowerCase();
+        const showEffect = isEffectTag(currentTag);
+        const colSpan = showEffect ? 6 : 5;
+
+        const rows = allData
+          .filter(r => {
+            if (currentTag !== 'all' && r.tag !== currentTag) return false;
+            if (currentCat !== 'all' && r.category !== currentCat) return false;
+            if (q) {
+              const inName   = r.name.toLowerCase().includes(q);
+              const inMat    = r.mats.some(m => m.name.toLowerCase().includes(q));
+              const inSub    = r.subgroups.some(g =>
+                g.parent.toLowerCase().includes(q) ||
+                g.steps.some(s => s.mats.some(m => m.name.toLowerCase().includes(q)))
+              );
+              const inEffect = r.effect && r.effect.toLowerCase().includes(q);
+              const inCity   = r.cities && r.cities.some(c => c.name.toLowerCase().includes(q));
+              if (!inName && !inMat && !inSub && !inEffect && !inCity) return false;
+            }
+            return true;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+
+        document.getElementById('result-info').textContent = rows.length
+          ? `${rows.length}件のレシピを表示中` : '';
+
+        const tbody = document.getElementById('tbody');
+        tbody.innerHTML = '';
+
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="${colSpan}" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+          return;
+        }
+
+        rows.forEach(r => {
+          const key    = r.name;
+          if (!quantities[key]) quantities[key] = 1;
+          const qty    = quantities[key];
+          const isOpen = expanded[key];
+          const hasSub = r.subgroups.length > 0;
+
+          const tr = document.createElement('tr');
+
+          const imgHTML = r.image_url
+            ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`
+            : (r.tag === '料理' ? '🍽' : '🪑');
+
+          const cityHTML = r.cities && r.cities.length
+            ? r.cities.map(c =>
+                `<div>・${c.name}${c.level
+                  ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>`
+                  : ''}</div>`
+              ).join('')
+            : '<span style="color:#ddd">—</span>';
+
+          const effectCell = showEffect
+            ? `<td>${r.effect
+                ? `<div class="effect-text">${r.effect.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>`
+                : '<span style="color:#ddd;font-size:11px">—</span>'
+              }</td>`
+            : '';
+
+          // input の oninput で quantities を直接更新
+          const safeKey = key.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+
+          tr.innerHTML = `
+            <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
+            <td><div class="mat-list">${r.mats.map(m =>
+              `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
+            ).join('')}</div></td>
+            ${effectCell}
+            <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
+            <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${safeKey}']=Math.max(1,parseInt(this.value)||1);render()"></td>
+            <td>${hasSub
+              ? `<button class="expand-btn ${isOpen ? 'open' : ''}" onclick="expanded['${safeKey}']=!expanded['${safeKey}'];render()">${isOpen ? '▲ 閉じる' : '▼ 材料細分化'}</button>`
+              : '<span style="color:#ddd;font-size:11px">—</span>'
+            }</td>
+          `;
+          tbody.appendChild(tr);
+
+          // 副材料展開行
+          if (isOpen && hasSub) {
+            const subtr = document.createElement('tr');
+            subtr.className = 'sub-row';
+
+            const subHTML = r.subgroups.map(g => {
+              const stepsHTML = g.steps.map((s, si) => {
+                const connectorHTML = (si > 0 && s.connector)
+                  ? `<div class="step-connector">${s.connector}</div>` : '';
+                const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : '';
+                const matsHTML = s.mats.map(m =>
+                  `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
+                ).join('');
+                const resultHTML = s.result_name
+                  ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? ' ' + fmtQty(s.result_qty, qty, s.result_tilde) : ''}</div>`
+                  : '';
+                return `
+                  ${connectorHTML}
+                  <div class="sub-step">
+                    ${procHTML}
+                    <div class="step-mats">${matsHTML}</div>
+                    ${resultHTML}
+                  </div>
+                `;
+              }).join('');
+
+              return `
+                <div class="sub-group">
+                  <div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div>
+                  <div class="sub-steps">${stepsHTML}</div>
+                </div>
+              `;
+            }).join('');
+
+            subtr.innerHTML = `<td colspan="${colSpan}">${subHTML}</td>`;
+            tbody.appendChild(subtr);
+          }
+        });
+      }
+
+      // ── ライトボックス ──
+      function openLightbox(src) {
+        document.getElementById('lightbox-img').src = src;
+        document.getElementById('lightbox').classList.add('active');
+      }
+      function closeLightbox() {
+        document.getElementById('lightbox').classList.remove('active');
+      }
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeLightbox();
+      });
+
+      document.getElementById('search').addEventListener('input', render);
+
+      loadData();
+    </script>
+  </body>
+</html>
