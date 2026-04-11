@@ -390,7 +390,7 @@ async function toggleCityMasterPanel() {
   cityMasterPanelOpen = !cityMasterPanelOpen;
   const panel = document.getElementById('city-master-panel');
   const btn   = document.getElementById('city-master-toggle-btn');
-  panel.style.display = cityMasterPanelOpen ? '' : 'none';
+  panel.style.display = cityMasterPanelOpen ? 'block' : 'none';
   btn.style.background = cityMasterPanelOpen ? '#1a1a1a' : '#fff';
   btn.style.color      = cityMasterPanelOpen ? '#fff'    : '#3a5aad';
   btn.style.borderColor= cityMasterPanelOpen ? '#1a1a1a' : '#3a5aad';
