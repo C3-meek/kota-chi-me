@@ -39,9 +39,7 @@
   .item-img img { width: 100%; height: 100%; object-fit: cover; }
   .item-name { font-weight: 600; font-size: 13px; color: #1a1a1a; word-break: break-all; }
   .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
-  /* 効果バッジ（料理専用） */
-  .effect-wrap { margin-top: 5px; }
-  .effect-label { font-size: 10px; color: #f57f17; font-weight: 600; margin-bottom: 2px; }
+  /* 効果テキスト（料理専用） */
   .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
   .mat-list { display: flex; flex-direction: column; gap: 3px; }
   .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; }
@@ -88,7 +86,7 @@
 
 <div class="controls-row1">
   <div class="search-wrap">
-    <input type="text" id="search" placeholder="アイテム名・材料名で検索...">
+    <input type="text" id="search" placeholder="アイテム名・材料名・効果で検索...">
   </div>
   <div id="tag-buttons">
     <button class="cat-btn active" onclick="setTag('all',this)">すべて</button>
@@ -113,21 +111,20 @@
       <tr>
         <th style="width:22%">アイテム名</th>
         <th style="width:auto">製作材料</th>
-        <th style="width:8%">製作所Lv</th>
-        <th style="width:14%">製作できる都市</th>
+        <th style="width:20%">製作できる都市 / 製作所Lv</th>
         <th style="width:8%">作成個数</th>
         <th style="width:8%">材料細分化</th>
       </tr>
     </thead>
     <tbody id="tbody">
-      <tr><td colspan="6" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
+      <tr><td colspan="5" class="state-msg"><div class="spinner"></div><div>データを読み込んでいます...</div></td></tr>
     </tbody>
   </table>
 </div>
 
 <script>
 const SHEET_ID = '1y7ylf52kPRFn7XSlv9xUYA_2QydkccT_oRR7kXTwMpU';
-// 効果列を持つシート名（GAS側の EFFECT_SHEETS と合わせる）
+// 効果列を持つシート名
 const EFFECT_SHEET_NAMES = ['料理'];
 
 let SHEETS = [];
@@ -173,10 +170,11 @@ async function loadData() {
     buildTagButtons();
     render();
     const now = new Date();
-    document.getElementById('last-updated').textContent = `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+    document.getElementById('last-updated').textContent =
+      `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   } catch(e) {
     document.getElementById('tbody').innerHTML =
-      `<tr><td colspan="6" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
+      `<tr><td colspan="5" class="state-msg">⚠️ データの読み込みに失敗しました。<br>スプレッドシートの公開設定を確認してください。</td></tr>`;
     console.error(e);
   }
 }
@@ -190,6 +188,7 @@ function parseSheet(json, tag) {
     const v = i => (row.c[i] ? (row.c[i].v ?? row.c[i].f ?? '') : '');
     const n = k => { const i = idx(k); return i >= 0 ? String(v(i)).trim() : ''; };
 
+    // 通常材料（最大6種）
     const mats = [];
     for (let i = 1; i <= 6; i++) {
       const name  = n(`mat${i}_name`);
@@ -198,6 +197,7 @@ function parseSheet(json, tag) {
       if (name) mats.push({ name, qty, tilde });
     }
 
+    // 副材料グループ（最大7グループ × 10ステップ × 10材料）
     const subgroups = [];
     for (let g = 1; g <= 7; g++) {
       const parent = n(`sub${g}_parent`);
@@ -216,9 +216,18 @@ function parseSheet(json, tag) {
           const tilde = n(`sub${g}_s${s}_m${m}_tilde`) === '1';
           if (name) mats.push({ name, qty, tilde });
         }
-        if (proc || mats.length || result_name) steps.push({ connector, proc, mats, result_name, result_qty, result_tilde });
+        if (proc || mats.length || result_name)
+          steps.push({ connector, proc, mats, result_name, result_qty, result_tilde });
       }
       if (steps.length) subgroups.push({ parent, steps });
+    }
+
+    // 都市×レベルのペア（最大10） ← 新形式 city1_name/city1_level
+    const cities = [];
+    for (let c = 1; c <= 10; c++) {
+      const cityName  = n(`city${c}_name`);
+      const cityLevel = n(`city${c}_level`);
+      if (cityName) cities.push({ name: cityName, level: cityLevel });
     }
 
     // 効果は料理シートのみ取得
@@ -228,9 +237,8 @@ function parseSheet(json, tag) {
       name: n('name'),
       category: n('category'),
       image_url: n('image_url'),
-      craft_level: n('製作所レベル'),
-      craft_cities: n('製作できる都市'),
       effect,
+      cities,
       tag,
       mats,
       subgroups
@@ -254,7 +262,9 @@ function buildCatButtons(tag) {
   const catRow  = document.getElementById('cat-row');
   const catWrap = document.getElementById('cat-buttons');
   if (tag === 'all') { catRow.style.display = 'none'; currentCat = 'all'; return; }
-  const cats = [...new Set(allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean))].sort();
+  const cats = [...new Set(
+    allData.filter(r => r.tag === tag).map(r => r.category).filter(Boolean)
+  )].sort();
   if (cats.length === 0) { catRow.style.display = 'none'; currentCat = 'all'; return; }
   catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
   cats.forEach(cat => {
@@ -293,8 +303,7 @@ function updateTableHeader(tag) {
         <th style="width:20%">アイテム名</th>
         <th style="width:auto">製作材料</th>
         <th style="width:16%">🍽 効果</th>
-        <th style="width:7%">製作所Lv</th>
-        <th style="width:12%">製作できる都市</th>
+        <th style="width:18%">製作できる都市 / 製作所Lv</th>
         <th style="width:7%">作成個数</th>
         <th style="width:8%">材料細分化</th>
       </tr>`;
@@ -303,8 +312,7 @@ function updateTableHeader(tag) {
       <tr>
         <th style="width:22%">アイテム名</th>
         <th style="width:auto">製作材料</th>
-        <th style="width:8%">製作所Lv</th>
-        <th style="width:14%">製作できる都市</th>
+        <th style="width:20%">製作できる都市 / 製作所Lv</th>
         <th style="width:8%">作成個数</th>
         <th style="width:8%">材料細分化</th>
       </tr>`;
@@ -314,20 +322,21 @@ function updateTableHeader(tag) {
 function render() {
   const q = document.getElementById('search').value.toLowerCase();
   const showEffect = isEffectTag(currentTag);
-  const colSpan = showEffect ? 7 : 6;
+  const colSpan = showEffect ? 6 : 5;
 
   const rows = allData.filter(r => {
     if (currentTag !== 'all' && r.tag !== currentTag) return false;
     if (currentCat !== 'all' && r.category !== currentCat) return false;
     if (q) {
-      const inName = r.name.toLowerCase().includes(q);
-      const inMat  = r.mats.some(m => m.name.toLowerCase().includes(q));
-      const inSub  = r.subgroups.some(g =>
+      const inName   = r.name.toLowerCase().includes(q);
+      const inMat    = r.mats.some(m => m.name.toLowerCase().includes(q));
+      const inSub    = r.subgroups.some(g =>
         g.parent.toLowerCase().includes(q) ||
         g.steps.some(s => s.mats.some(m => m.name.toLowerCase().includes(q)))
       );
       const inEffect = r.effect && r.effect.toLowerCase().includes(q);
-      if (!inName && !inMat && !inSub && !inEffect) return false;
+      const inCity   = r.cities && r.cities.some(c => c.name.toLowerCase().includes(q));
+      if (!inName && !inMat && !inSub && !inEffect && !inCity) return false;
     }
     return true;
   }).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
@@ -353,6 +362,15 @@ function render() {
       ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`
       : (r.tag === '料理' ? '🍽' : '🪑');
 
+    // 都市×レベル表示
+    const cityHTML = r.cities && r.cities.length
+      ? r.cities.map(c =>
+          `<div>・${c.name}${c.level
+            ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>`
+            : ''}</div>`
+        ).join('')
+      : '<span style="color:#ddd">—</span>';
+
     // 効果セル（料理タグのみ）
     const effectCell = showEffect
       ? `<td>${r.effect
@@ -366,8 +384,7 @@ function render() {
         `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
       ).join('')}</div></td>
       ${effectCell}
-      <td style="text-align:center;font-size:12px;">${r.craft_level ? `<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:10px;padding:2px 8px;white-space:nowrap;">Lv.${r.craft_level}</span>` : '<span style="color:#ddd">—</span>'}</td>
-      <td style="font-size:11px;color:#555;line-height:1.6;">${r.craft_cities ? r.craft_cities.split(',').map(c => `<div>・${c.trim()}</div>`).join('') : '<span style="color:#ddd">—</span>'}</td>
+      <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
       <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${key}']=Math.max(1,parseInt(this.value)||1);render()"></td>
       <td>${hasSub
         ? `<button class="expand-btn ${isOpen?'open':''}" onclick="expanded['${key}']=!expanded['${key}'];render()">${isOpen?'▲ 閉じる':'▼ 材料細分化'}</button>`
