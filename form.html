@@ -99,6 +99,19 @@
     .calc-row-item .ci-step { font-size: 10px; color: #aaa; }
     .admin-box { max-width: 540px; margin: 0 auto 20px; background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 10px; padding: 12px 16px; }
     .admin-box-title { font-size: 12px; font-weight: 600; color: #3a5aad; margin-bottom: 6px; }
+
+    /* 都市マスタ管理パネル */
+    #city-master-panel { display:none; margin-top:10px; background:#fff; border:1px solid #c5cfe8; border-radius:8px; padding:14px; }
+    #city-master-panel .panel-title { font-size:12px; font-weight:700; color:#1a1a1a; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0ede8; }
+    .city-master-list { display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; margin-bottom:10px; }
+    .city-master-item { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; background:#faf9f6; border:1px solid #f0ede8; border-radius:6px; font-size:13px; }
+    .city-master-item .city-del-btn { background:none; border:1px solid #eee; border-radius:5px; color:#ccc; font-size:12px; padding:2px 8px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+    .city-master-item .city-del-btn:hover { border-color:#e53935; color:#e53935; background:#fff0f0; }
+    .city-add-row { display:flex; gap:6px; }
+    .city-add-row input { flex:1; }
+    .city-add-row button { padding:8px 14px; border:none; border-radius:8px; background:#1a1a1a; color:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .city-add-row button:hover { background:#333; }
+    .city-master-empty { font-size:12px; color:#bbb; text-align:center; padding:16px 0; }
   </style>
 </head>
 <body>
@@ -131,6 +144,7 @@
       <div class="admin-box-title">🔧 管理者メニュー</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" onclick="showNewSheetDialog()" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer;">＋ 新しいシートを作成</button>
+        <button type="button" onclick="toggleCityMasterPanel()" id="city-master-toggle-btn" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer;">🏙 都市マスタを管理</button>
       </div>
       <div id="new-sheet-dialog" style="display:none;margin-top:10px;">
         <div style="display:flex;gap:6px;">
@@ -139,6 +153,20 @@
           <button class="btn-back" style="padding:8px 14px;font-size:13px;" onclick="hideNewSheetDialog()">✕</button>
         </div>
       </div>
+
+      <!-- 都市マスタ管理パネル -->
+      <div id="city-master-panel">
+        <div class="panel-title">🏙 都市マスタ管理</div>
+        <div class="city-master-list" id="city-master-list">
+          <div class="city-master-empty">読み込み中...</div>
+        </div>
+        <div class="city-add-row">
+          <input type="text" id="new-city-name" placeholder="都市名を入力（例: カルフェオン）" />
+          <button onclick="submitNewCity()">＋ 追加</button>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:8px;">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
+      </div>
+
       <div style="font-size:11px;color:#888;margin-top:6px;">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
     </div>
 
@@ -253,9 +281,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ============================================================
-// ★ ここを書き換えてください
-// ============================================================
 const SUPABASE_URL  = 'https://qvdlqqlstohsxfdersqf.supabase.co';
 const SUPABASE_ANON = 'sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6';
 
@@ -273,6 +298,7 @@ let matCount = 0, subgroupCount = 0;
 let stepCounters = {}, stepMatCounters = {};
 let cityRowCount = 0, availableCities = [];
 let editRecipes = [], currentEditId = null, currentEditSheet = null;
+let cityMasterPanelOpen = false;
 
 // ── 認証 ──
 async function checkAuth() {
@@ -359,10 +385,73 @@ async function submitNewSheet() {
 function showNewSheetDialog() { document.getElementById('new-sheet-dialog').style.display = ''; document.getElementById('new-sheet-name').focus(); }
 function hideNewSheetDialog() { document.getElementById('new-sheet-dialog').style.display = 'none'; document.getElementById('new-sheet-name').value = ''; }
 
-// ── 都市 ──
+// ── 都市マスタ管理 ──
+async function toggleCityMasterPanel() {
+  cityMasterPanelOpen = !cityMasterPanelOpen;
+  const panel = document.getElementById('city-master-panel');
+  const btn   = document.getElementById('city-master-toggle-btn');
+  panel.style.display = cityMasterPanelOpen ? '' : 'none';
+  btn.style.background = cityMasterPanelOpen ? '#1a1a1a' : '#fff';
+  btn.style.color      = cityMasterPanelOpen ? '#fff'    : '#3a5aad';
+  btn.style.borderColor= cityMasterPanelOpen ? '#1a1a1a' : '#3a5aad';
+  if (cityMasterPanelOpen) await renderCityMasterList();
+}
+
+async function renderCityMasterList() {
+  const listEl = document.getElementById('city-master-list');
+  listEl.innerHTML = '<div class="city-master-empty">読み込み中...</div>';
+  const { data, error } = await sb.from('sheet_cities').select('id,city_name,sort_order').order('sort_order');
+  if (error) { listEl.innerHTML = '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>'; return; }
+  if (!data || data.length === 0) {
+    listEl.innerHTML = '<div class="city-master-empty">都市が登録されていません</div>';
+    return;
+  }
+  listEl.innerHTML = data.map(c => `
+    <div class="city-master-item" id="city-master-row-${c.id}">
+      <span>${c.city_name}</span>
+      <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g,"\\'")}')">× 削除</button>
+    </div>
+  `).join('');
+}
+
+async function submitNewCity() {
+  const input = document.getElementById('new-city-name');
+  const name  = input.value.trim();
+  if (!name) { showToast('都市名を入力してください'); return; }
+
+  // sort_order は現在の最大値 + 1
+  const { data: last } = await sb.from('sheet_cities').select('sort_order').order('sort_order', { ascending: false }).limit(1);
+  const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
+
+  const { error } = await sb.from('sheet_cities').insert({ city_name: name, sort_order: nextOrder });
+  if (error) {
+    showToast(error.code === '23505' ? '同じ都市名が既に存在します' : 'エラー: ' + error.message);
+  } else {
+    showToast('「' + name + '」を追加しました');
+    input.value = '';
+    await renderCityMasterList();
+    await loadCityList(); // フォームの datalist も更新
+  }
+}
+
+async function deleteCityMaster(id, name) {
+  if (!confirm(`「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`)) return;
+  const { error } = await sb.from('sheet_cities').delete().eq('id', id);
+  if (error) { showToast('エラー: ' + error.message); }
+  else {
+    showToast('「' + name + '」を削除しました');
+    await renderCityMasterList();
+    await loadCityList();
+  }
+}
+
+// ── 都市（フォーム用） ──
 async function loadCityList() {
   const { data } = await sb.from('sheet_cities').select('city_name').order('sort_order');
   availableCities = (data||[]).map(r => r.city_name);
+  // datalist を再構築
+  const dl = document.getElementById('city-datalist');
+  if (dl) dl.innerHTML = availableCities.map(c=>`<option value="${c}">`).join('');
 }
 
 function buildLevelOptions(sel) {
