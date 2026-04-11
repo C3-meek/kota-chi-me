@@ -295,13 +295,6 @@
       }
       .city-drag-handle:active { cursor: grabbing; }
 
-      /* DBスキーマ変更案バナー */
-      .schema-note {
-        max-width: 540px; margin: 0 auto 16px;
-        background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
-        padding: 10px 14px; font-size: 12px; color: #795548; line-height: 1.7;
-      }
-      .schema-note strong { color: #e65100; }
     </style>
   </head>
   <body>
@@ -352,18 +345,6 @@
             <div style="font-size:11px;color:#888;margin-top:8px">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
           </div>
           <div style="font-size:11px;color:#888;margin-top:6px">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
-        </div>
-
-        <!-- DBスキーマ変更案 -->
-        <div class="schema-note" id="schema-note">
-          ⚠️ <strong>DBスキーマ変更が必要です。</strong>
-          代替品機能を使うには <code>recipe_mats</code> テーブルに以下カラムを追加してください：<br>
-          <code>alt_name TEXT DEFAULT NULL</code>、
-          <code>alt_qty TEXT DEFAULT NULL</code>、
-          <code>alt_connector TEXT DEFAULT 'あるいは'</code>、
-          <code>parent_mat_id BIGINT REFERENCES recipe_mats(id)</code><br>
-          また <code>insert_recipe_full</code> / <code>update_recipe_full</code> 関数も更新が必要です。
-          <button onclick="document.getElementById('schema-note').style.display='none'" style="margin-left:8px;padding:2px 8px;border:1px solid #ffe082;border-radius:4px;background:#fff;color:#795548;font-size:11px;cursor:pointer">閉じる</button>
         </div>
 
         <div class="steps-indicator">
