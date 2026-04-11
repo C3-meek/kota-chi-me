@@ -1,949 +1,1300 @@
 <!doctype html>
 <!-- 構造：<!DOCTYPE html>〜</html> まで完全なファイル -->
 <html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>レシピ入力フォーム</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: "Noto Sans JP", "Hiragino Sans", sans-serif; background: #f5f4f0; color: #1a1a1a; padding: 24px 16px 60px; }
-    .app-header { text-align: center; margin-bottom: 28px; }
-    .app-header h1 { font-size: 20px; font-weight: 700; }
-    .tab-bar { display: flex; gap: 0; margin-top: 12px; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; max-width: 300px; margin-left: auto; margin-right: auto; }
-    .tab-btn { flex: 1; padding: 8px; border: none; font-size: 13px; cursor: pointer; transition: all 0.15s; }
-    .tab-btn.active { background: #1a1a1a; color: #fff; }
-    .tab-btn:not(.active) { background: #fff; color: #666; border-left: 1px solid #ddd; }
-    .steps-indicator { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 28px; max-width: 480px; margin-left: auto; margin-right: auto; }
-    .si-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
-    .si-circle { width: 30px; height: 30px; border-radius: 50%; background: #e8e6e0; color: #aaa; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; transition: all 0.2s; }
-    .si-step.active .si-circle { background: #1a1a1a; color: #fff; }
-    .si-step.done .si-circle { background: #4caf50; color: #fff; }
-    .si-label { font-size: 10px; color: #aaa; white-space: nowrap; }
-    .si-step.active .si-label { color: #1a1a1a; font-weight: 600; }
-    .si-line { flex: 1; height: 1px; background: #e0ddd5; margin-top: -18px; max-width: 32px; }
-    .card { background: #fff; border: 1px solid #e8e6e0; border-radius: 12px; padding: 20px; max-width: 540px; margin: 0 auto 16px; }
-    .card-title { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0ede8; display: flex; align-items: center; gap: 8px; }
-    .card-title .num { width: 22px; height: 22px; border-radius: 50%; background: #1a1a1a; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
-    .field { margin-bottom: 14px; }
-    .field:last-child { margin-bottom: 0; }
-    label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
-    label .req { color: #e53935; margin-left: 3px; }
-    label .opt { color: #aaa; font-weight: 400; margin-left: 3px; font-size: 11px; }
-    input[type="text"], input[type="email"], input[type="password"], select { width: 100%; padding: 9px 12px; background: #f5f4f0; border: 1px solid #ddd; border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s; }
-    input:focus, select:focus { border-color: #888; background: #fff; }
-    input::placeholder { color: #bbb; }
-    select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
-    .mat-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-    .mat-entry { display: grid; grid-template-columns: 1fr 90px 32px; gap: 6px; align-items: center; background: #faf9f6; border: 1px solid #f0ede8; border-radius: 8px; padding: 8px 10px; }
-    .mat-entry input { background: #fff; margin: 0; }
-    .mat-entry .del-btn { width: 28px; height: 28px; border-radius: 6px; border: 1px solid #eee; background: #fff; color: #ccc; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-    .mat-entry .del-btn:hover { border-color: #e53935; color: #e53935; }
-    .subgroup { border: 1px solid #e8e6e0; border-radius: 10px; padding: 14px; margin-bottom: 10px; background: #faf9f6; }
-    .subgroup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-    .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
-    .step-block { border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff; }
-    .step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-    .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
-    .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
-    .connector-block { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 12px; background: #f0ede8; border-radius: 8px; }
-    .connector-label { font-size: 11px; color: #888; white-space: nowrap; }
-    .connector-presets { display: flex; gap: 5px; flex-wrap: wrap; }
-    .preset-btn { padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px; background: #fff; color: #555; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
-    .preset-btn:hover { border-color: #888; color: #1a1a1a; }
-    .preset-btn.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-    .connector-custom { flex: 1; min-width: 80px; padding: 5px 8px; font-size: 12px; }
-    .add-btn { width: 100%; padding: 8px; border: 1px dashed #ccc; border-radius: 8px; background: transparent; color: #888; font-size: 12px; cursor: pointer; transition: all 0.15s; margin-top: 8px; }
-    .add-btn:hover { border-color: #888; color: #1a1a1a; background: #faf9f6; }
-    .del-text-btn { background: none; border: none; color: #ccc; font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
-    .del-text-btn:hover { color: #e53935; background: #fff0f0; }
-    .section-divider { font-size: 11px; color: #aaa; margin: 10px 0 6px; font-weight: 600; }
-    .nav { display: flex; gap: 10px; max-width: 540px; margin: 0 auto; justify-content: space-between; }
-    .btn-back { padding: 11px 24px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #666; font-size: 14px; cursor: pointer; transition: all 0.15s; }
-    .btn-back:hover { border-color: #888; color: #1a1a1a; }
-    .btn-next { flex: 1; padding: 11px 24px; border: none; border-radius: 8px; background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-    .btn-next:hover { background: #333; }
-    .btn-submit { flex: 1; padding: 11px 24px; border: none; border-radius: 8px; background: #2e7d32; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-    .btn-submit:hover { background: #1b5e20; }
-    .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
-    .confirm-section { margin-bottom: 14px; }
-    .confirm-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
-    .confirm-value { font-size: 13px; color: #1a1a1a; }
-    .confirm-mat { font-size: 12px; color: #555; padding: 2px 0; }
-    .confirm-mat .qty { font-weight: 600; color: #1a1a1a; }
-    .confirm-step { background: #f5f4f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; }
-    .confirm-proc { font-size: 10px; display: inline-block; padding: 1px 6px; border-radius: 4px; background: #e8e6e0; color: #666; margin-bottom: 4px; }
-    .confirm-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
-    .confirm-connector { text-align: center; font-size: 12px; color: #aaa; padding: 3px 0; }
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap; }
-    .toast.show { opacity: 1; }
-    .hidden { display: none !important; }
-    .edit-item { padding: 10px 14px; background: #fff; border: 1px solid #e8e6e0; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.1s; }
-    .edit-item:hover { background: #f5f4f0; }
-    .edit-item-name { font-size: 13px; font-weight: 500; }
-    .edit-item-sheet { font-size: 11px; color: #aaa; }
-    .login-wrap { max-width: 400px; margin: 60px auto; background: #fff; border: 1px solid #e8e6e0; border-radius: 12px; padding: 32px 24px; text-align: center; }
-    .login-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-    .login-wrap p { font-size: 13px; color: #888; margin-bottom: 24px; }
-    .login-wrap input { width: 100%; margin-bottom: 12px; }
-    .calc-tool { margin-top: 12px; background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px; padding: 10px 12px; }
-    .calc-title { font-size: 11px; font-weight: 600; color: #3a5aad; margin-bottom: 8px; }
-    .calc-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-    .calc-qty { width: 60px; padding: 5px 8px; border: 1px solid #c5cfe8; border-radius: 6px; font-size: 13px; text-align: center; background: #fff; color: #1a1a1a; outline: none; }
-    .calc-label { font-size: 12px; color: #3a5aad; }
-    .calc-result { display: flex; flex-direction: column; gap: 3px; }
-    .calc-row-item { font-size: 12px; color: #1a1a1a; display: flex; gap: 6px; align-items: center; }
-    .calc-row-item .ci-name { color: #555; }
-    .calc-row-item .ci-qty { font-weight: 600; }
-    .calc-row-item .ci-step { font-size: 10px; color: #aaa; }
-    .admin-box { max-width: 540px; margin: 0 auto 20px; background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 10px; padding: 12px 16px; }
-    .admin-box-title { font-size: 12px; font-weight: 600; color: #3a5aad; margin-bottom: 6px; }
-
-    /* 都市マスタ管理パネル */
-    #city-master-panel { display:none; margin-top:10px; background:#fff; border:1px solid #c5cfe8; border-radius:8px; padding:14px; }
-    #city-master-panel .panel-title { font-size:12px; font-weight:700; color:#1a1a1a; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #f0ede8; }
-    .city-master-list { display:flex; flex-direction:column; gap:4px; max-height:220px; overflow-y:auto; margin-bottom:10px; }
-    .city-master-item { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; background:#faf9f6; border:1px solid #f0ede8; border-radius:6px; font-size:13px; }
-    .city-master-item .city-del-btn { background:none; border:1px solid #eee; border-radius:5px; color:#ccc; font-size:12px; padding:2px 8px; cursor:pointer; transition:all 0.15s; white-space:nowrap; }
-    .city-master-item .city-del-btn:hover { border-color:#e53935; color:#e53935; background:#fff0f0; }
-    .city-add-row { display:flex; gap:6px; }
-    .city-add-row input { flex:1; }
-    .city-add-row button { padding:8px 14px; border:none; border-radius:8px; background:#1a1a1a; color:#fff; font-size:13px; font-weight:600; cursor:pointer; white-space:nowrap; }
-    .city-add-row button:hover { background:#333; }
-    .city-master-empty { font-size:12px; color:#bbb; text-align:center; padding:16px 0; }
-  </style>
-</head>
-<body>
-
-<!-- ログイン画面 -->
-<div id="login-area" class="login-wrap" style="display:none;">
-  <h2>🔐 ログイン</h2>
-  <p>レシピ管理にはログインが必要です</p>
-  <input type="email" id="login-email" placeholder="メールアドレス" />
-  <input type="password" id="login-password" placeholder="パスワード" />
-  <button class="btn-submit" style="width:100%;margin-top:4px;" onclick="doLogin()">ログイン</button>
-  <p style="font-size:11px;color:#e53935;margin-top:12px;" id="login-error"></p>
-</div>
-
-<!-- メインUI -->
-<div id="main-area" style="display:none;">
-  <div class="app-header">
-    <h1>🏠 レシピ入力フォーム</h1>
-    <p id="user-email-label" style="font-size:11px;color:#aaa;margin-top:4px;"></p>
-    <div class="tab-bar" style="margin-top:12px;">
-      <button id="tab-new" class="tab-btn active" onclick="switchTab('new')">＋ 新規登録</button>
-      <button id="tab-edit" class="tab-btn" onclick="switchTab('edit')">✏ 編集・削除</button>
-    </div>
-    <button onclick="doLogout()" style="margin-top:8px;padding:4px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#888;font-size:11px;cursor:pointer;">ログアウト</button>
-  </div>
-
-  <!-- 新規登録エリア -->
-  <div id="area-new">
-    <div class="admin-box">
-      <div class="admin-box-title">🔧 管理者メニュー</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button type="button" onclick="showNewSheetDialog()" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer;">＋ 新しいシートを作成</button>
-        <button type="button" onclick="toggleCityMasterPanel()" id="city-master-toggle-btn" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer;">🏙 都市マスタを管理</button>
-      </div>
-      <div id="new-sheet-dialog" style="display:none;margin-top:10px;">
-        <div style="display:flex;gap:6px;">
-          <input type="text" id="new-sheet-name" placeholder="例: 加工品" style="flex:1;" />
-          <button class="btn-next" style="padding:8px 14px;font-size:13px;flex:none;" onclick="submitNewSheet()">作成</button>
-          <button class="btn-back" style="padding:8px 14px;font-size:13px;" onclick="hideNewSheetDialog()">✕</button>
-        </div>
-      </div>
-
-      <!-- 都市マスタ管理パネル -->
-      <div id="city-master-panel">
-        <div class="panel-title">🏙 都市マスタ管理</div>
-        <div class="city-master-list" id="city-master-list">
-          <div class="city-master-empty">読み込み中...</div>
-        </div>
-        <div class="city-add-row">
-          <input type="text" id="new-city-name" placeholder="都市名を入力（例: カルフェオン）" />
-          <button onclick="submitNewCity()">＋ 追加</button>
-        </div>
-        <div style="font-size:11px;color:#888;margin-top:8px;">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
-      </div>
-
-      <div style="font-size:11px;color:#888;margin-top:6px;">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
-    </div>
-
-    <div class="steps-indicator">
-      <div class="si-step active" id="si-1"><div class="si-circle">1</div><div class="si-label">基本情報</div></div>
-      <div class="si-line"></div>
-      <div class="si-step" id="si-2"><div class="si-circle">2</div><div class="si-label">製作材料</div></div>
-      <div class="si-line"></div>
-      <div class="si-step" id="si-3"><div class="si-circle">3</div><div class="si-label">副材料</div></div>
-      <div class="si-line"></div>
-      <div class="si-step" id="si-4"><div class="si-circle">4</div><div class="si-label">確認</div></div>
-    </div>
-
-    <!-- Step 1 -->
-    <div id="page-1">
-      <div class="card">
-        <div class="card-title"><span class="num">1</span>基本情報</div>
-        <div class="field">
-          <label>カテゴリ（シート）<span class="req">*</span></label>
-          <select id="f-sheet"></select>
-        </div>
-        <div class="field">
-          <label>アイテム名<span class="req">*</span></label>
-          <input type="text" id="f-name" placeholder="例: トネリコ合板" />
-        </div>
-        <div class="field">
-          <label>サブカテゴリ<span class="opt">任意</span></label>
-          <input type="text" id="f-category" list="cat-list" placeholder="例: ソース類・家具セット" />
-          <datalist id="cat-list"></datalist>
-        </div>
-        <div class="field">
-          <label>画像URL<span class="opt">任意</span></label>
-          <input type="text" id="f-image" placeholder="https://i.imgur.com/..." />
-        </div>
-        <div class="field">
-          <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
-          <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
-          <button type="button" class="add-btn" id="add-city-btn" onclick="addCityRow()">＋ 都市を追加</button>
-        </div>
-        <div class="field" id="f-effect-wrap" style="display:none;">
-          <label>効果<span class="opt">任意・料理のみ</span></label>
-          <input type="text" id="f-effect" placeholder="例: 移動速度 +2、持続時間 90分" />
-        </div>
-      </div>
-      <div class="nav">
-        <button class="btn-submit edit-only-btn" style="display:none;" onclick="updateCurrentRecipe()">✏ 更新する</button>
-        <button class="btn-next" onclick="goStep(2)">次へ：製作材料 →</button>
-      </div>
-    </div>
-
-    <!-- Step 2 -->
-    <div id="page-2" class="hidden">
-      <div class="card">
-        <div class="card-title"><span class="num">2</span>製作材料<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto;">最大6種</span></div>
-        <div class="mat-list" id="mat-list"></div>
-        <button class="add-btn" id="add-mat-btn" onclick="addMat()">＋ 材料を追加</button>
-      </div>
-      <div class="nav">
-        <button class="btn-back" onclick="goStep(1)">← 戻る</button>
-        <button class="btn-submit edit-only-btn" style="display:none;" onclick="updateCurrentRecipe()">✏ 更新する</button>
-        <button class="btn-next" onclick="goStep(3)">次へ：副材料 →</button>
-      </div>
-    </div>
-
-    <!-- Step 3 -->
-    <div id="page-3" class="hidden">
-      <div class="card">
-        <div class="card-title"><span class="num">3</span>副材料（材料の作り方）<span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto;">任意・最大7グループ</span></div>
-        <p style="font-size:12px;color:#888;margin-bottom:14px;">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
-        <datalist id="master-list"></datalist>
-        <div id="subgroup-list"></div>
-        <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
-      </div>
-      <div class="nav">
-        <button class="btn-back" onclick="goStep(2)">← 戻る</button>
-        <button class="btn-submit edit-only-btn" style="display:none;" onclick="updateCurrentRecipe()">✏ 更新する</button>
-        <button class="btn-next" onclick="goStep(4)">次へ：確認 →</button>
-      </div>
-    </div>
-
-    <!-- Step 4 -->
-    <div id="page-4" class="hidden">
-      <div class="card">
-        <div class="card-title"><span class="num">4</span>内容確認</div>
-        <div id="confirm-content"></div>
-      </div>
-      <div class="nav">
-        <button class="btn-back" onclick="goStep(3)">← 戻る</button>
-        <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">✓ 保存する</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 編集・削除エリア -->
-  <div id="area-edit" style="display:none;">
-    <div style="max-width:540px;margin:0 auto 16px;">
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <input type="text" id="edit-search" placeholder="アイテム名で検索..." oninput="filterEditList()" style="flex:1;" />
-        <select id="edit-sheet-filter" onchange="filterEditList()" style="width:100px;"><option value="">全シート</option></select>
-      </div>
-      <div id="edit-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
-    </div>
-    <div id="edit-form-area" style="display:none;">
-      <div style="max-width:540px;margin:0 auto 8px;display:flex;justify-content:space-between;align-items:center;">
-        <button onclick="clearEditForm()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#666;font-size:12px;cursor:pointer;">← 一覧に戻る</button>
-        <button onclick="deleteCurrentRecipe()" style="padding:6px 12px;border:1px solid #e53935;border-radius:6px;background:#fff;color:#e53935;font-size:12px;cursor:pointer;">🗑 削除</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const SUPABASE_URL  = 'https://qvdlqqlstohsxfdersqf.supabase.co';
-const SUPABASE_ANON = 'sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6';
-
-const { createClient } = supabase;
-const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
-
-const CONNECTORS     = ['↓', 'あるいは', 'または', 'さらに'];
-const MAX_GROUPS     = 7;
-const MAX_STEPS      = 10;
-const MAX_MATS       = 10;
-const MAX_BASIC_MATS = 6;
-const MAX_CITIES     = 10;
-
-let matCount = 0, subgroupCount = 0;
-let stepCounters = {}, stepMatCounters = {};
-let cityRowCount = 0, availableCities = [];
-let editRecipes = [], currentEditId = null, currentEditSheet = null;
-let cityMasterPanelOpen = false;
-
-// ── 認証 ──
-async function checkAuth() {
-  const { data: { session } } = await sb.auth.getSession();
-  if (session) showMain(session.user.email);
-  else document.getElementById('login-area').style.display = '';
-}
-
-async function doLogin() {
-  const email    = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const { error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) {
-    document.getElementById('login-error').textContent = 'ログイン失敗: ' + error.message;
-  } else {
-    const { data: { session } } = await sb.auth.getSession();
-    showMain(session.user.email);
-  }
-}
-
-async function doLogout() { await sb.auth.signOut(); location.reload(); }
-
-function showMain(email) {
-  document.getElementById('login-area').style.display = 'none';
-  document.getElementById('main-area').style.display  = '';
-  document.getElementById('user-email-label').textContent = email;
-  init();
-}
-
-// ── 初期化 ──
-async function init() {
-  addMat();
-  await loadSheetList();
-  await loadMasterList();
-  await loadCityList();
-  document.getElementById('subgroup-list').addEventListener('input', function(e) {
-    const sg = e.target.closest('.subgroup');
-    if (sg) calcReverse(sg.id);
-  });
-  document.getElementById('f-sheet').addEventListener('change', async function() {
-    document.getElementById('f-effect-wrap').style.display = this.value === '料理' ? '' : 'none';
-    if (this.value !== '料理') document.getElementById('f-effect').value = '';
-    if (!this.value) return;
-    const sid = await getSheetId(this.value);
-    const { data } = await sb.from('recipes').select('category').eq('sheet_id', sid);
-    const dl = document.getElementById('cat-list');
-    dl.innerHTML = '';
-    [...new Set((data||[]).map(r=>r.category).filter(Boolean))].sort().forEach(c=>{
-      const o = document.createElement('option'); o.value = c; dl.appendChild(o);
-    });
-  });
-}
-
-// ── シート ──
-async function loadSheetList() {
-  const { data } = await sb.from('sheets').select('id,name').order('sort_order');
-  const sel = document.getElementById('f-sheet');
-  sel.innerHTML = '<option value="">選択してください</option>';
-  (data||[]).forEach(s => {
-    const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; sel.appendChild(o);
-  });
-  const ef = document.getElementById('edit-sheet-filter');
-  ef.innerHTML = '<option value="">全シート</option>';
-  (data||[]).forEach(s => {
-    const o = document.createElement('option'); o.value = s.name; o.textContent = s.name; ef.appendChild(o);
-  });
-}
-
-async function getSheetId(name) {
-  const { data } = await sb.from('sheets').select('id').eq('name', name).single();
-  return data ? data.id : null;
-}
-
-async function submitNewSheet() {
-  const name = document.getElementById('new-sheet-name').value.trim();
-  if (!name) { showToast('タグ名を入力してください'); return; }
-  const { data: last } = await sb.from('sheets').select('sort_order').order('sort_order', { ascending: false }).limit(1);
-  const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-  const { error } = await sb.from('sheets').insert({ name, sort_order: nextOrder });
-  if (error) { showToast(error.code === '23505' ? '同じ名前のシートが既に存在します' : 'エラー: ' + error.message); }
-  else { showToast('「' + name + '」を作成しました'); hideNewSheetDialog(); await loadSheetList(); }
-}
-
-function showNewSheetDialog() { document.getElementById('new-sheet-dialog').style.display = ''; document.getElementById('new-sheet-name').focus(); }
-function hideNewSheetDialog() { document.getElementById('new-sheet-dialog').style.display = 'none'; document.getElementById('new-sheet-name').value = ''; }
-
-// ── 都市マスタ管理 ──
-async function toggleCityMasterPanel() {
-  cityMasterPanelOpen = !cityMasterPanelOpen;
-  const panel = document.getElementById('city-master-panel');
-  const btn   = document.getElementById('city-master-toggle-btn');
-  panel.style.display = cityMasterPanelOpen ? 'block' : 'none';
-  btn.style.background = cityMasterPanelOpen ? '#1a1a1a' : '#fff';
-  btn.style.color      = cityMasterPanelOpen ? '#fff'    : '#3a5aad';
-  btn.style.borderColor= cityMasterPanelOpen ? '#1a1a1a' : '#3a5aad';
-  if (cityMasterPanelOpen) await renderCityMasterList();
-}
-
-async function renderCityMasterList() {
-  const listEl = document.getElementById('city-master-list');
-  listEl.innerHTML = '<div class="city-master-empty">読み込み中...</div>';
-  const { data, error } = await sb.from('sheet_cities').select('id,city_name,sort_order').order('sort_order');
-  if (error) { listEl.innerHTML = '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>'; return; }
-  if (!data || data.length === 0) {
-    listEl.innerHTML = '<div class="city-master-empty">都市が登録されていません</div>';
-    return;
-  }
-  listEl.innerHTML = data.map(c => `
-    <div class="city-master-item" id="city-master-row-${c.id}">
-      <span>${c.city_name}</span>
-      <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g,"\\'")}')">× 削除</button>
-    </div>
-  `).join('');
-}
-
-async function submitNewCity() {
-  const input = document.getElementById('new-city-name');
-  const name  = input.value.trim();
-  if (!name) { showToast('都市名を入力してください'); return; }
-
-  // sort_order は現在の最大値 + 1
-  const { data: last } = await sb.from('sheet_cities').select('sort_order').order('sort_order', { ascending: false }).limit(1);
-  const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-
-  const { error } = await sb.from('sheet_cities').insert({ city_name: name, sort_order: nextOrder });
-  if (error) {
-    showToast(error.code === '23505' ? '同じ都市名が既に存在します' : 'エラー: ' + error.message);
-  } else {
-    showToast('「' + name + '」を追加しました');
-    input.value = '';
-    await renderCityMasterList();
-    await loadCityList(); // フォームの datalist も更新
-  }
-}
-
-async function deleteCityMaster(id, name) {
-  if (!confirm(`「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`)) return;
-  const { error } = await sb.from('sheet_cities').delete().eq('id', id);
-  if (error) { showToast('エラー: ' + error.message); }
-  else {
-    showToast('「' + name + '」を削除しました');
-    await renderCityMasterList();
-    await loadCityList();
-  }
-}
-
-// ── 都市（フォーム用） ──
-async function loadCityList() {
-  const { data } = await sb.from('sheet_cities').select('city_name').order('sort_order');
-  availableCities = (data||[]).map(r => r.city_name);
-  // datalist を再構築
-  const dl = document.getElementById('city-datalist');
-  if (dl) dl.innerHTML = availableCities.map(c=>`<option value="${c}">`).join('');
-}
-
-function buildLevelOptions(sel) {
-  let h = '<option value="">レベル未設定</option>';
-  for (let i = 1; i <= 10; i++) h += `<option value="${i}"${sel==i?' selected':''}>Lv.${i}</option>`;
-  return h;
-}
-
-function addCityRow(cityName, cityLevel) {
-  if (cityRowCount >= MAX_CITIES) { showToast('都市は最大10件までです'); return; }
-  cityRowCount++;
-  const rowId = `city-row-${cityRowCount}`;
-  if (!document.getElementById('city-datalist')) {
-    const dl = document.createElement('datalist'); dl.id = 'city-datalist'; document.body.appendChild(dl);
-  }
-  document.getElementById('city-datalist').innerHTML = availableCities.map(c=>`<option value="${c}">`).join('');
-  const div = document.createElement('div');
-  div.className = 'city-row mat-entry'; div.id = rowId;
-  div.style.gridTemplateColumns = '1fr 120px 32px';
-  div.innerHTML = `
-    <input type="text" class="city-name-input" placeholder="都市名" list="city-datalist" value="${cityName||''}">
-    <select class="city-level-select">${buildLevelOptions(cityLevel||'')}</select>
-    <button class="del-btn" onclick="delCityRow('${rowId}')">×</button>
-  `;
-  document.getElementById('city-level-list').appendChild(div);
-  if (cityRowCount >= MAX_CITIES) document.getElementById('add-city-btn').style.display = 'none';
-}
-
-function delCityRow(id) { document.getElementById(id).remove(); cityRowCount--; document.getElementById('add-city-btn').style.display = ''; }
-
-// ── マスタ ──
-async function loadMasterList() {
-  const { data } = await sb.from('recipe_subgroups').select('parent');
-  const dl = document.getElementById('master-list');
-  dl.innerHTML = '';
-  [...new Set((data||[]).map(r=>r.parent).filter(Boolean))].sort().forEach(n=>{
-    const o = document.createElement('option'); o.value = n; dl.appendChild(o);
-  });
-}
-
-// ── 製作材料 ──
-function addMat() {
-  if (matCount >= MAX_BASIC_MATS) { showToast('材料は最大6種までです'); return; }
-  matCount++;
-  const id = `mat-${matCount}`;
-  const div = document.createElement('div');
-  div.className = 'mat-entry'; div.id = id;
-  div.innerHTML = `<input type="text" placeholder="材料名" class="mat-name"><input type="text" placeholder="数量" class="mat-qty"><button class="del-btn" onclick="delEntry('${id}','mat')">×</button>`;
-  document.getElementById('mat-list').appendChild(div);
-  if (matCount >= MAX_BASIC_MATS) document.getElementById('add-mat-btn').style.display = 'none';
-}
-
-function delEntry(id, type) {
-  document.getElementById(id).remove();
-  if (type === 'mat') { matCount--; document.getElementById('add-mat-btn').style.display = ''; }
-}
-
-// ── 副材料グループ ──
-function addSubgroup() {
-  if (subgroupCount >= MAX_GROUPS) { showToast('副材料グループは最大7つまでです'); return; }
-  subgroupCount++;
-  const gid = `sg-${subgroupCount}`;
-  const div = document.createElement('div');
-  div.className = 'subgroup'; div.id = gid;
-  div.innerHTML = `
-    <div class="subgroup-header">
-      <div class="subgroup-title">グループ ${subgroupCount}</div>
-      <button class="del-text-btn" onclick="delSubgroup('${gid}')">× 削除</button>
-    </div>
-    <div class="field">
-      <label>どの材料の作り方か</label>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <input type="text" class="sg-parent" placeholder="例: トネリコ合板" list="master-list" style="flex:1;">
-        <button type="button" class="add-btn" style="width:auto;padding:7px 12px;white-space:nowrap;border-style:solid;margin-top:0;" onclick="applyMaster(this.closest('.subgroup'))">📋 適用</button>
-      </div>
-    </div>
-    <div class="step-list-${gid}"></div>
-    <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
-    <div class="calc-tool" id="calc-${gid}">
-      <div class="calc-title">🧮 逆算ツール</div>
-      <div class="calc-row">
-        <span class="calc-label">最終的に</span>
-        <input type="number" min="1" value="1" class="calc-qty" oninput="calcReverse('${gid}')">
-        <span class="calc-label" id="calc-goal-${gid}">個</span>
-        <span class="calc-label">作りたい</span>
-      </div>
-      <div class="calc-result" id="calc-result-${gid}"></div>
-    </div>
-  `;
-  document.getElementById('subgroup-list').appendChild(div);
-  addStep(gid);
-  if (subgroupCount >= MAX_GROUPS) document.getElementById('add-sub-btn').style.display = 'none';
-}
-
-function delSubgroup(gid) { document.getElementById(gid).remove(); subgroupCount--; document.getElementById('add-sub-btn').style.display = ''; }
-
-function addStep(gid) {
-  if (!stepCounters[gid]) stepCounters[gid] = 0;
-  if (stepCounters[gid] >= MAX_STEPS) { showToast('ステップは最大10つまでです'); return; }
-  stepCounters[gid]++;
-  const sc = stepCounters[gid];
-  const sid = `${gid}-s${sc}`;
-  const container = document.querySelector(`.step-list-${gid}`);
-  if (sc > 1) {
-    const conDiv = document.createElement('div');
-    conDiv.className = 'connector-block'; conDiv.id = `con-${sid}`;
-    conDiv.innerHTML = `
-      <span class="connector-label">接続詞</span>
-      <div class="connector-presets">${CONNECTORS.map(c=>`<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join('')}</div>
-      <input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">
-    `;
-    container.appendChild(conDiv);
-    selectConnector(sid, '↓', conDiv.querySelector('.preset-btn'));
-  }
-  const div = document.createElement('div');
-  div.className = 'step-block'; div.id = sid;
-  div.innerHTML = `
-    <div class="step-header">
-      <span class="step-label-text">ステップ ${sc}</span>
-      ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ''}
-    </div>
-    <div class="field"><label>加工名<span class="opt">任意</span></label><input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理"></div>
-    <div class="section-divider">入力材料</div>
-    <div class="step-mat-list mat-list" id="sml-${sid}"></div>
-    <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
-    <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
-    <div class="result-row">
-      <input type="text" class="step-result-name" placeholder="例: トネリコ板">
-      <input type="text" class="step-result-qty" placeholder="数量">
-    </div>
-  `;
-  container.appendChild(div);
-  addStepMat(sid);
-}
-
-function selectConnector(sid, val, btn) {
-  const block = document.getElementById(`con-${sid}`);
-  block.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  document.getElementById(`coninput-${sid}`).value = '';
-}
-
-function clearPresets(sid) {
-  const block = document.getElementById(`con-${sid}`);
-  if (block) block.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
-}
-
-function delStep(sid, gid) {
-  const c = document.getElementById(`con-${sid}`); if (c) c.remove();
-  document.getElementById(sid).remove(); stepCounters[gid]--;
-}
-
-function addStepMat(sid) {
-  if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
-  if (stepMatCounters[sid] >= MAX_MATS) { showToast('1ステップの材料は最大10つまでです'); return; }
-  stepMatCounters[sid]++;
-  const mid = `${sid}-m${stepMatCounters[sid]}`;
-  const div = document.createElement('div');
-  div.className = 'mat-entry'; div.id = mid;
-  div.innerHTML = `<input type="text" placeholder="材料名" class="smat-name"><input type="text" placeholder="数量" class="smat-qty"><button class="del-btn" onclick="delStepMat('${mid}','${sid}')">×</button>`;
-  document.getElementById(`sml-${sid}`).appendChild(div);
-}
-
-function delStepMat(mid, sid) { document.getElementById(mid).remove(); stepMatCounters[sid]--; }
-
-// ── マスタ適用 ──
-async function applyMaster(groupEl) {
-  const parentName = groupEl.querySelector('.sg-parent').value.trim();
-  if (!parentName) { showToast('まず材料名を入力してください'); return; }
-  const gid = groupEl.id;
-  const { data } = await sb.from('recipe_subgroups')
-    .select('id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(sort_order,mat_name,mat_qty))')
-    .eq('parent', parentName).limit(1).single();
-  if (!data) { showToast('「' + parentName + '」のレシピが見つかりませんでした'); return; }
-  const stepList = groupEl.querySelector(`.step-list-${gid}`);
-  stepList.innerHTML = ''; stepCounters[gid] = 0;
-  stepMatCounters = Object.fromEntries(Object.entries(stepMatCounters).filter(([k]) => !k.startsWith(gid)));
-  (data.recipe_steps||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach((step, si) => {
-    addStep(gid);
-    const sid = `${gid}-s${si+1}`;
-    const sEl = document.getElementById(sid); if (!sEl) return;
-    sEl.querySelector('.step-proc').value        = step.proc        || '';
-    sEl.querySelector('.step-result-name').value = step.result_name || '';
-    sEl.querySelector('.step-result-qty').value  = step.result_qty  || '';
-    if (si > 0 && step.connector) {
-      const cb = document.getElementById(`con-${sid}`);
-      if (cb) {
-        let matched = false;
-        cb.querySelectorAll('.preset-btn').forEach(b => { if (b.textContent === step.connector) { b.classList.add('selected'); matched = true; } else b.classList.remove('selected'); });
-        if (!matched) document.getElementById(`coninput-${sid}`).value = step.connector;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>レシピ入力フォーム</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
+        background: #f5f4f0; color: #1a1a1a;
+        padding: 24px 16px 60px;
       }
-    }
-    const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ''; stepMatCounters[sid] = 0;
-    (step.recipe_step_mats||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach(m => {
-      addStepMat(sid);
-      const entries = sml.querySelectorAll('.mat-entry'); const last = entries[entries.length-1];
-      last.querySelector('.smat-name').value = m.mat_name||''; last.querySelector('.smat-qty').value = m.mat_qty||'';
-    });
-  });
-  showToast('「' + parentName + '」のフローを適用しました');
-  calcReverse(gid);
-}
-
-// ── データ収集 ──
-function collectData() {
-  const cities = [];
-  document.querySelectorAll('#city-level-list .city-row').forEach(row => {
-    const name = row.querySelector('.city-name-input').value.trim();
-    const level = row.querySelector('.city-level-select').value;
-    if (name) cities.push({ name, level });
-  });
-  const data = {
-    sheet_name: document.getElementById('f-sheet').value,
-    name:       document.getElementById('f-name').value.trim(),
-    category:   document.getElementById('f-category').value.trim(),
-    image_url:  document.getElementById('f-image').value.trim(),
-    effect:     document.getElementById('f-effect').value.trim(),
-    cities, mats: [], subgroups: [],
-  };
-  document.querySelectorAll('#mat-list .mat-entry').forEach(el => {
-    const name = el.querySelector('.mat-name').value.trim();
-    const qty  = el.querySelector('.mat-qty').value.trim();
-    if (name) data.mats.push({ name, qty });
-  });
-  document.querySelectorAll('#subgroup-list .subgroup').forEach(gel => {
-    const parent = gel.querySelector('.sg-parent').value.trim();
-    const steps = [];
-    gel.querySelectorAll('.step-block').forEach(sel => {
-      const sid = sel.id;
-      let connector = '';
-      const cb = document.getElementById(`con-${sid}`);
-      if (cb) { const s = cb.querySelector('.preset-btn.selected'); const cu = document.getElementById(`coninput-${sid}`).value.trim(); connector = cu || (s ? s.textContent : '↓'); }
-      const proc = sel.querySelector('.step-proc').value.trim();
-      const mats = [];
-      sel.querySelectorAll('.smat-name').forEach((el, i) => { const n = el.value.trim(); const q = sel.querySelectorAll('.smat-qty')[i].value.trim(); if (n) mats.push({ name: n, qty: q }); });
-      const result_name = sel.querySelector('.step-result-name').value.trim();
-      const result_qty  = sel.querySelector('.step-result-qty').value.trim();
-      if (proc || mats.length) steps.push({ connector, proc, mats, result_name, result_qty });
-    });
-    if (parent) data.subgroups.push({ parent, steps });
-  });
-  return data;
-}
-
-// ── 確認画面 ──
-function buildConfirm() {
-  const d = collectData();
-  let html = '';
-  html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
-  html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-  if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;">${d.effect}</div></div>`;
-  if (d.cities&&d.cities.length) { html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`; d.cities.forEach(c=>{html+=`<div class="confirm-mat">${c.name}${c.level?`　<span class="qty">Lv.${c.level}</span>`:''}</div>`;}); html+=`</div>`; }
-  if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
-  if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
-  if (d.mats.length) { html+=`<div class="confirm-section"><div class="confirm-label">製作材料</div>`; d.mats.forEach(m=>{html+=`<div class="confirm-mat">${m.name} <span class="qty">${m.qty?'×'+m.qty:''}</span></div>`;}); html+=`</div>`; }
-  if (d.subgroups.length) {
-    html+=`<div class="confirm-section"><div class="confirm-label">副材料</div>`;
-    d.subgroups.forEach(g=>{
-      html+=`<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">▸ ${g.parent} の作り方</div>`;
-      g.steps.forEach((s,i)=>{
-        if(i>0&&s.connector) html+=`<div class="confirm-connector">${s.connector}</div>`;
-        html+=`<div class="confirm-step">`;
-        if(s.proc) html+=`<span class="confirm-proc">${s.proc}</span>`;
-        s.mats.forEach(m=>{html+=`<div class="confirm-mat">${m.name} <span class="qty">${m.qty?'×'+m.qty:''}</span></div>`;});
-        if(s.result_name) html+=`<div class="confirm-result">→ ${s.result_name}${s.result_qty?' ×'+s.result_qty:''}</div>`;
-        html+=`</div>`;
-      });
-      html+=`</div>`;
-    });
-    html+=`</div>`;
-  }
-  document.getElementById('confirm-content').innerHTML = html;
-}
-
-// ── 保存 ──
-async function submitRecipe() {
-  const data = collectData();
-  if (!data.name) { showToast('アイテム名がありません'); return; }
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = '保存中...';
-  const { error } = await sb.rpc('insert_recipe_full', { payload: data });
-  if (error) { showToast('エラー: ' + error.message); btn.disabled = false; btn.textContent = '✓ 保存する'; }
-  else { showToast('✓ 保存しました！'); setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = '✓ 保存する'; }, 1500); }
-}
-
-function resetForm() {
-  document.getElementById('f-sheet').selectedIndex = 0;
-  ['f-name','f-category','f-image','f-effect'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('f-effect-wrap').style.display = 'none';
-  document.getElementById('city-level-list').innerHTML = ''; cityRowCount = 0; document.getElementById('add-city-btn').style.display = '';
-  document.getElementById('mat-list').innerHTML = ''; document.getElementById('subgroup-list').innerHTML = '';
-  matCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {};
-  addMat(); goStep(1);
-}
-
-// ── ステップ移動 ──
-function goStep(n) {
-  if (n === 2 && !validate1()) return;
-  if (n === 4) buildConfirm();
-  [1,2,3,4].forEach(i => {
-    document.getElementById(`page-${i}`).classList.toggle('hidden', i !== n);
-    const si = document.getElementById(`si-${i}`);
-    si.classList.toggle('active', i === n); si.classList.toggle('done', i < n);
-  });
-}
-
-function validate1() {
-  if (!document.getElementById('f-sheet').value) { showToast('カテゴリ（シート）を選択してください'); return false; }
-  if (!document.getElementById('f-name').value.trim()) { showToast('アイテム名を入力してください'); return false; }
-  return true;
-}
-
-// ── 逆算ツール ──
-function calcReverse(gid) {
-  const gel = document.getElementById(gid); if (!gel) return;
-  const steps = [];
-  gel.querySelectorAll('.step-block').forEach(sel => {
-    const result_name = sel.querySelector('.step-result-name').value.trim();
-    const result_qty  = parseFloat(sel.querySelector('.step-result-qty').value) || 0;
-    const mats = [];
-    sel.querySelectorAll('.smat-name').forEach((el,i) => { const n=el.value.trim(); const q=parseFloat(sel.querySelectorAll('.smat-qty')[i].value)||0; if(n) mats.push({name:n,qty:q}); });
-    steps.push({ result_name, result_qty, mats });
-  });
-  const goalInput = parseFloat(gel.querySelector('.calc-qty').value)||1;
-  const resultEl  = document.getElementById('calc-result-'+gid);
-  const goalLabel = document.getElementById('calc-goal-'+gid);
-  const lastStep  = [...steps].reverse().find(s=>s.result_name);
-  goalLabel.textContent = lastStep ? lastStep.result_name : '個';
-  if (!lastStep) { resultEl.innerHTML='<div style="font-size:11px;color:#aaa;">結果物を入力してください</div>'; return; }
-  const intermediates = new Set(steps.map(s=>s.result_name).filter(Boolean));
-  const needed = {}; needed[lastStep.result_name] = goalInput;
-  for (let i=steps.length-1;i>=0;i--) {
-    const s=steps[i]; if(!s.result_name||!s.result_qty||!(s.result_name in needed)) continue;
-    const times=Math.ceil(needed[s.result_name]/s.result_qty);
-    s.mats.forEach(m=>{if(!m.name)return; needed[m.name]=(needed[m.name]||0)+m.qty*times;});
-  }
-  const lines=[];
-  Object.entries(needed).forEach(([name,qty])=>{
-    if(name===lastStep.result_name)return;
-    const isRaw=!intermediates.has(name);
-    lines.push(`<div class="calc-row-item"><span class="ci-name">${name}</span><span class="ci-qty">×${qty}</span>${isRaw?'<span class="ci-step">（原材料）</span>':''}</div>`);
-  });
-  resultEl.innerHTML = lines.length ? lines.join('') : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
-}
-
-// ── タブ ──
-function switchTab(tab) {
-  const isNew = tab === 'new';
-  if (isNew && (currentEditId||currentEditSheet)) clearEditForm();
-  document.getElementById('area-new').style.display  = isNew ? '' : 'none';
-  document.getElementById('area-edit').style.display = isNew ? 'none' : '';
-  document.getElementById('tab-new').classList.toggle('active', isNew);
-  document.getElementById('tab-edit').classList.toggle('active', !isNew);
-  if (!isNew && editRecipes.length === 0) loadEditList();
-}
-
-// ── 編集一覧 ──
-async function loadEditList() {
-  document.getElementById('edit-list').innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">読み込み中...</div>';
-  const { data } = await sb.from('recipes').select('id,name,sheets(name)').order('name');
-  editRecipes = (data||[]).map(r=>({ id:r.id, name:r.name, sheet:r.sheets?r.sheets.name:'' }));
-  renderEditList(editRecipes);
-}
-
-function filterEditList() {
-  const q     = document.getElementById('edit-search').value.toLowerCase();
-  const sheet = document.getElementById('edit-sheet-filter').value;
-  renderEditList(editRecipes.filter(r=>(!q||r.name.toLowerCase().includes(q))&&(!sheet||r.sheet===sheet)));
-}
-
-function renderEditList(list) {
-  const el = document.getElementById('edit-list');
-  if (!list.length) { el.innerHTML='<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>'; return; }
-  el.innerHTML = list.map(r=>`
-    <div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')">
-      <span class="edit-item-name">${r.name}</span>
-      <span class="edit-item-sheet">${r.sheet}</span>
-    </div>
-  `).join('');
-}
-
-async function loadEditRecipe(id, sheetName, itemName) {
-  currentEditId = id; currentEditSheet = sheetName;
-  showToast('読み込み中...');
-  const { data } = await sb.from('recipes')
-    .select(`id,name,category,image_url,effect,sheets(name),
-      recipe_cities(sort_order,city_name,city_level),
-      recipe_mats(sort_order,mat_name,mat_qty),
-      recipe_subgroups(id,sort_order,parent,
-        recipe_steps(id,sort_order,connector,proc,result_name,result_qty,
-          recipe_step_mats(sort_order,mat_name,mat_qty)))`)
-    .eq('id', id).single();
-  if (!data) { showToast('データが見つかりません'); return; }
-  fillEditForm(data, sheetName);
-}
-
-function fillEditForm(data, sheetName) {
-  document.getElementById('edit-form-area').style.display = '';
-  document.getElementById('edit-list').style.display = 'none';
-  document.getElementById('edit-search').parentElement.style.display = 'none';
-  document.getElementById('area-new').style.display = '';
-  document.getElementById('area-edit').style.display = '';
-  document.getElementById('mat-list').innerHTML = ''; document.getElementById('subgroup-list').innerHTML = '';
-  matCount=0; subgroupCount=0; stepCounters={}; stepMatCounters={};
-  document.getElementById('f-sheet').value    = sheetName;
-  document.getElementById('f-name').value     = data.name||'';
-  document.getElementById('f-category').value = data.category||'';
-  document.getElementById('f-image').value    = data.image_url||'';
-  const ew = document.getElementById('f-effect-wrap');
-  if (sheetName==='料理') { ew.style.display=''; document.getElementById('f-effect').value=data.effect||''; }
-  else { ew.style.display='none'; document.getElementById('f-effect').value=''; }
-  document.getElementById('city-level-list').innerHTML=''; cityRowCount=0; document.getElementById('add-city-btn').style.display='';
-  (data.recipe_cities||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach(c=>addCityRow(c.city_name,c.city_level));
-  (data.recipe_mats||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach(m=>{
-    addMat();
-    const entries=document.querySelectorAll('#mat-list .mat-entry'); const last=entries[entries.length-1];
-    last.querySelector('.mat-name').value=m.mat_name||''; last.querySelector('.mat-qty').value=m.mat_qty||'';
-  });
-  if (matCount===0) addMat();
-  (data.recipe_subgroups||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach(sg=>{
-    addSubgroup();
-    const groups=document.querySelectorAll('#subgroup-list .subgroup'); const gEl=groups[groups.length-1]; const gid=gEl.id;
-    gEl.querySelector('.sg-parent').value=sg.parent;
-    const stepList=gEl.querySelector(`.step-list-${gid}`); stepList.innerHTML=''; stepCounters[gid]=0;
-    (sg.recipe_steps||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach((step,si)=>{
-      addStep(gid);
-      const sid=`${gid}-s${si+1}`; const sEl=document.getElementById(sid); if(!sEl) return;
-      sEl.querySelector('.step-proc').value=step.proc||''; sEl.querySelector('.step-result-name').value=step.result_name||''; sEl.querySelector('.step-result-qty').value=step.result_qty||'';
-      if(si>0&&step.connector){
-        const cb=document.getElementById(`con-${sid}`);
-        if(cb){ let m=false; cb.querySelectorAll('.preset-btn').forEach(b=>{if(b.textContent===step.connector){b.classList.add('selected');m=true;}else b.classList.remove('selected');}); if(!m){cb.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('selected')); document.getElementById(`coninput-${sid}`).value=step.connector;} }
+      .app-header { text-align: center; margin-bottom: 28px; }
+      .app-header h1 { font-size: 20px; font-weight: 700; }
+      .tab-bar {
+        display: flex; gap: 0; margin-top: 12px;
+        border: 1px solid #ddd; border-radius: 8px; overflow: hidden;
+        max-width: 300px; margin-left: auto; margin-right: auto;
       }
-      const sml=document.getElementById(`sml-${sid}`); sml.innerHTML=''; stepMatCounters[sid]=0;
-      (step.recipe_step_mats||[]).sort((a,b)=>a.sort_order-b.sort_order).forEach(m=>{
-        addStepMat(sid); const entries=sml.querySelectorAll('.mat-entry'); const last=entries[entries.length-1];
-        last.querySelector('.smat-name').value=m.mat_name||''; last.querySelector('.smat-qty').value=m.mat_qty||'';
-      });
-    });
-  });
-  goStep(1);
-  const sb4 = document.querySelector('#page-4 .btn-submit');
-  if(sb4){ sb4.textContent='✏ 更新する'; sb4.onclick=updateCurrentRecipe; }
-  document.querySelectorAll('.edit-only-btn').forEach(b=>b.style.display='');
-  showToast(`「${data.name}」を読み込みました`);
-}
+      .tab-btn {
+        flex: 1; padding: 8px; border: none;
+        font-size: 13px; cursor: pointer; transition: all 0.15s;
+      }
+      .tab-btn.active { background: #1a1a1a; color: #fff; }
+      .tab-btn:not(.active) { background: #fff; color: #666; border-left: 1px solid #ddd; }
+      .steps-indicator {
+        display: flex; align-items: center; justify-content: center;
+        gap: 0; margin-bottom: 28px;
+        max-width: 480px; margin-left: auto; margin-right: auto;
+      }
+      .si-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+      .si-circle {
+        width: 30px; height: 30px; border-radius: 50%;
+        background: #e8e6e0; color: #aaa;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 600; transition: all 0.2s;
+      }
+      .si-step.active .si-circle { background: #1a1a1a; color: #fff; }
+      .si-step.done .si-circle { background: #4caf50; color: #fff; }
+      .si-label { font-size: 10px; color: #aaa; white-space: nowrap; }
+      .si-step.active .si-label { color: #1a1a1a; font-weight: 600; }
+      .si-line { flex: 1; height: 1px; background: #e0ddd5; margin-top: -18px; max-width: 32px; }
+      .card {
+        background: #fff; border: 1px solid #e8e6e0; border-radius: 12px;
+        padding: 20px; max-width: 540px; margin: 0 auto 16px;
+      }
+      .card-title {
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0ede8;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .card-title .num {
+        width: 22px; height: 22px; border-radius: 50%;
+        background: #1a1a1a; color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 11px; flex-shrink: 0;
+      }
+      .field { margin-bottom: 14px; }
+      .field:last-child { margin-bottom: 0; }
+      label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+      label .req { color: #e53935; margin-left: 3px; }
+      label .opt { color: #aaa; font-weight: 400; margin-left: 3px; font-size: 11px; }
+      input[type="text"], input[type="email"], input[type="password"], select {
+        width: 100%; padding: 9px 12px;
+        background: #f5f4f0; border: 1px solid #ddd; border-radius: 8px;
+        color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s;
+      }
+      input:focus, select:focus { border-color: #888; background: #fff; }
+      input::placeholder { color: #bbb; }
+      select {
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+      }
 
-async function updateCurrentRecipe() {
-  if (!currentEditId) return;
-  const data = collectData();
-  if (!data.name) { showToast('アイテム名がありません'); return; }
-  document.querySelectorAll('.edit-only-btn').forEach(b=>{b.disabled=true;b.textContent='更新中...';});
-  const { error } = await sb.rpc('update_recipe_full', { p_recipe_id: currentEditId, payload: data });
-  document.querySelectorAll('.edit-only-btn').forEach(b=>{b.disabled=false;b.textContent='✏ 更新する';});
-  if (error) { showToast('エラー: ' + error.message); }
-  else { showToast('更新しました'); editRecipes=[]; await loadMasterList(); clearEditForm(); }
-}
+      /* ── 製作材料ブロック ── */
+      .mat-block {
+        background: #faf9f6; border: 1px solid #e8e6e0;
+        border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+      }
+      .mat-main-row {
+        display: grid;
+        grid-template-columns: 1fr 90px auto 32px;
+        gap: 6px; align-items: center;
+      }
+      .mat-main-row input { background: #fff; margin: 0; }
+      .alt-add-btn {
+        padding: 5px 10px;
+        border: 1px dashed #3a5aad; border-radius: 6px;
+        background: #fff; color: #3a5aad; font-size: 11px;
+        cursor: pointer; white-space: nowrap; transition: all 0.15s;
+      }
+      .alt-add-btn:hover { background: #f0f4ff; border-style: solid; }
+      .alt-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+      .alt-entry {
+        display: grid;
+        grid-template-columns: 20px auto 1fr 90px 32px;
+        gap: 6px; align-items: center;
+        padding: 7px 10px 7px 8px;
+        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
+      }
+      .alt-tree-icon { color: #9fa8da; font-size: 14px; text-align: center; line-height: 1; }
+      .alt-connector-select {
+        width: auto; padding: 5px 24px 5px 8px; font-size: 12px;
+        background: #fff; border: 1px solid #c5cfe8; border-radius: 6px;
+        color: #3a5aad; font-weight: 600;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239fa8da' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 6px center;
+      }
+      .alt-entry input { background: #fff; margin: 0; }
+      .del-btn {
+        width: 28px; height: 28px; border-radius: 6px;
+        border: 1px solid #eee; background: #fff; color: #ccc;
+        font-size: 16px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+      }
+      .del-btn:hover { border-color: #e53935; color: #e53935; }
 
-async function deleteCurrentRecipe() {
-  if (!currentEditId) return;
-  const name = document.getElementById('f-name').value;
-  if (!confirm(`「${name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
-  const { error } = await sb.from('recipes').delete().eq('id', currentEditId);
-  if (error) { showToast('エラー: ' + error.message); }
-  else { showToast('削除しました'); editRecipes=[]; clearEditForm(); switchTab('edit'); await loadEditList(); }
-}
+      /* 旧 mat-list / mat-entry (step素材用に残す) */
+      .mat-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+      .mat-entry {
+        display: grid; grid-template-columns: 1fr 90px 32px;
+        gap: 6px; align-items: center;
+        background: #faf9f6; border: 1px solid #f0ede8; border-radius: 8px; padding: 8px 10px;
+      }
+      .mat-entry input { background: #fff; margin: 0; }
 
-function clearEditForm() {
-  currentEditId=null; currentEditSheet=null;
-  const fs=document.getElementById('f-sheet'); if(fs&&fs.options.length>0) fs.selectedIndex=0;
-  ['f-name','f-category','f-image','f-effect'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('f-effect-wrap').style.display='none';
-  document.getElementById('city-level-list').innerHTML=''; cityRowCount=0; document.getElementById('add-city-btn').style.display='';
-  document.getElementById('mat-list').innerHTML=''; document.getElementById('subgroup-list').innerHTML='';
-  matCount=0; subgroupCount=0; stepCounters={}; stepMatCounters={}; addMat(); goStep(1);
-  document.getElementById('edit-list').style.display='';
-  document.getElementById('edit-search').parentElement.style.display='';
-  document.getElementById('edit-form-area').style.display='none';
-  document.getElementById('area-new').style.display='none';
-  const sb4=document.querySelector('#page-4 .btn-submit');
-  if(sb4){sb4.textContent='✓ 保存する';sb4.onclick=submitRecipe;}
-  document.querySelectorAll('.edit-only-btn').forEach(b=>b.style.display='none');
-  document.getElementById('edit-search').value=''; document.getElementById('edit-sheet-filter').value='';
-  if(editRecipes.length>0) renderEditList(editRecipes); else loadEditList();
-}
+      .subgroup {
+        border: 1px solid #e8e6e0; border-radius: 10px;
+        padding: 14px; margin-bottom: 10px; background: #faf9f6;
+      }
+      .subgroup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+      .step-block { border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff; }
+      .step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+      .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
+      .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
+      .connector-block {
+        display: flex; align-items: center; gap: 8px; margin: 8px 0;
+        padding: 8px 12px; background: #f0ede8; border-radius: 8px;
+      }
+      .connector-label { font-size: 11px; color: #888; white-space: nowrap; }
+      .connector-presets { display: flex; gap: 5px; flex-wrap: wrap; }
+      .preset-btn {
+        padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px;
+        background: #fff; color: #555; font-size: 12px; cursor: pointer;
+        transition: all 0.15s; white-space: nowrap;
+      }
+      .preset-btn:hover { border-color: #888; color: #1a1a1a; }
+      .preset-btn.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+      .connector-custom { flex: 1; min-width: 80px; padding: 5px 8px; font-size: 12px; }
+      .add-btn {
+        width: 100%; padding: 8px;
+        border: 1px dashed #ccc; border-radius: 8px;
+        background: transparent; color: #888; font-size: 12px; cursor: pointer;
+        transition: all 0.15s; margin-top: 8px;
+      }
+      .add-btn:hover { border-color: #888; color: #1a1a1a; background: #faf9f6; }
+      .del-text-btn {
+        background: none; border: none; color: #ccc;
+        font-size: 12px; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+      }
+      .del-text-btn:hover { color: #e53935; background: #fff0f0; }
+      .section-divider { font-size: 11px; color: #aaa; margin: 10px 0 6px; font-weight: 600; }
+      .nav {
+        display: flex; gap: 10px; max-width: 540px;
+        margin: 0 auto; justify-content: space-between;
+      }
+      .btn-back {
+        padding: 11px 24px; border: 1px solid #ddd; border-radius: 8px;
+        background: #fff; color: #666; font-size: 14px; cursor: pointer; transition: all 0.15s;
+      }
+      .btn-back:hover { border-color: #888; color: #1a1a1a; }
+      .btn-next {
+        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
+        background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
+      }
+      .btn-next:hover { background: #333; }
+      .btn-submit {
+        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
+        background: #2e7d32; color: #fff; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
+      }
+      .btn-submit:hover { background: #1b5e20; }
+      .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+      .confirm-section { margin-bottom: 14px; }
+      .confirm-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
+      .confirm-value { font-size: 13px; color: #1a1a1a; }
+      .confirm-mat { font-size: 12px; color: #555; padding: 2px 0; }
+      .confirm-mat .qty { font-weight: 600; color: #1a1a1a; }
+      .confirm-mat-alt {
+        font-size: 12px; color: #3a5aad; padding: 1px 0 1px 16px;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .confirm-mat-alt .alt-connector { font-size: 10px; color: #9fa8da; }
+      .confirm-step { background: #f5f4f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; }
+      .confirm-proc {
+        font-size: 10px; display: inline-block;
+        padding: 1px 6px; border-radius: 4px; background: #e8e6e0; color: #666; margin-bottom: 4px;
+      }
+      .confirm-result {
+        font-size: 12px; color: #2e7d32; font-weight: 600;
+        margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5;
+      }
+      .confirm-connector { text-align: center; font-size: 12px; color: #aaa; padding: 3px 0; }
+      .toast {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
+        font-size: 13px; opacity: 0; transition: opacity 0.3s;
+        pointer-events: none; z-index: 100; white-space: nowrap;
+      }
+      .toast.show { opacity: 1; }
+      .hidden { display: none !important; }
+      .edit-item {
+        padding: 10px 14px; background: #fff; border: 1px solid #e8e6e0;
+        border-radius: 8px; cursor: pointer;
+        display: flex; justify-content: space-between; align-items: center;
+        transition: background 0.1s;
+      }
+      .edit-item:hover { background: #f5f4f0; }
+      .edit-item-name { font-size: 13px; font-weight: 500; }
+      .edit-item-sheet { font-size: 11px; color: #aaa; }
+      .login-wrap {
+        max-width: 400px; margin: 60px auto; background: #fff;
+        border: 1px solid #e8e6e0; border-radius: 12px; padding: 32px 24px; text-align: center;
+      }
+      .login-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+      .login-wrap p { font-size: 13px; color: #888; margin-bottom: 24px; }
+      .login-wrap input { width: 100%; margin-bottom: 12px; }
+      .calc-tool {
+        margin-top: 12px; background: #f0f4ff;
+        border: 1px solid #c5cfe8; border-radius: 8px; padding: 10px 12px;
+      }
+      .calc-title { font-size: 11px; font-weight: 600; color: #3a5aad; margin-bottom: 8px; }
+      .calc-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+      .calc-qty {
+        width: 60px; padding: 5px 8px; border: 1px solid #c5cfe8;
+        border-radius: 6px; font-size: 13px; text-align: center;
+        background: #fff; color: #1a1a1a; outline: none;
+      }
+      .calc-label { font-size: 12px; color: #3a5aad; }
+      .calc-result { display: flex; flex-direction: column; gap: 3px; }
+      .calc-row-item { font-size: 12px; color: #1a1a1a; display: flex; gap: 6px; align-items: center; }
+      .calc-row-item .ci-name { color: #555; }
+      .calc-row-item .ci-qty { font-weight: 600; }
+      .calc-row-item .ci-step { font-size: 10px; color: #aaa; }
+      .admin-box {
+        max-width: 540px; margin: 0 auto 20px;
+        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 10px; padding: 12px 16px;
+      }
+      .admin-box-title { font-size: 12px; font-weight: 600; color: #3a5aad; margin-bottom: 6px; }
+      #city-master-panel {
+        display: none; margin-top: 10px; background: #fff;
+        border: 1px solid #c5cfe8; border-radius: 8px; padding: 14px;
+      }
+      #city-master-panel .panel-title {
+        font-size: 12px; font-weight: 700; color: #1a1a1a;
+        margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0ede8;
+      }
+      .city-master-list {
+        display: flex; flex-direction: column; gap: 4px;
+        max-height: 220px; overflow-y: auto; margin-bottom: 10px;
+      }
+      .city-master-item {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 7px 10px; background: #faf9f6; border: 1px solid #f0ede8;
+        border-radius: 6px; font-size: 13px;
+      }
+      .city-master-item .city-del-btn {
+        background: none; border: 1px solid #eee; border-radius: 5px;
+        color: #ccc; font-size: 12px; padding: 2px 8px; cursor: pointer;
+        transition: all 0.15s; white-space: nowrap;
+      }
+      .city-master-item .city-del-btn:hover { border-color: #e53935; color: #e53935; background: #fff0f0; }
+      .city-add-row { display: flex; gap: 6px; }
+      .city-add-row input { flex: 1; }
+      .city-add-row button {
+        padding: 8px 14px; border: none; border-radius: 8px;
+        background: #1a1a1a; color: #fff; font-size: 13px; font-weight: 600;
+        cursor: pointer; white-space: nowrap;
+      }
+      .city-add-row button:hover { background: #333; }
+      .city-master-empty { font-size: 12px; color: #bbb; text-align: center; padding: 16px 0; }
+      .city-row { cursor: default; transition: opacity 0.15s; }
+      .city-row.dragging { opacity: 0.4; }
+      .city-row.drag-over { border-color: #3a5aad; background: #f0f4ff; }
+      .city-drag-handle {
+        display: flex; align-items: center; justify-content: center;
+        cursor: grab; color: #ccc; font-size: 14px; user-select: none;
+      }
+      .city-drag-handle:active { cursor: grabbing; }
 
-// ── トースト ──
-function showToast(msg) {
-  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
-}
+      /* DBスキーマ変更案バナー */
+      .schema-note {
+        max-width: 540px; margin: 0 auto 16px;
+        background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+        padding: 10px 14px; font-size: 12px; color: #795548; line-height: 1.7;
+      }
+      .schema-note strong { color: #e65100; }
+    </style>
+  </head>
+  <body>
+    <!-- ログイン画面 -->
+    <div id="login-area" class="login-wrap" style="display:none">
+      <h2>🔐 ログイン</h2>
+      <p>レシピ管理にはログインが必要です</p>
+      <input type="email" id="login-email" placeholder="メールアドレス" />
+      <input type="password" id="login-password" placeholder="パスワード" />
+      <button class="btn-submit" style="width:100%;margin-top:4px" onclick="doLogin()">ログイン</button>
+      <p style="font-size:11px;color:#e53935;margin-top:12px" id="login-error"></p>
+    </div>
 
-checkAuth();
-</script>
-</body>
+    <!-- メインUI -->
+    <div id="main-area" style="display:none">
+      <div class="app-header">
+        <h1>🏠 レシピ入力フォーム</h1>
+        <p id="user-email-label" style="font-size:11px;color:#aaa;margin-top:4px"></p>
+        <div class="tab-bar" style="margin-top:12px">
+          <button id="tab-new" class="tab-btn active" onclick="switchTab('new')">＋ 新規登録</button>
+          <button id="tab-edit" class="tab-btn" onclick="switchTab('edit')">✏ 編集・削除</button>
+        </div>
+        <button onclick="doLogout()" style="margin-top:8px;padding:4px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#888;font-size:11px;cursor:pointer">ログアウト</button>
+      </div>
+
+      <!-- 新規登録エリア -->
+      <div id="area-new">
+        <div class="admin-box">
+          <div class="admin-box-title">🔧 管理者メニュー</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" onclick="showNewSheetDialog()" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">＋ 新しいシートを作成</button>
+            <button type="button" onclick="toggleCityMasterPanel()" id="city-master-toggle-btn" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">🏙 都市マスタを管理</button>
+          </div>
+          <div id="new-sheet-dialog" style="display:none;margin-top:10px">
+            <div style="display:flex;gap:6px">
+              <input type="text" id="new-sheet-name" placeholder="例: 加工品" style="flex:1" />
+              <button class="btn-next" style="padding:8px 14px;font-size:13px;flex:none" onclick="submitNewSheet()">作成</button>
+              <button class="btn-back" style="padding:8px 14px;font-size:13px" onclick="hideNewSheetDialog()">✕</button>
+            </div>
+          </div>
+          <div id="city-master-panel">
+            <div class="panel-title">🏙 都市マスタ管理</div>
+            <div class="city-master-list" id="city-master-list"><div class="city-master-empty">読み込み中...</div></div>
+            <div class="city-add-row">
+              <input type="text" id="new-city-name" placeholder="都市名を入力（例: カルフェオン）" />
+              <button onclick="submitNewCity()">＋ 追加</button>
+            </div>
+            <div style="font-size:11px;color:#888;margin-top:8px">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
+          </div>
+          <div style="font-size:11px;color:#888;margin-top:6px">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
+        </div>
+
+        <!-- DBスキーマ変更案 -->
+        <div class="schema-note" id="schema-note">
+          ⚠️ <strong>DBスキーマ変更が必要です。</strong>
+          代替品機能を使うには <code>recipe_mats</code> テーブルに以下カラムを追加してください：<br>
+          <code>alt_name TEXT DEFAULT NULL</code>、
+          <code>alt_qty TEXT DEFAULT NULL</code>、
+          <code>alt_connector TEXT DEFAULT 'あるいは'</code>、
+          <code>parent_mat_id BIGINT REFERENCES recipe_mats(id)</code><br>
+          また <code>insert_recipe_full</code> / <code>update_recipe_full</code> 関数も更新が必要です。
+          <button onclick="document.getElementById('schema-note').style.display='none'" style="margin-left:8px;padding:2px 8px;border:1px solid #ffe082;border-radius:4px;background:#fff;color:#795548;font-size:11px;cursor:pointer">閉じる</button>
+        </div>
+
+        <div class="steps-indicator">
+          <div class="si-step active" id="si-1"><div class="si-circle">1</div><div class="si-label">基本情報</div></div>
+          <div class="si-line"></div>
+          <div class="si-step" id="si-2"><div class="si-circle">2</div><div class="si-label">製作材料</div></div>
+          <div class="si-line"></div>
+          <div class="si-step" id="si-3"><div class="si-circle">3</div><div class="si-label">副材料</div></div>
+          <div class="si-line"></div>
+          <div class="si-step" id="si-4"><div class="si-circle">4</div><div class="si-label">確認</div></div>
+        </div>
+
+        <!-- Step 1 -->
+        <div id="page-1">
+          <div class="card">
+            <div class="card-title"><span class="num">1</span>基本情報</div>
+            <div class="field">
+              <label>カテゴリ（シート）<span class="req">*</span></label>
+              <select id="f-sheet"></select>
+            </div>
+            <div class="field">
+              <label>アイテム名<span class="req">*</span></label>
+              <input type="text" id="f-name" placeholder="例: トネリコ合板" />
+            </div>
+            <div class="field">
+              <label>サブカテゴリ<span class="opt">任意</span></label>
+              <input type="text" id="f-category" list="cat-list" placeholder="例: ソース類・家具セット" />
+              <datalist id="cat-list"></datalist>
+            </div>
+            <div class="field">
+              <label>画像URL<span class="opt">任意</span></label>
+              <input type="text" id="f-image" placeholder="https://i.imgur.com/..." />
+            </div>
+            <div class="field">
+              <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
+              <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+              <button type="button" class="add-btn" id="add-city-btn" onclick="addCityRow()">＋ 都市を追加</button>
+            </div>
+            <div class="field" id="f-effect-wrap" style="display:none">
+              <label>効果<span class="opt">任意・料理のみ</span></label>
+              <input type="text" id="f-effect" placeholder="例: 移動速度 +2、持続時間 90分" />
+            </div>
+          </div>
+          <div class="nav">
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
+            <button class="btn-next" onclick="goStep(2)">次へ：製作材料 →</button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="page-2" class="hidden">
+          <div class="card">
+            <div class="card-title">
+              <span class="num">2</span>製作材料
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に代替品を追加可</span>
+            </div>
+            <div id="mat-block-list"></div>
+            <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">＋ 材料を追加</button>
+          </div>
+          <div class="nav">
+            <button class="btn-back" onclick="goStep(1)">← 戻る</button>
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
+            <button class="btn-next" onclick="goStep(3)">次へ：副材料 →</button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div id="page-3" class="hidden">
+          <div class="card">
+            <div class="card-title">
+              <span class="num">3</span>副材料（材料の作り方）
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大7グループ</span>
+            </div>
+            <p style="font-size:12px;color:#888;margin-bottom:14px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
+            <datalist id="master-list"></datalist>
+            <div id="subgroup-list"></div>
+            <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
+          </div>
+          <div class="nav">
+            <button class="btn-back" onclick="goStep(2)">← 戻る</button>
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
+            <button class="btn-next" onclick="goStep(4)">次へ：確認 →</button>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div id="page-4" class="hidden">
+          <div class="card">
+            <div class="card-title"><span class="num">4</span>内容確認</div>
+            <div id="confirm-content"></div>
+          </div>
+          <div class="nav">
+            <button class="btn-back" onclick="goStep(3)">← 戻る</button>
+            <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">✓ 保存する</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 編集・削除エリア -->
+      <div id="area-edit" style="display:none">
+        <div style="max-width:540px;margin:0 auto 16px">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input type="text" id="edit-search" placeholder="アイテム名で検索..." oninput="filterEditList()" style="flex:1" />
+            <select id="edit-sheet-filter" onchange="filterEditList()" style="width:100px">
+              <option value="">全シート</option>
+            </select>
+          </div>
+          <div id="edit-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto"></div>
+        </div>
+        <div id="edit-form-area" style="display:none">
+          <div style="max-width:540px;margin:0 auto 8px;display:flex;justify-content:space-between;align-items:center">
+            <button onclick="clearEditForm()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#666;font-size:12px;cursor:pointer">← 一覧に戻る</button>
+            <button onclick="deleteCurrentRecipe()" style="padding:6px 12px;border:1px solid #e53935;border-radius:6px;background:#fff;color:#e53935;font-size:12px;cursor:pointer">🗑 削除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const SUPABASE_URL = "https://qvdlqqlstohsxfdersqf.supabase.co";
+      const SUPABASE_ANON = "sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6";
+
+      const { createClient } = supabase;
+      const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+      const CONNECTORS = ["↓", "あるいは", "または", "さらに"];
+      const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
+      const MAX_GROUPS = 7;
+      const MAX_STEPS = 10;
+      const MAX_MATS = 10;
+      const MAX_BASIC_MATS = 6;
+      const MAX_CITIES = 10;
+      const MAX_ALTS = 3; // 1素材あたりの代替品最大数
+
+      let matBlockCount = 0;   // 製作材料ブロック数
+      let altCounters = {};    // altCounters[blockId] = 代替品数
+      let subgroupCount = 0;
+      let stepCounters = {}, stepMatCounters = {};
+      let cityRowCount = 0, availableCities = [];
+      let editRecipes = [], currentEditId = null, currentEditSheet = null;
+      let cityMasterPanelOpen = false;
+
+      // ── 認証 ──
+      async function checkAuth() {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) showMain(session.user.email);
+        else document.getElementById("login-area").style.display = "";
+      }
+      async function doLogin() {
+        const email = document.getElementById("login-email").value.trim();
+        const password = document.getElementById("login-password").value;
+        const { error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          document.getElementById("login-error").textContent = "ログイン失敗: " + error.message;
+        } else {
+          const { data: { session } } = await sb.auth.getSession();
+          showMain(session.user.email);
+        }
+      }
+      async function doLogout() { await sb.auth.signOut(); location.reload(); }
+      function showMain(email) {
+        document.getElementById("login-area").style.display = "none";
+        document.getElementById("main-area").style.display = "";
+        document.getElementById("user-email-label").textContent = email;
+        init();
+      }
+
+      // ── 初期化 ──
+      async function init() {
+        addMatBlock();
+        await loadSheetList();
+        await loadMasterList();
+        await loadCityList();
+        document.getElementById("subgroup-list").addEventListener("input", function(e) {
+          const sg = e.target.closest(".subgroup");
+          if (sg) calcReverse(sg.id);
+        });
+        document.getElementById("f-sheet").addEventListener("change", async function() {
+          document.getElementById("f-effect-wrap").style.display = this.value === "料理" ? "" : "none";
+          if (this.value !== "料理") document.getElementById("f-effect").value = "";
+          if (!this.value) return;
+          const sid = await getSheetId(this.value);
+          const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
+          const dl = document.getElementById("cat-list");
+          dl.innerHTML = "";
+          [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
+            const o = document.createElement("option"); o.value = c; dl.appendChild(o);
+          });
+        });
+      }
+
+      // ── シート ──
+      async function loadSheetList() {
+        const { data } = await sb.from("sheets").select("id,name").order("sort_order");
+        const sel = document.getElementById("f-sheet");
+        sel.innerHTML = '<option value="">選択してください</option>';
+        (data || []).forEach(s => {
+          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; sel.appendChild(o);
+        });
+        const ef = document.getElementById("edit-sheet-filter");
+        ef.innerHTML = '<option value="">全シート</option>';
+        (data || []).forEach(s => {
+          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ef.appendChild(o);
+        });
+      }
+      async function getSheetId(name) {
+        const { data } = await sb.from("sheets").select("id").eq("name", name).single();
+        return data ? data.id : null;
+      }
+      async function submitNewSheet() {
+        const name = document.getElementById("new-sheet-name").value.trim();
+        if (!name) { showToast("タグ名を入力してください"); return; }
+        const { data: last } = await sb.from("sheets").select("sort_order").order("sort_order", { ascending: false }).limit(1);
+        const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
+        const { error } = await sb.from("sheets").insert({ name, sort_order: nextOrder });
+        if (error) {
+          showToast(error.code === "23505" ? "同じ名前のシートが既に存在します" : "エラー: " + error.message);
+        } else {
+          showToast("「" + name + "」を作成しました");
+          hideNewSheetDialog();
+          await loadSheetList();
+        }
+      }
+      function showNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = ""; document.getElementById("new-sheet-name").focus(); }
+      function hideNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = "none"; document.getElementById("new-sheet-name").value = ""; }
+
+      // ── 都市マスタ ──
+      async function toggleCityMasterPanel() {
+        cityMasterPanelOpen = !cityMasterPanelOpen;
+        const panel = document.getElementById("city-master-panel");
+        const btn = document.getElementById("city-master-toggle-btn");
+        panel.style.display = cityMasterPanelOpen ? "block" : "none";
+        btn.style.background = cityMasterPanelOpen ? "#1a1a1a" : "#fff";
+        btn.style.color = cityMasterPanelOpen ? "#fff" : "#3a5aad";
+        btn.style.borderColor = cityMasterPanelOpen ? "#1a1a1a" : "#3a5aad";
+        if (cityMasterPanelOpen) await renderCityMasterList();
+      }
+      async function renderCityMasterList() {
+        const listEl = document.getElementById("city-master-list");
+        listEl.innerHTML = '<div class="city-master-empty">読み込み中...</div>';
+        const { data, error } = await sb.from("sheet_cities").select("id,city_name,sort_order").order("sort_order");
+        if (error) { listEl.innerHTML = '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>'; return; }
+        if (!data || data.length === 0) { listEl.innerHTML = '<div class="city-master-empty">都市が登録されていません</div>'; return; }
+        listEl.innerHTML = data.map(c => `
+          <div class="city-master-item" id="city-master-row-${c.id}">
+            <span>${c.city_name}</span>
+            <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g,"\\'")}')">× 削除</button>
+          </div>`).join("");
+      }
+      async function submitNewCity() {
+        const input = document.getElementById("new-city-name");
+        const name = input.value.trim();
+        if (!name) { showToast("都市名を入力してください"); return; }
+        const { data: last } = await sb.from("sheet_cities").select("sort_order").order("sort_order", { ascending: false }).limit(1);
+        const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
+        const { error } = await sb.from("sheet_cities").insert({ city_name: name, sort_order: nextOrder });
+        if (error) {
+          showToast(error.code === "23505" ? "同じ都市名が既に存在します" : "エラー: " + error.message);
+        } else {
+          showToast("「" + name + "」を追加しました");
+          input.value = "";
+          await renderCityMasterList();
+          await loadCityList();
+        }
+      }
+      async function deleteCityMaster(id, name) {
+        if (!confirm(`「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`)) return;
+        const { error } = await sb.from("sheet_cities").delete().eq("id", id);
+        if (error) { showToast("エラー: " + error.message); } else {
+          showToast("「" + name + "」を削除しました");
+          await renderCityMasterList(); await loadCityList();
+        }
+      }
+
+      // ── 都市（フォーム用）──
+      async function loadCityList() {
+        const { data } = await sb.from("sheet_cities").select("city_name").order("sort_order");
+        availableCities = (data || []).map(r => r.city_name);
+        const dl = document.getElementById("city-datalist");
+        if (dl) dl.innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
+      }
+      function buildLevelOptions(sel) {
+        let h = '<option value="">レベル未設定</option>';
+        for (let i = 1; i <= 10; i++) h += `<option value="${i}"${sel == i ? " selected" : ""}>Lv.${i}</option>`;
+        return h;
+      }
+      function addCityRow(cityName, cityLevel) {
+        if (cityRowCount >= MAX_CITIES) { showToast("都市は最大10件までです"); return; }
+        cityRowCount++;
+        const rowId = `city-row-${cityRowCount}`;
+        if (!document.getElementById("city-datalist")) {
+          const dl = document.createElement("datalist"); dl.id = "city-datalist"; document.body.appendChild(dl);
+        }
+        document.getElementById("city-datalist").innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
+        const div = document.createElement("div");
+        div.className = "city-row mat-entry"; div.id = rowId; div.draggable = true;
+        div.style.gridTemplateColumns = "24px 1fr 120px 32px";
+        div.innerHTML = `
+          <span class="city-drag-handle" title="ドラッグで並び替え">⠿</span>
+          <input type="text" class="city-name-input" placeholder="都市名" list="city-datalist" value="${cityName || ""}">
+          <select class="city-level-select">${buildLevelOptions(cityLevel || "")}</select>
+          <button class="del-btn" onclick="delCityRow('${rowId}')">×</button>`;
+        document.getElementById("city-level-list").appendChild(div);
+        if (cityRowCount >= MAX_CITIES) document.getElementById("add-city-btn").style.display = "none";
+        initCityDragSort();
+      }
+      function delCityRow(id) { document.getElementById(id).remove(); cityRowCount--; document.getElementById("add-city-btn").style.display = ""; }
+      function initCityDragSort() {
+        const list = document.getElementById("city-level-list");
+        let dragSrc = null;
+        list.querySelectorAll(".city-row").forEach(row => {
+          const fresh = row.cloneNode(true); row.replaceWith(fresh);
+        });
+        list.querySelectorAll(".city-row").forEach(row => {
+          row.addEventListener("dragstart", e => { dragSrc = row; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+          row.addEventListener("dragend", () => { row.classList.remove("dragging"); list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); dragSrc = null; });
+          row.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragSrc && dragSrc !== row) { list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); row.classList.add("drag-over"); } });
+          row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+          row.addEventListener("drop", e => { e.preventDefault(); if (!dragSrc || dragSrc === row) return; row.classList.remove("drag-over"); const allRows = [...list.querySelectorAll(".city-row")]; const srcIdx = allRows.indexOf(dragSrc); const tgtIdx = allRows.indexOf(row); if (srcIdx < tgtIdx) row.after(dragSrc); else row.before(dragSrc); });
+        });
+      }
+
+      // ── マスタ ──
+      async function loadMasterList() {
+        const { data } = await sb.from("recipe_subgroups").select("parent");
+        const dl = document.getElementById("master-list"); dl.innerHTML = "";
+        [...new Set((data || []).map(r => r.parent).filter(Boolean))].sort().forEach(n => {
+          const o = document.createElement("option"); o.value = n; dl.appendChild(o);
+        });
+      }
+
+      // ════════════════════════════════════════════
+      // ── 製作材料ブロック（代替品対応）──
+      // ════════════════════════════════════════════
+
+      /**
+       * 1つの「材料ブロック」 = 主材料行 + 代替品行リスト
+       * DOM構造:
+       *   .mat-block#mb-N
+       *     .mat-main-row
+       *       input.mat-name  input.mat-qty  button.alt-add-btn  button.del-btn
+       *     .alt-list#alt-list-mb-N
+       *       .alt-entry#alt-mb-N-1 ...
+       */
+      function addMatBlock(matName, matQty, alts) {
+        // alts = [{connector, name, qty}, ...]
+        if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
+        matBlockCount++;
+        const bid = `mb-${matBlockCount}`;
+        altCounters[bid] = 0;
+
+        const div = document.createElement("div");
+        div.className = "mat-block"; div.id = bid;
+        div.innerHTML = `
+          <div class="mat-main-row">
+            <input type="text" placeholder="材料名" class="mat-name" value="${escVal(matName)}">
+            <input type="text" placeholder="数量" class="mat-qty" value="${escVal(matQty)}">
+            <button class="alt-add-btn" onclick="addAltRow('${bid}')">＋ 代替</button>
+            <button class="del-btn" onclick="delMatBlock('${bid}')">×</button>
+          </div>
+          <div class="alt-list" id="alt-list-${bid}"></div>`;
+        document.getElementById("mat-block-list").appendChild(div);
+
+        // 代替品を復元
+        if (alts && alts.length) {
+          alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
+        }
+
+        if (matBlockCount >= MAX_BASIC_MATS) document.getElementById("add-mat-btn").style.display = "none";
+      }
+
+      function delMatBlock(bid) {
+        document.getElementById(bid).remove();
+        matBlockCount--;
+        delete altCounters[bid];
+        document.getElementById("add-mat-btn").style.display = "";
+      }
+
+      function addAltRow(bid, connector, name, qty) {
+        altCounters[bid] = altCounters[bid] || 0;
+        if (altCounters[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
+        altCounters[bid]++;
+        const aid = `alt-${bid}-${altCounters[bid]}`;
+        const connSel = ALT_CONNECTORS.map(c =>
+          `<option value="${c}"${c === (connector || "あるいは") ? " selected" : ""}>${c}</option>`
+        ).join("");
+        const div = document.createElement("div");
+        div.className = "alt-entry"; div.id = aid;
+        div.innerHTML = `
+          <span class="alt-tree-icon">└</span>
+          <select class="alt-connector-select">${connSel}</select>
+          <input type="text" placeholder="代替材料名" class="alt-name" value="${escVal(name)}">
+          <input type="text" placeholder="数量" class="alt-qty" value="${escVal(qty)}">
+          <button class="del-btn" onclick="delAltRow('${bid}','${aid}')">×</button>`;
+        document.getElementById(`alt-list-${bid}`).appendChild(div);
+      }
+
+      function delAltRow(bid, aid) {
+        document.getElementById(aid).remove();
+        altCounters[bid]--;
+      }
+
+      function escVal(v) { return v ? String(v).replace(/"/g, "&quot;") : ""; }
+
+      // ── 副材料グループ ──
+      function addSubgroup() {
+        if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大7つまでです"); return; }
+        subgroupCount++;
+        const gid = `sg-${subgroupCount}`;
+        const div = document.createElement("div");
+        div.className = "subgroup"; div.id = gid;
+        div.innerHTML = `
+          <div class="subgroup-header">
+            <div class="subgroup-title">グループ ${subgroupCount}</div>
+            <button class="del-text-btn" onclick="delSubgroup('${gid}')">× 削除</button>
+          </div>
+          <div class="field">
+            <label>どの材料の作り方か</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="text" class="sg-parent" placeholder="例: トネリコ合板" list="master-list" style="flex:1">
+              <button type="button" class="add-btn" style="width:auto;padding:7px 12px;white-space:nowrap;border-style:solid;margin-top:0;" onclick="applyMaster(this.closest('.subgroup'))">📋 適用</button>
+            </div>
+          </div>
+          <div class="step-list-${gid}"></div>
+          <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
+          <div class="calc-tool" id="calc-${gid}">
+            <div class="calc-title">🧮 逆算ツール</div>
+            <div class="calc-row">
+              <span class="calc-label">最終的に</span>
+              <input type="number" min="1" value="1" class="calc-qty" oninput="calcReverse('${gid}')">
+              <span class="calc-label" id="calc-goal-${gid}">個</span>
+              <span class="calc-label">作りたい</span>
+            </div>
+            <div class="calc-result" id="calc-result-${gid}"></div>
+          </div>`;
+        document.getElementById("subgroup-list").appendChild(div);
+        addStep(gid);
+        if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
+      }
+
+      function delSubgroup(gid) { document.getElementById(gid).remove(); subgroupCount--; document.getElementById("add-sub-btn").style.display = ""; }
+
+      function addStep(gid) {
+        if (!stepCounters[gid]) stepCounters[gid] = 0;
+        if (stepCounters[gid] >= MAX_STEPS) { showToast("ステップは最大10つまでです"); return; }
+        stepCounters[gid]++;
+        const sc = stepCounters[gid];
+        const sid = `${gid}-s${sc}`;
+        const container = document.querySelector(`.step-list-${gid}`);
+        if (sc > 1) {
+          const conDiv = document.createElement("div");
+          conDiv.className = "connector-block"; conDiv.id = `con-${sid}`;
+          conDiv.innerHTML = `
+            <span class="connector-label">接続詞</span>
+            <div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div>
+            <input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
+          container.appendChild(conDiv);
+          selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
+        }
+        const div = document.createElement("div");
+        div.className = "step-block"; div.id = sid;
+        div.innerHTML = `
+          <div class="step-header">
+            <span class="step-label-text">ステップ ${sc}</span>
+            ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ""}
+          </div>
+          <div class="field"><label>加工名<span class="opt">任意</span></label><input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理"></div>
+          <div class="section-divider">入力材料</div>
+          <div class="step-mat-list mat-list" id="sml-${sid}"></div>
+          <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
+          <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
+          <div class="result-row">
+            <input type="text" class="step-result-name" placeholder="例: トネリコ板">
+            <input type="text" class="step-result-qty" placeholder="数量">
+          </div>`;
+        container.appendChild(div);
+        addStepMat(sid);
+      }
+
+      function selectConnector(sid, val, btn) {
+        const block = document.getElementById(`con-${sid}`);
+        block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        document.getElementById(`coninput-${sid}`).value = "";
+      }
+      function clearPresets(sid) {
+        const block = document.getElementById(`con-${sid}`);
+        if (block) block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected"));
+      }
+      function delStep(sid, gid) {
+        const c = document.getElementById(`con-${sid}`); if (c) c.remove();
+        document.getElementById(sid).remove();
+        stepCounters[gid]--;
+      }
+      function addStepMat(sid) {
+        if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
+        if (stepMatCounters[sid] >= MAX_MATS) { showToast("1ステップの材料は最大10つまでです"); return; }
+        stepMatCounters[sid]++;
+        const mid = `${sid}-m${stepMatCounters[sid]}`;
+        const div = document.createElement("div");
+        div.className = "mat-entry"; div.id = mid;
+        div.innerHTML = `<input type="text" placeholder="材料名" class="smat-name"><input type="text" placeholder="数量" class="smat-qty"><button class="del-btn" onclick="delStepMat('${mid}','${sid}')">×</button>`;
+        document.getElementById(`sml-${sid}`).appendChild(div);
+      }
+      function delStepMat(mid, sid) { document.getElementById(mid).remove(); stepMatCounters[sid]--; }
+
+      // ── マスタ適用 ──
+      async function applyMaster(groupEl) {
+        const parentName = groupEl.querySelector(".sg-parent").value.trim();
+        if (!parentName) { showToast("まず材料名を入力してください"); return; }
+        const gid = groupEl.id;
+        const { data } = await sb.from("recipe_subgroups")
+          .select("id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(sort_order,mat_name,mat_qty))")
+          .eq("parent", parentName).limit(1).single();
+        if (!data) { showToast("「" + parentName + "」のレシピが見つかりませんでした"); return; }
+        const stepList = groupEl.querySelector(`.step-list-${gid}`);
+        stepList.innerHTML = "";
+        stepCounters[gid] = 0;
+        stepMatCounters = Object.fromEntries(Object.entries(stepMatCounters).filter(([k]) => !k.startsWith(gid)));
+        (data.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach((step, si) => {
+          addStep(gid);
+          const sid = `${gid}-s${si + 1}`;
+          const sEl = document.getElementById(sid); if (!sEl) return;
+          sEl.querySelector(".step-proc").value = step.proc || "";
+          sEl.querySelector(".step-result-name").value = step.result_name || "";
+          sEl.querySelector(".step-result-qty").value = step.result_qty || "";
+          if (si > 0 && step.connector) {
+            const cb = document.getElementById(`con-${sid}`);
+            if (cb) {
+              let matched = false;
+              cb.querySelectorAll(".preset-btn").forEach(b => {
+                if (b.textContent === step.connector) { b.classList.add("selected"); matched = true; }
+                else b.classList.remove("selected");
+              });
+              if (!matched) document.getElementById(`coninput-${sid}`).value = step.connector;
+            }
+          }
+          const sml = document.getElementById(`sml-${sid}`);
+          sml.innerHTML = ""; stepMatCounters[sid] = 0;
+          (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order).forEach(m => {
+            addStepMat(sid);
+            const entries = sml.querySelectorAll(".mat-entry");
+            const last = entries[entries.length - 1];
+            last.querySelector(".smat-name").value = m.mat_name || "";
+            last.querySelector(".smat-qty").value = m.mat_qty || "";
+          });
+        });
+        showToast("「" + parentName + "」のフローを適用しました");
+        calcReverse(gid);
+      }
+
+      // ════════════════════════════════════════════
+      // ── データ収集（代替品対応）──
+      // ════════════════════════════════════════════
+      function collectData() {
+        const cities = [];
+        document.querySelectorAll("#city-level-list .city-row").forEach(row => {
+          const name = row.querySelector(".city-name-input").value.trim();
+          const level = row.querySelector(".city-level-select").value;
+          if (name) cities.push({ name, level });
+        });
+
+        const mats = [];
+        document.querySelectorAll("#mat-block-list .mat-block").forEach(block => {
+          const name = block.querySelector(".mat-name").value.trim();
+          const qty  = block.querySelector(".mat-qty").value.trim();
+          if (!name) return;
+          const alts = [];
+          block.querySelectorAll(".alt-entry").forEach(ae => {
+            const aName = ae.querySelector(".alt-name").value.trim();
+            const aQty  = ae.querySelector(".alt-qty").value.trim();
+            const aCon  = ae.querySelector(".alt-connector-select").value;
+            if (aName) alts.push({ connector: aCon, name: aName, qty: aQty });
+          });
+          mats.push({ name, qty, alts });
+        });
+
+        const data = {
+          sheet_name: document.getElementById("f-sheet").value,
+          name: document.getElementById("f-name").value.trim(),
+          category: document.getElementById("f-category").value.trim(),
+          image_url: document.getElementById("f-image").value.trim(),
+          effect: document.getElementById("f-effect").value.trim(),
+          cities,
+          mats,
+          subgroups: [],
+        };
+
+        document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
+          const parent = gel.querySelector(".sg-parent").value.trim();
+          const steps = [];
+          gel.querySelectorAll(".step-block").forEach(sel => {
+            const sid = sel.id;
+            let connector = "";
+            const cb = document.getElementById(`con-${sid}`);
+            if (cb) {
+              const s = cb.querySelector(".preset-btn.selected");
+              const cu = document.getElementById(`coninput-${sid}`).value.trim();
+              connector = cu || (s ? s.textContent : "↓");
+            }
+            const proc = sel.querySelector(".step-proc").value.trim();
+            const stepMats = [];
+            sel.querySelectorAll(".smat-name").forEach((el, i) => {
+              const n = el.value.trim();
+              const q = sel.querySelectorAll(".smat-qty")[i].value.trim();
+              if (n) stepMats.push({ name: n, qty: q });
+            });
+            const result_name = sel.querySelector(".step-result-name").value.trim();
+            const result_qty  = sel.querySelector(".step-result-qty").value.trim();
+            if (proc || stepMats.length)
+              steps.push({ connector, proc, mats: stepMats, result_name, result_qty });
+          });
+          if (parent) data.subgroups.push({ parent, steps });
+        });
+        return data;
+      }
+
+      // ── 確認画面 ──
+      function buildConfirm() {
+        const d = collectData();
+        let html = "";
+        html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
+        html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
+        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;">${d.effect}</div></div>`;
+        if (d.cities && d.cities.length) {
+          html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
+          d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
+          html += `</div>`;
+        }
+        if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
+        if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
+        if (d.mats.length) {
+          html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
+          d.mats.forEach(m => {
+            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
+            (m.alts || []).forEach(a => {
+              html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`;
+            });
+          });
+          html += `</div>`;
+        }
+        if (d.subgroups.length) {
+          html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
+          d.subgroups.forEach(g => {
+            html += `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">▸ ${g.parent} の作り方</div>`;
+            g.steps.forEach((s, i) => {
+              if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
+              html += `<div class="confirm-step">`;
+              if (s.proc) html += `<span class="confirm-proc">${s.proc}</span>`;
+              s.mats.forEach(m => { html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`; });
+              if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? " ×" + s.result_qty : ""}</div>`;
+              html += `</div>`;
+            });
+            html += `</div>`;
+          });
+          html += `</div>`;
+        }
+        document.getElementById("confirm-content").innerHTML = html;
+      }
+
+      // ── 保存 ──
+      async function submitRecipe() {
+        const data = collectData();
+        if (!data.name) { showToast("アイテム名がありません"); return; }
+        const btn = document.getElementById("submit-btn");
+        btn.disabled = true; btn.textContent = "保存中...";
+        const { error } = await sb.rpc("insert_recipe_full", { payload: data });
+        if (error) {
+          showToast("エラー: " + error.message);
+          btn.disabled = false; btn.textContent = "✓ 保存する";
+        } else {
+          showToast("✓ 保存しました！");
+          setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = "✓ 保存する"; }, 1500);
+        }
+      }
+
+      function resetForm() {
+        document.getElementById("f-sheet").selectedIndex = 0;
+        ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("f-effect-wrap").style.display = "none";
+        document.getElementById("city-level-list").innerHTML = "";
+        cityRowCount = 0;
+        document.getElementById("add-city-btn").style.display = "";
+        document.getElementById("mat-block-list").innerHTML = "";
+        document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {};
+        subgroupCount = 0; stepCounters = {}; stepMatCounters = {};
+        addMatBlock();
+        goStep(1);
+      }
+
+      // ── ステップ移動 ──
+      function goStep(n) {
+        if (n === 2 && !validate1()) return;
+        if (n === 4) buildConfirm();
+        [1,2,3,4].forEach(i => {
+          document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
+          const si = document.getElementById(`si-${i}`);
+          si.classList.toggle("active", i === n);
+          si.classList.toggle("done", i < n);
+        });
+      }
+      function validate1() {
+        if (!document.getElementById("f-sheet").value) { showToast("カテゴリ（シート）を選択してください"); return false; }
+        if (!document.getElementById("f-name").value.trim()) { showToast("アイテム名を入力してください"); return false; }
+        return true;
+      }
+
+      // ── 逆算ツール ──
+      function calcReverse(gid) {
+        const gel = document.getElementById(gid); if (!gel) return;
+        const steps = [];
+        gel.querySelectorAll(".step-block").forEach(sel => {
+          const result_name = sel.querySelector(".step-result-name").value.trim();
+          const result_qty  = parseFloat(sel.querySelector(".step-result-qty").value) || 0;
+          const mats = [];
+          sel.querySelectorAll(".smat-name").forEach((el, i) => {
+            const n = el.value.trim();
+            const q = parseFloat(sel.querySelectorAll(".smat-qty")[i].value) || 0;
+            if (n) mats.push({ name: n, qty: q });
+          });
+          steps.push({ result_name, result_qty, mats });
+        });
+        const goalInput = parseFloat(gel.querySelector(".calc-qty").value) || 1;
+        const resultEl = document.getElementById("calc-result-" + gid);
+        const goalLabel = document.getElementById("calc-goal-" + gid);
+        const lastStep = [...steps].reverse().find(s => s.result_name);
+        goalLabel.textContent = lastStep ? lastStep.result_name : "個";
+        if (!lastStep) { resultEl.innerHTML = '<div style="font-size:11px;color:#aaa;">結果物を入力してください</div>'; return; }
+        const intermediates = new Set(steps.map(s => s.result_name).filter(Boolean));
+        const needed = {}; needed[lastStep.result_name] = goalInput;
+        for (let i = steps.length - 1; i >= 0; i--) {
+          const s = steps[i];
+          if (!s.result_name || !s.result_qty || !(s.result_name in needed)) continue;
+          const times = Math.ceil(needed[s.result_name] / s.result_qty);
+          s.mats.forEach(m => { if (!m.name) return; needed[m.name] = (needed[m.name] || 0) + m.qty * times; });
+        }
+        const lines = [];
+        Object.entries(needed).forEach(([name, qty]) => {
+          if (name === lastStep.result_name) return;
+          const isRaw = !intermediates.has(name);
+          lines.push(`<div class="calc-row-item"><span class="ci-name">${name}</span><span class="ci-qty">×${qty}</span>${isRaw ? '<span class="ci-step">（原材料）</span>' : ""}</div>`);
+        });
+        resultEl.innerHTML = lines.length ? lines.join("") : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
+      }
+
+      // ── タブ ──
+      function switchTab(tab) {
+        const isNew = tab === "new";
+        if (isNew && (currentEditId || currentEditSheet)) clearEditForm();
+        document.getElementById("area-new").style.display = isNew ? "" : "none";
+        document.getElementById("area-edit").style.display = isNew ? "none" : "";
+        document.getElementById("tab-new").classList.toggle("active", isNew);
+        document.getElementById("tab-edit").classList.toggle("active", !isNew);
+        if (!isNew && editRecipes.length === 0) loadEditList();
+      }
+
+      // ── 編集一覧 ──
+      async function loadEditList() {
+        document.getElementById("edit-list").innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">読み込み中...</div>';
+        const { data } = await sb.from("recipes").select("id,name,sheets(name)").order("name");
+        editRecipes = (data || []).map(r => ({ id: r.id, name: r.name, sheet: r.sheets ? r.sheets.name : "" }));
+        renderEditList(editRecipes);
+      }
+      function filterEditList() {
+        const q = document.getElementById("edit-search").value.toLowerCase();
+        const sheet = document.getElementById("edit-sheet-filter").value;
+        renderEditList(editRecipes.filter(r => (!q || r.name.toLowerCase().includes(q)) && (!sheet || r.sheet === sheet)));
+      }
+      function renderEditList(list) {
+        const el = document.getElementById("edit-list");
+        if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>'; return; }
+        el.innerHTML = list.map(r => `
+          <div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')">
+            <span class="edit-item-name">${r.name}</span>
+            <span class="edit-item-sheet">${r.sheet}</span>
+          </div>`).join("");
+      }
+
+      async function loadEditRecipe(id, sheetName, itemName) {
+        currentEditId = id; currentEditSheet = sheetName;
+        showToast("読み込み中...");
+        const { data } = await sb.from("recipes")
+          .select(`id,name,category,image_url,effect,sheets(name),
+            recipe_cities(sort_order,city_name,city_level),
+            recipe_mats(id,sort_order,mat_name,mat_qty,alt_name,alt_qty,alt_connector,parent_mat_id),
+            recipe_subgroups(id,sort_order,parent,
+              recipe_steps(id,sort_order,connector,proc,result_name,result_qty,
+                recipe_step_mats(sort_order,mat_name,mat_qty)))`)
+          .eq("id", id).single();
+        if (!data) { showToast("データが見つかりません"); return; }
+        fillEditForm(data, sheetName);
+      }
+
+      function fillEditForm(data, sheetName) {
+        document.getElementById("edit-form-area").style.display = "";
+        document.getElementById("edit-list").style.display = "none";
+        document.getElementById("edit-search").parentElement.style.display = "none";
+        document.getElementById("area-new").style.display = "";
+        document.getElementById("area-edit").style.display = "";
+
+        document.getElementById("mat-block-list").innerHTML = "";
+        document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {};
+        subgroupCount = 0; stepCounters = {}; stepMatCounters = {};
+
+        document.getElementById("f-sheet").value = sheetName;
+        document.getElementById("f-name").value = data.name || "";
+        document.getElementById("f-category").value = data.category || "";
+        document.getElementById("f-image").value = data.image_url || "";
+        const ew = document.getElementById("f-effect-wrap");
+        if (sheetName === "料理") { ew.style.display = ""; document.getElementById("f-effect").value = data.effect || ""; }
+        else { ew.style.display = "none"; document.getElementById("f-effect").value = ""; }
+
+        document.getElementById("city-level-list").innerHTML = "";
+        cityRowCount = 0;
+        document.getElementById("add-city-btn").style.display = "";
+        (data.recipe_cities || []).sort((a, b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
+
+        // 製作材料（代替品復元）
+        // parent_mat_id が null の行が主材料、それ以外が代替品
+        const allMats = (data.recipe_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+        const mainMats = allMats.filter(m => !m.parent_mat_id);
+        mainMats.forEach(m => {
+          const alts = allMats
+            .filter(a => a.parent_mat_id === m.id)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map(a => ({ connector: a.alt_connector || "あるいは", name: a.alt_name || a.mat_name || "", qty: a.alt_qty || a.mat_qty || "" }));
+          addMatBlock(m.mat_name, m.mat_qty, alts);
+        });
+        if (matBlockCount === 0) addMatBlock();
+
+        // 副材料グループ
+        (data.recipe_subgroups || []).sort((a, b) => a.sort_order - b.sort_order).forEach(sg => {
+          addSubgroup();
+          const groups = document.querySelectorAll("#subgroup-list .subgroup");
+          const gEl = groups[groups.length - 1];
+          const gid = gEl.id;
+          gEl.querySelector(".sg-parent").value = sg.parent;
+          const stepList = gEl.querySelector(`.step-list-${gid}`);
+          stepList.innerHTML = ""; stepCounters[gid] = 0;
+          (sg.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach((step, si) => {
+            addStep(gid);
+            const sid = `${gid}-s${si + 1}`;
+            const sEl = document.getElementById(sid); if (!sEl) return;
+            sEl.querySelector(".step-proc").value = step.proc || "";
+            sEl.querySelector(".step-result-name").value = step.result_name || "";
+            sEl.querySelector(".step-result-qty").value = step.result_qty || "";
+            if (si > 0 && step.connector) {
+              const cb = document.getElementById(`con-${sid}`);
+              if (cb) {
+                let m = false;
+                cb.querySelectorAll(".preset-btn").forEach(b => { if (b.textContent === step.connector) { b.classList.add("selected"); m = true; } else b.classList.remove("selected"); });
+                if (!m) { cb.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); document.getElementById(`coninput-${sid}`).value = step.connector; }
+              }
+            }
+            const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
+            (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order).forEach(m => {
+              addStepMat(sid);
+              const entries = sml.querySelectorAll(".mat-entry");
+              const last = entries[entries.length - 1];
+              last.querySelector(".smat-name").value = m.mat_name || "";
+              last.querySelector(".smat-qty").value = m.mat_qty || "";
+            });
+          });
+        });
+
+        goStep(1);
+        const sb4 = document.querySelector("#page-4 .btn-submit");
+        if (sb4) { sb4.textContent = "✏ 更新する"; sb4.onclick = updateCurrentRecipe; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = ""));
+        showToast(`「${data.name}」を読み込みました`);
+      }
+
+      async function updateCurrentRecipe() {
+        if (!currentEditId) return;
+        const data = collectData();
+        if (!data.name) { showToast("アイテム名がありません"); return; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
+        const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
+        if (error) { showToast("エラー: " + error.message); } else {
+          showToast("更新しました"); editRecipes = []; await loadMasterList(); clearEditForm();
+        }
+      }
+
+      async function deleteCurrentRecipe() {
+        if (!currentEditId) return;
+        const name = document.getElementById("f-name").value;
+        if (!confirm(`「${name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
+        const { error } = await sb.from("recipes").delete().eq("id", currentEditId);
+        if (error) { showToast("エラー: " + error.message); } else {
+          showToast("削除しました"); editRecipes = []; clearEditForm(); switchTab("edit"); await loadEditList();
+        }
+      }
+
+      function clearEditForm() {
+        currentEditId = null; currentEditSheet = null;
+        const fs = document.getElementById("f-sheet");
+        if (fs && fs.options.length > 0) fs.selectedIndex = 0;
+        ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("f-effect-wrap").style.display = "none";
+        document.getElementById("city-level-list").innerHTML = "";
+        cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
+        document.getElementById("mat-block-list").innerHTML = "";
+        document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {};
+        subgroupCount = 0; stepCounters = {}; stepMatCounters = {};
+        addMatBlock(); goStep(1);
+        document.getElementById("edit-list").style.display = "";
+        document.getElementById("edit-search").parentElement.style.display = "";
+        document.getElementById("edit-form-area").style.display = "none";
+        document.getElementById("area-new").style.display = "none";
+        const sb4 = document.querySelector("#page-4 .btn-submit");
+        if (sb4) { sb4.textContent = "✓ 保存する"; sb4.onclick = submitRecipe; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = "none"));
+        document.getElementById("edit-search").value = "";
+        document.getElementById("edit-sheet-filter").value = "";
+        if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
+      }
+
+      // ── トースト ──
+      function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg; t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2500);
+      }
+
+      checkAuth();
+    </script>
+  </body>
 </html>
