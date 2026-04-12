@@ -272,8 +272,6 @@
         cursor: grab; color: #ccc; font-size: 14px; user-select: none;
       }
       .city-drag-handle:active { cursor: grabbing; }
-
-      /* ── 参照パネル ── */
       .master-input-wrap { position: relative; }
       .master-input-row { display: flex; gap: 6px; align-items: center; }
       .master-input-row input { flex: 1; }
@@ -290,7 +288,6 @@
         cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
       }
       .apply-btn:hover { background: #f0fff1; }
-
       .master-ref-panel {
         display: none;
         position: absolute; top: calc(100% + 6px); left: 0; right: 0;
@@ -300,8 +297,7 @@
       }
       .master-ref-panel.open { display: block; }
       .mrp-header {
-        padding: 10px 12px 8px;
-        background: #f5f7ff;
+        padding: 10px 12px 8px; background: #f5f7ff;
         border-bottom: 1px solid #e0e5f5;
         display: flex; align-items: center; gap: 8px;
       }
@@ -528,8 +524,7 @@
       let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
 
-      // マスターリストキャッシュ
-      // 各エントリ: { name, type:'recipe'|'sub'|'mat', recipeId, sheet, recipeName }
+      // masterListCache: { name, type:'recipe'|'sub'|'mat', recipeId, sheet, recipeName }
       let masterListCache = [];
 
       // ============================================================
@@ -582,7 +577,6 @@
           document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
             if (!panel.closest(".master-input-wrap").contains(e.target)) {
               closeRefPanel(panel);
-              // ボタンのopen状態も解除
               const wrap = panel.closest(".master-input-wrap");
               if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
             }
@@ -708,33 +702,16 @@
       // マスターリスト（レシピ名 + 副材料 + 製作材料）
       // ============================================================
       async function loadMasterList() {
-        // ① レシピ名
-        const { data: recipeData } = await sb
-          .from("recipes")
-          .select("id, name, sheets(name)")
-          .order("name");
-
-        // ② 副材料（recipe_subgroups の parent 名）
-        const { data: subData } = await sb
-          .from("recipe_subgroups")
-          .select("parent, recipes(id, name, sheets(name))")
-          .order("parent");
-
-        // ③ 製作材料（主材料行のみ）
-        const { data: matData } = await sb
-          .from("recipe_mats")
-          .select("mat_name, recipe_id, recipes(name, sheets(name))")
-          .is("parent_mat_id", null)
-          .order("mat_name");
+        const { data: recipeData } = await sb.from("recipes").select("id, name, sheets(name)").order("name");
+        const { data: subData } = await sb.from("recipe_subgroups").select("parent, recipes(id, name, sheets(name))").order("parent");
+        const { data: matData } = await sb.from("recipe_mats").select("mat_name, recipe_id, recipes(name, sheets(name))").is("parent_mat_id", null).order("mat_name");
 
         const cache = [];
-
         (recipeData || []).forEach(row => {
           const name = (row.name || "").trim();
           if (!name) return;
           cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" });
         });
-
         const subSeen = new Set();
         (subData || []).forEach(row => {
           const name = (row.parent || "").trim();
@@ -742,7 +719,6 @@
           subSeen.add(name);
           cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
-
         const matSeen = new Set();
         (matData || []).forEach(row => {
           const name = (row.mat_name || "").trim();
@@ -750,7 +726,6 @@
           matSeen.add(name);
           cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
-
         cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
         masterListCache = cache;
       }
@@ -803,8 +778,7 @@
         panel.querySelectorAll(".mrp-tab").forEach(t => t.classList.remove("active"));
         btn.classList.add("active");
         panel._currentTab = tab;
-        const q = panel.querySelector(".mrp-search").value;
-        renderRefPanel(panelId, q, tab);
+        renderRefPanel(panelId, panel.querySelector(".mrp-search").value, tab);
       }
 
       function filterRefPanel(panelId, q) {
@@ -815,7 +789,6 @@
       function renderRefPanel(panelId, q, tab) {
         const body = document.getElementById(panelId + "-body");
         const lq = (q || "").toLowerCase();
-
         let items = masterListCache;
         if (tab === "recipe") items = items.filter(i => i.type === "recipe");
         else if (tab === "sub") items = items.filter(i => i.type === "sub");
@@ -825,16 +798,10 @@
           (i.recipeName || "").toLowerCase().includes(lq) ||
           (i.sheet || "").toLowerCase().includes(lq)
         );
-
-        if (!items.length) {
-          body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>';
-          return;
-        }
-
+        if (!items.length) { body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>'; return; }
         const recipes = items.filter(i => i.type === "recipe");
         const subs    = items.filter(i => i.type === "sub");
         const mats    = items.filter(i => i.type === "mat");
-
         let html = "";
         if (tab === "all") {
           if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
@@ -843,7 +810,6 @@
         } else {
           items.forEach(item => { html += renderRefItem(panelId, item); });
         }
-
         body.innerHTML = html;
       }
 
@@ -875,16 +841,59 @@
 
       // ============================================================
       // ★ applyMasterByName（修正版）
-      //   type: 'recipe' → recipeId で直接 subgroups を取得
-      //   type: 'sub'    → parent名 で subgroups を検索
-      //   type: 'mat'    → mat_name に一致する subgroup を検索
+      //
+      // type === 'recipe'（レシピ名を選択した場合）:
+      //   → recipeId で recipe_subgroups を全件取得し、グループを1つずつ展開
+      //   → 「どの材料の作り方か」欄に subgroup.parent を入れる
+      //
+      // type === 'sub'（副材料名を選択した場合）:
+      //   → parent = name で subgroups を検索（1件）
+      //
+      // type === 'mat'（製作材料名を選択した場合）:
+      //   → recipeId で recipe_subgroups を検索し parent = name のものを使う
       // ============================================================
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
-        let sgData = null;
 
-        // ── 共通戦略：まず parent=name で recipe_subgroups を検索 ──
-        // type に関わらず、「この名前を作る手順（parent=name）」を引くのが正しい
+        // ── type: recipe ──────────────────────────────────────────
+        // レシピIDで subgroups を全件取得。複数ある場合は全グループを追加展開する。
+        if (type === "recipe" && recipeId) {
+          const { data: sgList, error } = await sb
+            .from("recipe_subgroups")
+            .select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("recipe_id", recipeId)
+            .order("sort_order");
+
+          if (error || !sgList || sgList.length === 0) {
+            // subgroup がない場合はレシピ名をそのまま parent に設定
+            groupEl.querySelector(".sg-parent").value = name;
+            showToast("「" + name + "」を設定しました（副材料ステップなし）");
+            return;
+          }
+
+          // 最初のグループは現在の groupEl に適用
+          const first = sgList[0];
+          groupEl.querySelector(".sg-parent").value = first.parent || name;
+          applySubgroupData(groupEl, gid, first);
+          calcReverse(gid);
+
+          // 2つ目以降のグループは新しいサブグループとして追加
+          for (let i = 1; i < sgList.length; i++) {
+            if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
+            addSubgroup();
+            const newGEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
+            const newGid = newGEl.id;
+            newGEl.querySelector(".sg-parent").value = sgList[i].parent || "";
+            applySubgroupData(newGEl, newGid, sgList[i]);
+            calcReverse(newGid);
+          }
+
+          showToast("「" + name + "」の副材料を適用しました（" + sgList.length + "グループ）");
+          return;
+        }
+
+        // ── type: sub / mat / フォールバック ──────────────────────
+        // parent = name で subgroups を検索（1件）
         const { data: byParent, error: e1 } = await sb
           .from("recipe_subgroups")
           .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
@@ -894,33 +903,37 @@
           .maybeSingle();
 
         if (!e1 && byParent) {
-          sgData = byParent;
-        } else if (type === "recipe" && recipeId) {
-          // parent=name で見つからなかった場合のみ、レシピIDで subgroups の先頭を取る
-          const { data: byId, error: e2 } = await sb
+          groupEl.querySelector(".sg-parent").value = byParent.parent || name;
+          applySubgroupData(groupEl, gid, byParent);
+          calcReverse(gid);
+          showToast("「" + name + "」を適用しました");
+          return;
+        }
+
+        // parent でも見つからない場合 → recipeId があれば先頭グループを取得
+        if (recipeId) {
+          const { data: fallback, error: e2 } = await sb
             .from("recipe_subgroups")
             .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
             .eq("recipe_id", recipeId)
             .order("sort_order")
             .limit(1)
             .maybeSingle();
-          if (!e2 && byId) sgData = byId;
+          if (!e2 && fallback) {
+            groupEl.querySelector(".sg-parent").value = fallback.parent || name;
+            applySubgroupData(groupEl, gid, fallback);
+            calcReverse(gid);
+            showToast("「" + name + "」を適用しました");
+            return;
+          }
         }
 
-        // parent 欄に名前をセット
-        groupEl.querySelector(".sg-parent").value = sgData ? (sgData.parent || name) : name;
-
-        if (!sgData) {
-          showToast("「" + name + "」を設定しました（副材料ステップなし）");
-          return;
-        }
-
-        // ステップを展開
-        applySubgroupData(groupEl, gid, sgData);
-        calcReverse(gid);
-        showToast("「" + name + "」を適用しました");
+        // 何も見つからない
+        groupEl.querySelector(".sg-parent").value = name;
+        showToast("「" + name + "」を設定しました（副材料ステップなし）");
       }
 
+      // ── subgroup のステップデータをUIに反映 ──
       function applySubgroupData(groupEl, gid, data) {
         const stepList = document.getElementById(`step-list-${gid}`);
         stepList.innerHTML = ""; stepCounters[gid] = 0;
