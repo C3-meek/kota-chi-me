@@ -883,72 +883,36 @@
         const gid = groupEl.id;
         let sgData = null;
 
-        if (type === "recipe" && recipeId) {
-          // レシピIDから副材料グループを全件取得し、最初の1件を使う
-          const { data, error } = await sb
+        // ── 共通戦略：まず parent=name で recipe_subgroups を検索 ──
+        // type に関わらず、「この名前を作る手順（parent=name）」を引くのが正しい
+        const { data: byParent, error: e1 } = await sb
+          .from("recipe_subgroups")
+          .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+          .eq("parent", name)
+          .order("sort_order")
+          .limit(1)
+          .maybeSingle();
+
+        if (!e1 && byParent) {
+          sgData = byParent;
+        } else if (type === "recipe" && recipeId) {
+          // parent=name で見つからなかった場合のみ、レシピIDで subgroups の先頭を取る
+          const { data: byId, error: e2 } = await sb
             .from("recipe_subgroups")
             .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
             .eq("recipe_id", recipeId)
-            .order("sort_order");
-
-          if (error || !data || data.length === 0) {
-            // 副材料なし → アイテム名だけ設定
-            groupEl.querySelector(".sg-parent").value = name;
-            showToast("「" + name + "」を設定しました（副材料ステップなし）");
-            return;
-          }
-          // 副材料が複数ある場合、先頭グループを適用
-          sgData = data[0];
-          // 親名はレシピのsubgroupのparentを使う（そのままにしても良いがparent名で上書き）
-          groupEl.querySelector(".sg-parent").value = sgData.parent || name;
-
-        } else if (type === "sub") {
-          // parent名で検索（.maybeSingle() を使い0件時もエラーにしない）
-          const { data, error } = await sb
-            .from("recipe_subgroups")
-            .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-            .eq("parent", name)
             .order("sort_order")
             .limit(1)
             .maybeSingle();
+          if (!e2 && byId) sgData = byId;
+        }
 
-          if (error || !data) {
-            groupEl.querySelector(".sg-parent").value = name;
-            showToast("「" + name + "」を設定しました（副材料ステップなし）");
-            return;
-          }
-          sgData = data;
-          groupEl.querySelector(".sg-parent").value = name;
+        // parent 欄に名前をセット
+        groupEl.querySelector(".sg-parent").value = sgData ? (sgData.parent || name) : name;
 
-        } else {
-          // type === 'mat' または type 不明
-          // mat_name → recipe_id → recipe_subgroups で parent=name を検索
-          const { data: matRow } = await sb
-            .from("recipe_mats")
-            .select("recipe_id")
-            .eq("mat_name", name)
-            .is("parent_mat_id", null)
-            .limit(1)
-            .maybeSingle();
-
-          if (matRow && matRow.recipe_id) {
-            const { data, error } = await sb
-              .from("recipe_subgroups")
-              .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-              .eq("recipe_id", matRow.recipe_id)
-              .eq("parent", name)
-              .limit(1)
-              .maybeSingle();
-
-            if (!error && data) sgData = data;
-          }
-
-          groupEl.querySelector(".sg-parent").value = name;
-
-          if (!sgData) {
-            showToast("「" + name + "」を設定しました（副材料ステップなし）");
-            return;
-          }
+        if (!sgData) {
+          showToast("「" + name + "」を設定しました（副材料ステップなし）");
+          return;
         }
 
         // ステップを展開
