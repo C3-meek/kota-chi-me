@@ -958,7 +958,7 @@
       }
 
       function applySubgroupData(groupEl, gid, data) {
-        const stepList = groupEl.querySelector(`.step-list-${gid}`);
+        const stepList = document.getElementById(`step-list-${gid}`);
         stepList.innerHTML = ""; stepCounters[gid] = 0;
         Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
         Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
@@ -1069,7 +1069,7 @@
               ${buildRefPanelHTML(panelId)}
             </div>
           </div>
-          <div class="step-list-${gid}"></div>
+          <div id="step-list-${gid}"></div>
           <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
           <div class="calc-tool" id="calc-${gid}">
             <div class="calc-title">🧮 逆算ツール</div>
@@ -1123,7 +1123,7 @@
         stepCounters[gid]++;
         const sc = stepCounters[gid];
         const sid = `${gid}-s${sc}`;
-        const container = document.querySelector(`.step-list-${gid}`);
+        const container = document.getElementById(`step-list-${gid}`);
         if (sc > 1) {
           const conDiv = document.createElement("div");
           conDiv.className = "connector-block"; conDiv.id = `con-${sid}`;
@@ -1480,7 +1480,7 @@
           const gEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
           const gid = gEl.id;
           gEl.querySelector(".sg-parent").value = sg.parent;
-          const stepList = gEl.querySelector(`.step-list-${gid}`); stepList.innerHTML = ""; stepCounters[gid] = 0;
+          const stepList = document.getElementById(`step-list-${gid}`); stepList.innerHTML = ""; stepCounters[gid] = 0;
           (sg.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach((step, si) => {
             addStep(gid);
             const sid = `${gid}-s${si + 1}`;
