@@ -273,13 +273,9 @@
       }
       .city-drag-handle:active { cursor: grabbing; }
 
-      /* ── 参照パネル（新UI） ── */
-      .master-input-wrap {
-        position: relative;
-      }
-      .master-input-row {
-        display: flex; gap: 6px; align-items: center;
-      }
+      /* ── 参照パネル ── */
+      .master-input-wrap { position: relative; }
+      .master-input-row { display: flex; gap: 6px; align-items: center; }
       .master-input-row input { flex: 1; }
       .master-ref-btn {
         padding: 7px 12px; border: 1px solid #3a5aad; border-radius: 8px;
@@ -295,7 +291,6 @@
       }
       .apply-btn:hover { background: #f0fff1; }
 
-      /* 参照パネル本体 */
       .master-ref-panel {
         display: none;
         position: absolute; top: calc(100% + 6px); left: 0; right: 0;
@@ -326,13 +321,8 @@
         white-space: nowrap;
       }
       .mrp-tab.active { background: #3a5aad; color: #fff; }
-      .mrp-body {
-        max-height: 260px; overflow-y: auto;
-        padding: 6px;
-      }
-      .mrp-empty {
-        padding: 24px; text-align: center; font-size: 12px; color: #bbb;
-      }
+      .mrp-body { max-height: 260px; overflow-y: auto; padding: 6px; }
+      .mrp-empty { padding: 24px; text-align: center; font-size: 12px; color: #bbb; }
       .mrp-section-label {
         font-size: 10px; font-weight: 700; color: #9fa8da;
         padding: 6px 8px 2px; letter-spacing: 0.06em; text-transform: uppercase;
@@ -347,13 +337,12 @@
         font-size: 13px; font-weight: 500; color: #1a1a1a;
         flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .mrp-item-meta {
-        font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0;
-      }
+      .mrp-item-meta { font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0; }
       .mrp-item-badge {
         font-size: 10px; padding: 1px 7px; border-radius: 10px;
         white-space: nowrap; flex-shrink: 0;
       }
+      .badge-recipe { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
       .badge-sub { background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; }
       .badge-mat { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     </style>
@@ -539,8 +528,8 @@
       let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
 
-      // ── マスターリストのキャッシュ（副材料＋製作材料の両方） ──
-      // 各エントリ: { name: string, type: 'sub'|'mat', sheet: string, recipeName: string }
+      // マスターリストキャッシュ
+      // 各エントリ: { name, type:'recipe'|'sub'|'mat', recipeId, sheet, recipeName }
       let masterListCache = [];
 
       // ============================================================
@@ -589,11 +578,13 @@
             const o = document.createElement("option"); o.value = c; dl.appendChild(o);
           });
         });
-        // パネル外クリックで閉じる
         document.addEventListener("click", function(e) {
           document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
             if (!panel.closest(".master-input-wrap").contains(e.target)) {
               closeRefPanel(panel);
+              // ボタンのopen状態も解除
+              const wrap = panel.closest(".master-input-wrap");
+              if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
             }
           });
         });
@@ -714,10 +705,10 @@
       }
 
       // ============================================================
-      // ★ マスターリスト（レシピ名 + 副材料 + 製作材料 の3種取得）
+      // マスターリスト（レシピ名 + 副材料 + 製作材料）
       // ============================================================
       async function loadMasterList() {
-        // ① レシピ名（recipes テーブルから直接）
+        // ① レシピ名
         const { data: recipeData } = await sb
           .from("recipes")
           .select("id, name, sheets(name)")
@@ -729,7 +720,7 @@
           .select("parent, recipes(id, name, sheets(name))")
           .order("parent");
 
-        // ③ 製作材料（recipe_mats の主材料名 = parent_mat_id IS NULL）
+        // ③ 製作材料（主材料行のみ）
         const { data: matData } = await sb
           .from("recipe_mats")
           .select("mat_name, recipe_id, recipes(name, sheets(name))")
@@ -738,56 +729,34 @@
 
         const cache = [];
 
-        // ① レシピ名エントリ
         (recipeData || []).forEach(row => {
           const name = (row.name || "").trim();
           if (!name) return;
-          cache.push({
-            name,
-            type: "recipe",
-            recipeId: row.id,
-            sheet: row.sheets?.name || "",
-            recipeName: ""   // 自身がレシピなので不要
-          });
+          cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" });
         });
 
-        // ② 副材料エントリ（重複排除）
         const subSeen = new Set();
         (subData || []).forEach(row => {
           const name = (row.parent || "").trim();
           if (!name || subSeen.has(name)) return;
           subSeen.add(name);
-          cache.push({
-            name,
-            type: "sub",
-            recipeId: row.recipes?.id || null,
-            sheet: row.recipes?.sheets?.name || "",
-            recipeName: row.recipes?.name || ""
-          });
+          cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
 
-        // ③ 製作材料エントリ（重複排除）
         const matSeen = new Set();
         (matData || []).forEach(row => {
           const name = (row.mat_name || "").trim();
           if (!name || matSeen.has(name)) return;
           matSeen.add(name);
-          cache.push({
-            name,
-            type: "mat",
-            recipeId: row.recipe_id || null,
-            sheet: row.recipes?.sheets?.name || "",
-            recipeName: row.recipes?.name || ""
-          });
+          cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
 
-        // 名前順ソート
         cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
         masterListCache = cache;
       }
 
       // ============================================================
-      // ★ 参照パネルUI（カスタムドロップダウン）
+      // 参照パネルUI
       // ============================================================
       function buildRefPanelHTML(panelId) {
         return `
@@ -805,22 +774,22 @@
           </div>`;
       }
 
-      function openRefPanel(panelId, inputEl, onSelect) {
-        // 他のパネルを閉じる
+      function openRefPanel(panelId, onSelect) {
         document.querySelectorAll(".master-ref-panel.open").forEach(p => {
-          if (p.id !== panelId) closeRefPanel(p);
+          if (p.id !== panelId) {
+            closeRefPanel(p);
+            const wrap = p.closest(".master-input-wrap");
+            if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
+          }
         });
         const panel = document.getElementById(panelId);
         panel.classList.add("open");
-        // 検索欄をクリア
         const searchEl = panel.querySelector(".mrp-search");
         searchEl.value = "";
-        // タブをリセット
         panel.querySelectorAll(".mrp-tab").forEach((t, i) => t.classList.toggle("active", i === 0));
         panel._currentTab = "all";
         panel._onSelect = onSelect;
         renderRefPanel(panelId, "", "all");
-        // 検索フォーカス
         setTimeout(() => searchEl.focus(), 50);
       }
 
@@ -853,8 +822,8 @@
         else if (tab === "mat") items = items.filter(i => i.type === "mat");
         if (lq) items = items.filter(i =>
           i.name.toLowerCase().includes(lq) ||
-          i.recipeName.toLowerCase().includes(lq) ||
-          i.sheet.toLowerCase().includes(lq)
+          (i.recipeName || "").toLowerCase().includes(lq) ||
+          (i.sheet || "").toLowerCase().includes(lq)
         );
 
         if (!items.length) {
@@ -868,18 +837,9 @@
 
         let html = "";
         if (tab === "all") {
-          if (recipes.length) {
-            html += `<div class="mrp-section-label">🍳 レシピ名</div>`;
-            recipes.forEach(item => { html += renderRefItem(panelId, item); });
-          }
-          if (subs.length) {
-            html += `<div class="mrp-section-label">📦 副材料の作り方</div>`;
-            subs.forEach(item => { html += renderRefItem(panelId, item); });
-          }
-          if (mats.length) {
-            html += `<div class="mrp-section-label">🧱 製作材料</div>`;
-            mats.forEach(item => { html += renderRefItem(panelId, item); });
-          }
+          if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (mats.length)    { html += `<div class="mrp-section-label">🧱 製作材料</div>`; mats.forEach(item => { html += renderRefItem(panelId, item); }); }
         } else {
           items.forEach(item => { html += renderRefItem(panelId, item); });
         }
@@ -899,7 +859,8 @@
           badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`;
           meta  = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : "";
         }
-        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${item.name.replace(/'/g,"\\'")}','${item.type}','${item.recipeId || ""}')">
+        const safeName = item.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${safeName}','${item.type}','${item.recipeId || ""}')">
           <span class="mrp-item-name">${item.name}</span>
           ${meta}
           ${badge}
@@ -913,45 +874,85 @@
       }
 
       // ============================================================
-      // ★ applyMaster → 副材料・製作材料どちらも適用できる版
+      // ★ applyMasterByName（修正版）
+      //   type: 'recipe' → recipeId で直接 subgroups を取得
+      //   type: 'sub'    → parent名 で subgroups を検索
+      //   type: 'mat'    → mat_name に一致する subgroup を検索
       // ============================================================
-      async function applyMasterByName(groupEl, name, type) {
+      async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
+        let sgData = null;
 
-        if (type === "sub") {
-          // 副材料フロー適用（従来通り）
-          const { data } = await sb.from("recipe_subgroups")
-            .select("id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-            .eq("parent", name).limit(1).single();
-          if (!data) { showToast("「" + name + "」の副材料データが見つかりませんでした"); return; }
-          applySubgroupData(groupEl, gid, data);
-        } else {
-          // 製作材料フロー：その材料が使われているレシピの副材料グループを探す
-          // まず recipe_mats から recipe_id を取得
-          const { data: matRow } = await sb.from("recipe_mats")
-            .select("recipe_id")
-            .eq("mat_name", name)
-            .is("parent_mat_id", null)
-            .limit(1).single();
+        if (type === "recipe" && recipeId) {
+          // レシピIDから副材料グループを全件取得し、最初の1件を使う
+          const { data, error } = await sb
+            .from("recipe_subgroups")
+            .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("recipe_id", recipeId)
+            .order("sort_order");
 
-          if (!matRow) { showToast("「" + name + "」のレシピが見つかりませんでした"); return; }
-
-          // その recipe の副材料グループで parent が name と一致するものを探す
-          const { data: sgData } = await sb.from("recipe_subgroups")
-            .select("id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-            .eq("recipe_id", matRow.recipe_id)
-            .eq("parent", name)
-            .limit(1).single();
-
-          if (!sgData) {
-            // 副材料グループが存在しない→製作材料名だけを親名に設定してステップは空で適用
+          if (error || !data || data.length === 0) {
+            // 副材料なし → アイテム名だけ設定
             groupEl.querySelector(".sg-parent").value = name;
             showToast("「" + name + "」を設定しました（副材料ステップなし）");
             return;
           }
-          applySubgroupData(groupEl, gid, sgData);
+          // 副材料が複数ある場合、先頭グループを適用
+          sgData = data[0];
+          // 親名はレシピのsubgroupのparentを使う（そのままにしても良いがparent名で上書き）
+          groupEl.querySelector(".sg-parent").value = sgData.parent || name;
+
+        } else if (type === "sub") {
+          // parent名で検索（.maybeSingle() を使い0件時もエラーにしない）
+          const { data, error } = await sb
+            .from("recipe_subgroups")
+            .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("parent", name)
+            .order("sort_order")
+            .limit(1)
+            .maybeSingle();
+
+          if (error || !data) {
+            groupEl.querySelector(".sg-parent").value = name;
+            showToast("「" + name + "」を設定しました（副材料ステップなし）");
+            return;
+          }
+          sgData = data;
+          groupEl.querySelector(".sg-parent").value = name;
+
+        } else {
+          // type === 'mat' または type 不明
+          // mat_name → recipe_id → recipe_subgroups で parent=name を検索
+          const { data: matRow } = await sb
+            .from("recipe_mats")
+            .select("recipe_id")
+            .eq("mat_name", name)
+            .is("parent_mat_id", null)
+            .limit(1)
+            .maybeSingle();
+
+          if (matRow && matRow.recipe_id) {
+            const { data, error } = await sb
+              .from("recipe_subgroups")
+              .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+              .eq("recipe_id", matRow.recipe_id)
+              .eq("parent", name)
+              .limit(1)
+              .maybeSingle();
+
+            if (!error && data) sgData = data;
+          }
+
+          groupEl.querySelector(".sg-parent").value = name;
+
+          if (!sgData) {
+            showToast("「" + name + "」を設定しました（副材料ステップなし）");
+            return;
+          }
         }
-        groupEl.querySelector(".sg-parent").value = name;
+
+        // ステップを展開
+        applySubgroupData(groupEl, gid, sgData);
         calcReverse(gid);
         showToast("「" + name + "」を適用しました");
       }
@@ -1094,11 +1095,11 @@
           closeRefPanel(panelId);
           btn.classList.remove("open");
         } else {
-          const groupEl = document.getElementById(gid);
           btn.classList.add("open");
-          openRefPanel(panelId, null, async (name, type) => {
+          const groupEl = document.getElementById(gid);
+          openRefPanel(panelId, async (name, type, recipeId) => {
             btn.classList.remove("open");
-            await applyMasterByName(groupEl, name, type);
+            await applyMasterByName(groupEl, name, type, recipeId);
           });
         }
       }
@@ -1107,10 +1108,10 @@
         const groupEl = document.getElementById(gid);
         const name = groupEl.querySelector(".sg-parent").value.trim();
         if (!name) { showToast("材料名を入力してください"); return; }
-        // キャッシュから type を判断
         const found = masterListCache.find(i => i.name === name);
         const type = found ? found.type : "sub";
-        await applyMasterByName(groupEl, name, type);
+        const recipeId = found ? found.recipeId : null;
+        await applyMasterByName(groupEl, name, type, recipeId);
       }
 
       // ============================================================
