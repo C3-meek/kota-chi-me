@@ -714,25 +714,44 @@
       }
 
       // ============================================================
-      // ★ マスターリスト（副材料 + 製作材料 の両方を取得）
+      // ★ マスターリスト（レシピ名 + 副材料 + 製作材料 の3種取得）
       // ============================================================
       async function loadMasterList() {
-        // 副材料（recipe_subgroups の parent 名）
+        // ① レシピ名（recipes テーブルから直接）
+        const { data: recipeData } = await sb
+          .from("recipes")
+          .select("id, name, sheets(name)")
+          .order("name");
+
+        // ② 副材料（recipe_subgroups の parent 名）
         const { data: subData } = await sb
           .from("recipe_subgroups")
-          .select("parent, recipes(name, sheets(name))")
+          .select("parent, recipes(id, name, sheets(name))")
           .order("parent");
 
-        // 製作材料（recipe_mats の主材料名 = parent_mat_id IS NULL）
+        // ③ 製作材料（recipe_mats の主材料名 = parent_mat_id IS NULL）
         const { data: matData } = await sb
           .from("recipe_mats")
-          .select("mat_name, recipes(name, sheets(name))")
+          .select("mat_name, recipe_id, recipes(name, sheets(name))")
           .is("parent_mat_id", null)
           .order("mat_name");
 
         const cache = [];
 
-        // 副材料エントリ（重複排除して名前でまとめる）
+        // ① レシピ名エントリ
+        (recipeData || []).forEach(row => {
+          const name = (row.name || "").trim();
+          if (!name) return;
+          cache.push({
+            name,
+            type: "recipe",
+            recipeId: row.id,
+            sheet: row.sheets?.name || "",
+            recipeName: ""   // 自身がレシピなので不要
+          });
+        });
+
+        // ② 副材料エントリ（重複排除）
         const subSeen = new Set();
         (subData || []).forEach(row => {
           const name = (row.parent || "").trim();
@@ -741,12 +760,13 @@
           cache.push({
             name,
             type: "sub",
+            recipeId: row.recipes?.id || null,
             sheet: row.recipes?.sheets?.name || "",
             recipeName: row.recipes?.name || ""
           });
         });
 
-        // 製作材料エントリ（重複排除）
+        // ③ 製作材料エントリ（重複排除）
         const matSeen = new Set();
         (matData || []).forEach(row => {
           const name = (row.mat_name || "").trim();
@@ -755,6 +775,7 @@
           cache.push({
             name,
             type: "mat",
+            recipeId: row.recipe_id || null,
             sheet: row.recipes?.sheets?.name || "",
             recipeName: row.recipes?.name || ""
           });
@@ -772,9 +793,10 @@
         return `
           <div class="master-ref-panel" id="${panelId}">
             <div class="mrp-header">
-              <input class="mrp-search" type="text" placeholder="材料名で絞り込み..." oninput="filterRefPanel('${panelId}', this.value)">
+              <input class="mrp-search" type="text" placeholder="名前で絞り込み..." oninput="filterRefPanel('${panelId}', this.value)">
               <div class="mrp-tabs">
                 <button class="mrp-tab active" onclick="setRefTab('${panelId}','all',this)">すべて</button>
+                <button class="mrp-tab" onclick="setRefTab('${panelId}','recipe',this)">レシピ名</button>
                 <button class="mrp-tab" onclick="setRefTab('${panelId}','sub',this)">副材料</button>
                 <button class="mrp-tab" onclick="setRefTab('${panelId}','mat',this)">製作材料</button>
               </div>
@@ -823,25 +845,33 @@
 
       function renderRefPanel(panelId, q, tab) {
         const body = document.getElementById(panelId + "-body");
-        const panel = document.getElementById(panelId);
         const lq = (q || "").toLowerCase();
 
         let items = masterListCache;
-        if (tab === "sub") items = items.filter(i => i.type === "sub");
+        if (tab === "recipe") items = items.filter(i => i.type === "recipe");
+        else if (tab === "sub") items = items.filter(i => i.type === "sub");
         else if (tab === "mat") items = items.filter(i => i.type === "mat");
-        if (lq) items = items.filter(i => i.name.toLowerCase().includes(lq) || i.recipeName.toLowerCase().includes(lq));
+        if (lq) items = items.filter(i =>
+          i.name.toLowerCase().includes(lq) ||
+          i.recipeName.toLowerCase().includes(lq) ||
+          i.sheet.toLowerCase().includes(lq)
+        );
 
         if (!items.length) {
           body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>';
           return;
         }
 
-        // type別にグループ化して表示
-        const subs = items.filter(i => i.type === "sub");
-        const mats = items.filter(i => i.type === "mat");
+        const recipes = items.filter(i => i.type === "recipe");
+        const subs    = items.filter(i => i.type === "sub");
+        const mats    = items.filter(i => i.type === "mat");
 
         let html = "";
         if (tab === "all") {
+          if (recipes.length) {
+            html += `<div class="mrp-section-label">🍳 レシピ名</div>`;
+            recipes.forEach(item => { html += renderRefItem(panelId, item); });
+          }
           if (subs.length) {
             html += `<div class="mrp-section-label">📦 副材料の作り方</div>`;
             subs.forEach(item => { html += renderRefItem(panelId, item); });
@@ -858,20 +888,27 @@
       }
 
       function renderRefItem(panelId, item) {
-        const badge = item.type === "sub"
-          ? `<span class="mrp-item-badge badge-sub">副材料</span>`
-          : `<span class="mrp-item-badge badge-mat">製作材料</span>`;
-        const meta = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : "";
-        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${item.name.replace(/'/g,"\\'")}','${item.type}')">
+        let badge, meta;
+        if (item.type === "recipe") {
+          badge = `<span class="mrp-item-badge badge-recipe">レシピ</span>`;
+          meta  = item.sheet ? `<span class="mrp-item-meta">${item.sheet}</span>` : "";
+        } else if (item.type === "sub") {
+          badge = `<span class="mrp-item-badge badge-sub">副材料</span>`;
+          meta  = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : "";
+        } else {
+          badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`;
+          meta  = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : "";
+        }
+        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${item.name.replace(/'/g,"\\'")}','${item.type}','${item.recipeId || ""}')">
           <span class="mrp-item-name">${item.name}</span>
           ${meta}
           ${badge}
         </div>`;
       }
 
-      async function selectRefItem(panelId, name, type) {
+      async function selectRefItem(panelId, name, type, recipeId) {
         const panel = document.getElementById(panelId);
-        if (panel._onSelect) await panel._onSelect(name, type);
+        if (panel._onSelect) await panel._onSelect(name, type, recipeId || null);
         closeRefPanel(panelId);
       }
 
