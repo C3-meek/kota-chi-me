@@ -428,7 +428,7 @@
             </div>
             <div class="field" id="f-effect-wrap" style="display:none">
               <label>効果<span class="opt">任意・料理のみ</span></label>
-              <input type="text" id="f-effect" placeholder="例: 移動速度 +2、持続時間 90分" />
+              <textarea id="f-effect" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4" style="width:100%;padding:9px 12px;background:#f5f4f0;border:1px solid #ddd;border-radius:8px;color:#1a1a1a;font-size:14px;outline:none;transition:border-color 0.2s;resize:vertical;font-family:inherit;line-height:1.6;" onfocus="this.style.borderColor='#888';this.style.background='#fff'" onblur="this.style.borderColor='#ddd';this.style.background='#f5f4f0'"></textarea>
             </div>
           </div>
           <div class="nav">
@@ -1297,7 +1297,7 @@
         let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;">${d.effect}</div></div>`;
+        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
           d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
