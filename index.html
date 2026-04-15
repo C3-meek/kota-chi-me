@@ -114,16 +114,17 @@
       <table>
         <thead id="table-head">
           <tr>
-            <th style="width: 22%">アイテム名</th>
+            <th style="width: 18%">アイテム名</th>
             <th style="width: auto">製作材料</th>
-            <th style="width: 20%">製作できる都市 / 製作所Lv</th>
-            <th style="width: 8%">作成個数</th>
+            <th style="width: 14%">🍽 効果</th>
+            <th style="width: 18%">製作できる都市 / 製作所Lv</th>
+            <th style="width: 7%">作成個数</th>
             <th style="width: 8%">材料細分化</th>
           </tr>
         </thead>
         <tbody id="tbody">
           <tr>
-            <td colspan="5" class="state-msg">
+            <td colspan="6" class="state-msg">
               <div class="spinner"></div>
               <div>データを読み込んでいます...</div>
             </td>
@@ -139,14 +140,15 @@
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+      // 効果列は常に表示するため列数を定数化
+      const COL_SPAN = 6;
+
       let SHEETS = [];
       let allData = [];
       let currentTag = "all";
       let currentCat = "all";
       const quantities = {};
       const expanded = {};
-
-      function isEffectTag(tag) { return tag !== "all" && EFFECT_SHEET_NAMES.indexOf(tag) >= 0; }
 
       function fmtQty(raw, multiplier, tilde) {
         if (!raw || String(raw).trim() === "") return "";
@@ -172,22 +174,26 @@
 
       async function loadData() {
         try {
-          const { data: sheetsData, error: sheetsError } = await sb.from("sheets").select("id, name").order("sort_order");
+          const { data: sheetsData, error: sheetsError } = await sb
+            .from("sheets").select("id, name").order("sort_order");
           if (sheetsError) throw sheetsError;
           SHEETS = (sheetsData || []).map((s) => s.name);
 
-          const { data: recipes, error: recipesError } = await sb.from("recipes").select(`
-            id, name, category, image_url, effect,
-            sheets(name),
-            recipe_cities(sort_order, city_name, city_level),
-            recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
-            recipe_subgroups(
-              id, sort_order, parent,
-              recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
-                recipe_step_mats(sort_order, mat_name, mat_qty)
+          const { data: recipes, error: recipesError } = await sb
+            .from("recipes")
+            .select(`
+              id, name, category, image_url, effect,
+              sheets(name),
+              recipe_cities(sort_order, city_name, city_level),
+              recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
+              recipe_subgroups(
+                id, sort_order, parent,
+                recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
+                  recipe_step_mats(sort_order, mat_name, mat_qty)
+                )
               )
-            )
-          `).order("name");
+            `)
+            .order("name");
           if (recipesError) throw recipesError;
 
           allData = (recipes || []).map((r) => parseRecipe(r));
@@ -199,7 +205,7 @@
             `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
         } catch (e) {
           document.getElementById("tbody").innerHTML =
-            `<tr><td colspan="5" class="state-msg">⚠️ データの読み込みに失敗しました。<br>Supabaseの接続設定を確認してください。<br><small style="color:#ccc;">${e.message || ""}</small></td></tr>`;
+            `<tr><td colspan="${COL_SPAN}" class="state-msg">⚠️ データの読み込みに失敗しました。<br>Supabaseの接続設定を確認してください。<br><small style="color:#ccc;">${e.message || ""}</small></td></tr>`;
           console.error(e);
         }
       }
@@ -207,30 +213,66 @@
       function parseRecipe(r) {
         const tag = r.sheets ? r.sheets.name : "";
         const hasEffect = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
-        const cities = (r.recipe_cities || []).sort((a,b)=>a.sort_order-b.sort_order).map(c=>({name:c.city_name||"",level:c.city_level||""}));
-        const allRawMats = (r.recipe_mats || []).sort((a,b)=>a.sort_order-b.sort_order);
-        const mats = allRawMats.filter(m=>!m.parent_mat_id).map(m=>({
-          name: m.mat_name||"", qty: m.mat_qty||"", tilde: false,
-          alts: allRawMats.filter(a=>a.parent_mat_id===m.id).sort((a,b)=>a.sort_order-b.sort_order).map(a=>({connector:a.alt_connector||"あるいは",name:a.mat_name||"",qty:a.mat_qty||""}))
-        }));
-        const subgroups = (r.recipe_subgroups||[]).sort((a,b)=>a.sort_order-b.sort_order).map(sg=>{
-          const steps = (sg.recipe_steps||[]).sort((a,b)=>a.sort_order-b.sort_order).map((step,si)=>{
-            const stepMats = (step.recipe_step_mats||[]).sort((a,b)=>a.sort_order-b.sort_order).map(sm=>({name:sm.mat_name||"",qty:sm.mat_qty||"",tilde:false}));
-            return {connector:si>0?step.connector||"":"",proc:step.proc||"",mats:stepMats,result_name:step.result_name||"",result_qty:step.result_qty||"",result_tilde:false};
+        const cities = (r.recipe_cities || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((c) => ({ name: c.city_name || "", level: c.city_level || "" }));
+        const allRawMats = (r.recipe_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+        const mats = allRawMats
+          .filter((m) => !m.parent_mat_id)
+          .map((m) => ({
+            name: m.mat_name || "",
+            qty: m.mat_qty || "",
+            tilde: false,
+            alts: allRawMats
+              .filter((a) => a.parent_mat_id === m.id)
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((a) => ({
+                connector: a.alt_connector || "あるいは",
+                name: a.mat_name || "",
+                qty: a.mat_qty || "",
+              })),
+          }));
+        const subgroups = (r.recipe_subgroups || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((sg) => {
+            const steps = (sg.recipe_steps || [])
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((step, si) => {
+                const stepMats = (step.recipe_step_mats || [])
+                  .sort((a, b) => a.sort_order - b.sort_order)
+                  .map((sm) => ({ name: sm.mat_name || "", qty: sm.mat_qty || "", tilde: false }));
+                return {
+                  connector: si > 0 ? step.connector || "" : "",
+                  proc: step.proc || "",
+                  mats: stepMats,
+                  result_name: step.result_name || "",
+                  result_qty: step.result_qty || "",
+                  result_tilde: false,
+                };
+              });
+            return { parent: sg.parent || "", steps };
           });
-          return {parent:sg.parent||"",steps};
-        });
-        return {name:r.name||"",category:r.category||"",image_url:r.image_url||"",effect:hasEffect?r.effect||"":"",tag,cities,mats,subgroups};
+        return {
+          name: r.name || "",
+          category: r.category || "",
+          image_url: r.image_url || "",
+          // 料理シートのみ効果を保持。他シートは空文字（列は表示するが「—」表示）
+          effect: hasEffect ? r.effect || "" : "",
+          tag,
+          cities,
+          mats,
+          subgroups,
+        };
       }
 
       function buildTagButtons() {
         const wrap = document.getElementById("tag-buttons");
         wrap.innerHTML = `<button class="cat-btn active" onclick="setTag('all',this)">すべて</button>`;
-        SHEETS.forEach(tag=>{
+        SHEETS.forEach((tag) => {
           const btn = document.createElement("button");
           btn.className = "cat-btn";
           btn.textContent = tag;
-          btn.onclick = function(){ setTag(tag,this); };
+          btn.onclick = function () { setTag(tag, this); };
           wrap.appendChild(btn);
         });
       }
@@ -238,113 +280,141 @@
       function buildCatButtons(tag) {
         const catRow = document.getElementById("cat-row");
         const catWrap = document.getElementById("cat-buttons");
-        if (tag === "all") { catRow.style.display="none"; currentCat="all"; return; }
-        const cats = [...new Set(allData.filter(r=>r.tag===tag).map(r=>r.category).filter(Boolean))].sort();
-        if (cats.length===0) { catRow.style.display="none"; currentCat="all"; return; }
+        if (tag === "all") { catRow.style.display = "none"; currentCat = "all"; return; }
+        const cats = [...new Set(
+          allData.filter((r) => r.tag === tag).map((r) => r.category).filter(Boolean)
+        )].sort();
+        if (cats.length === 0) { catRow.style.display = "none"; currentCat = "all"; return; }
         catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
-        cats.forEach(cat=>{
-          const btn=document.createElement("button"); btn.className="cat-btn"; btn.textContent=cat;
-          btn.onclick=function(){ setCat(cat,this); }; catWrap.appendChild(btn);
+        cats.forEach((cat) => {
+          const btn = document.createElement("button");
+          btn.className = "cat-btn";
+          btn.textContent = cat;
+          btn.onclick = function () { setCat(cat, this); };
+          catWrap.appendChild(btn);
         });
-        catRow.style.display="flex";
+        catRow.style.display = "flex";
       }
 
-      function setTag(tag,el) {
-        currentTag=tag; currentCat="all";
-        document.querySelectorAll("#tag-buttons .cat-btn").forEach(b=>b.classList.remove("active"));
+      function setTag(tag, el) {
+        currentTag = tag;
+        currentCat = "all";
+        document.querySelectorAll("#tag-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
         el.classList.add("active");
-        buildCatButtons(tag); updateTableHeader(tag); render();
+        buildCatButtons(tag);
+        render();
       }
 
-      function setCat(cat,el) {
-        currentCat=cat;
-        document.querySelectorAll("#cat-buttons .cat-btn").forEach(b=>b.classList.remove("active"));
-        el.classList.add("active"); render();
-      }
-
-      function updateTableHeader(tag) {
-        const thead = document.getElementById("table-head");
-        if (isEffectTag(tag)) {
-          thead.innerHTML=`<tr><th style="width:20%">アイテム名</th><th style="width:auto">製作材料</th><th style="width:16%">🍽 効果</th><th style="width:18%">製作できる都市 / 製作所Lv</th><th style="width:7%">作成個数</th><th style="width:8%">材料細分化</th></tr>`;
-        } else {
-          thead.innerHTML=`<tr><th style="width:22%">アイテム名</th><th style="width:auto">製作材料</th><th style="width:20%">製作できる都市 / 製作所Lv</th><th style="width:8%">作成個数</th><th style="width:8%">材料細分化</th></tr>`;
-        }
+      function setCat(cat, el) {
+        currentCat = cat;
+        document.querySelectorAll("#cat-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
+        el.classList.add("active");
+        render();
       }
 
       function render() {
         const q = document.getElementById("search").value.toLowerCase();
-        const showEffect = isEffectTag(currentTag);
-        const colSpan = showEffect ? 6 : 5;
-        const rows = allData.filter(r=>{
-          if (currentTag!=="all" && r.tag!==currentTag) return false;
-          if (currentCat!=="all" && r.category!==currentCat) return false;
-          if (q) {
-            const inName=r.name.toLowerCase().includes(q);
-            const inMat=r.mats.some(m=>m.name.toLowerCase().includes(q));
-            const inSub=r.subgroups.some(g=>g.parent.toLowerCase().includes(q)||g.steps.some(s=>s.mats.some(m=>m.name.toLowerCase().includes(q))));
-            const inEffect=r.effect&&r.effect.toLowerCase().includes(q);
-            const inCity=r.cities&&r.cities.some(c=>c.name.toLowerCase().includes(q));
-            if (!inName&&!inMat&&!inSub&&!inEffect&&!inCity) return false;
-          }
-          return true;
-        }).sort((a,b)=>a.name.localeCompare(b.name,"ja"));
+        const rows = allData
+          .filter((r) => {
+            if (currentTag !== "all" && r.tag !== currentTag) return false;
+            if (currentCat !== "all" && r.category !== currentCat) return false;
+            if (q) {
+              const inName   = r.name.toLowerCase().includes(q);
+              const inMat    = r.mats.some((m) => m.name.toLowerCase().includes(q));
+              const inSub    = r.subgroups.some((g) =>
+                g.parent.toLowerCase().includes(q) ||
+                g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q)))
+              );
+              const inEffect = r.effect && r.effect.toLowerCase().includes(q);
+              const inCity   = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
+              if (!inName && !inMat && !inSub && !inEffect && !inCity) return false;
+            }
+            return true;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name, "ja"));
 
-        document.getElementById("result-info").textContent = rows.length ? `${rows.length}件のレシピを表示中` : "";
+        document.getElementById("result-info").textContent =
+          rows.length ? `${rows.length}件のレシピを表示中` : "";
         const tbody = document.getElementById("tbody");
         tbody.innerHTML = "";
 
         if (!rows.length) {
-          tbody.innerHTML=`<tr><td colspan="${colSpan}" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+          tbody.innerHTML = `<tr><td colspan="${COL_SPAN}" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
           return;
         }
 
-        rows.forEach(r=>{
-          const key=r.name;
-          if (!quantities[key]) quantities[key]=1;
-          const qty=quantities[key];
-          const isOpen=expanded[key];
-          const hasSub=r.subgroups.length>0;
-          const tr=document.createElement("tr");
-          const imgHTML=r.image_url?`<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`:r.tag==="料理"?"🍽":"🪑";
-          const cityHTML=r.cities&&r.cities.length?r.cities.map(c=>`<div>・${c.name}${c.level?`&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>`:""}</div>`).join(""):'<span style="color:#ddd">—</span>';
-          const effectCell=showEffect?`<td>${r.effect?`<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`:'<span style="color:#ddd;font-size:11px">—</span>'}</td>`:"";
-          const safeKey=key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
-          tr.innerHTML=`
+        rows.forEach((r) => {
+          const key = r.name;
+          if (!quantities[key]) quantities[key] = 1;
+          const qty = quantities[key];
+          const isOpen = expanded[key];
+          const hasSub = r.subgroups.length > 0;
+          const tr = document.createElement("tr");
+
+          const imgHTML = r.image_url
+            ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`
+            : (r.tag === "料理" ? "🍽" : "🪑");
+
+          const cityHTML = r.cities && r.cities.length
+            ? r.cities.map((c) =>
+                `<div>・${c.name}${c.level ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>` : ""}</div>`
+              ).join("")
+            : '<span style="color:#ddd">—</span>';
+
+          // 効果列：料理シート以外は「—」を静かに表示
+          const effectCell = r.effect
+            ? `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`
+            : '<span style="color:#ddd;font-size:11px">—</span>';
+
+          const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+          tr.innerHTML = `
             <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
-            <td><div class="mat-list">${r.mats.map(m=>{
-              const altHTML=(m.alts||[]).map(a=>`<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty,qty,false)}</span></div>`).join("");
+            <td><div class="mat-list">${r.mats.map((m) => {
+              const altHTML = (m.alts || []).map((a) =>
+                `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty,qty,false)}</span></div>`
+              ).join("");
               return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>${altHTML}`;
             }).join("")}</div></td>
-            ${effectCell}
+            <td>${effectCell}</td>
             <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
             <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${safeKey}']=Math.max(1,parseInt(this.value)||1);render()"></td>
-            <td>${hasSub?`<button class="expand-btn ${isOpen?"open":""}" onclick="expanded['${safeKey}']=!expanded['${safeKey}'];render()">${isOpen?"▲ 閉じる":"▼ 材料細分化"}</button>`:'<span style="color:#ddd;font-size:11px">—</span>'}</td>`;
+            <td>${hasSub ? `<button class="expand-btn ${isOpen?"open":""}" onclick="expanded['${safeKey}']=!expanded['${safeKey}'];render()">${isOpen?"▲ 閉じる":"▼ 材料細分化"}</button>` : '<span style="color:#ddd;font-size:11px">—</span>'}</td>`;
           tbody.appendChild(tr);
 
-          if (isOpen&&hasSub) {
-            const subtr=document.createElement("tr"); subtr.className="sub-row";
-            const subHTML=r.subgroups.map(g=>{
-              const stepsHTML=g.steps.map((s,si)=>{
-                const connectorHTML=si>0&&s.connector?`<div class="step-connector">${s.connector}</div>`:"";
-                const procHTML=s.proc?`<span class="proc-badge">${s.proc}</span>`:"";
-                const matsHTML=s.mats.map(m=>`<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>`).join("");
-                const resultHTML=s.result_name?`<div class="step-result">→ ${s.result_name}${s.result_qty?" "+fmtQty(s.result_qty,qty,s.result_tilde):""}</div>`:"";
+          if (isOpen && hasSub) {
+            const subtr = document.createElement("tr");
+            subtr.className = "sub-row";
+            const subHTML = r.subgroups.map((g) => {
+              const stepsHTML = g.steps.map((s, si) => {
+                const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
+                const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
+                const matsHTML = s.mats.map((m) =>
+                  `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>`
+                ).join("");
+                const resultHTML = s.result_name
+                  ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? " " + fmtQty(s.result_qty,qty,s.result_tilde) : ""}</div>`
+                  : "";
                 return `${connectorHTML}<div class="sub-step">${procHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
               }).join("");
               return `<div class="sub-group"><div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div><div class="sub-steps">${stepsHTML}</div></div>`;
             }).join("");
-            subtr.innerHTML=`<td colspan="${colSpan}">${subHTML}</td>`;
+            subtr.innerHTML = `<td colspan="${COL_SPAN}">${subHTML}</td>`;
             tbody.appendChild(subtr);
           }
         });
       }
 
-      function openLightbox(src) { document.getElementById("lightbox-img").src=src; document.getElementById("lightbox").classList.add("active"); }
-      function closeLightbox() { document.getElementById("lightbox").classList.remove("active"); }
-      document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") closeLightbox(); });
+      function openLightbox(src) {
+        document.getElementById("lightbox-img").src = src;
+        document.getElementById("lightbox").classList.add("active");
+      }
+      function closeLightbox() {
+        document.getElementById("lightbox").classList.remove("active");
+      }
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
 
       const searchInput = document.getElementById("search");
-      searchInput.addEventListener("input", function() { updateClearBtn(); render(); });
+      searchInput.addEventListener("input", function () { updateClearBtn(); render(); });
 
       loadData();
     </script>
