@@ -81,6 +81,20 @@
         gap: 6px; align-items: center;
       }
       .mat-main-row input { background: #fff; margin: 0; }
+      /* ステップ材料専用（ドラッグハンドル付き） */
+      .smat-main-row {
+        display: grid; grid-template-columns: 18px 1fr 90px auto 32px;
+        gap: 6px; align-items: center;
+      }
+      .smat-main-row input { background: #fff; margin: 0; }
+      .smat-drag-handle {
+        display: flex; align-items: center; justify-content: center;
+        cursor: grab; color: #ccc; font-size: 14px; user-select: none;
+        height: 100%;
+      }
+      .smat-drag-handle:active { cursor: grabbing; }
+      .mat-block.smat-dragging { opacity: 0.4; }
+      .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
       .alt-add-btn {
         padding: 5px 10px; border: 1px dashed #3a5aad; border-radius: 6px;
         background: #fff; color: #3a5aad; font-size: 11px;
@@ -272,8 +286,14 @@
         cursor: grab; color: #ccc; font-size: 14px; user-select: none;
       }
       .city-drag-handle:active { cursor: grabbing; }
-      .master-input-wrap { position: relative; }
-      .master-input-row { display: flex; gap: 6px; align-items: center; }
+
+      /* ── 参照パネル（新UI） ── */
+      .master-input-wrap {
+        position: relative;
+      }
+      .master-input-row {
+        display: flex; gap: 6px; align-items: center;
+      }
       .master-input-row input { flex: 1; }
       .master-ref-btn {
         padding: 7px 12px; border: 1px solid #3a5aad; border-radius: 8px;
@@ -288,6 +308,8 @@
         cursor: pointer; white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
       }
       .apply-btn:hover { background: #f0fff1; }
+
+      /* 参照パネル本体 */
       .master-ref-panel {
         display: none;
         position: absolute; top: calc(100% + 6px); left: 0; right: 0;
@@ -297,7 +319,8 @@
       }
       .master-ref-panel.open { display: block; }
       .mrp-header {
-        padding: 10px 12px 8px; background: #f5f7ff;
+        padding: 10px 12px 8px;
+        background: #f5f7ff;
         border-bottom: 1px solid #e0e5f5;
         display: flex; align-items: center; gap: 8px;
       }
@@ -317,8 +340,13 @@
         white-space: nowrap;
       }
       .mrp-tab.active { background: #3a5aad; color: #fff; }
-      .mrp-body { max-height: 260px; overflow-y: auto; padding: 6px; }
-      .mrp-empty { padding: 24px; text-align: center; font-size: 12px; color: #bbb; }
+      .mrp-body {
+        max-height: 260px; overflow-y: auto;
+        padding: 6px;
+      }
+      .mrp-empty {
+        padding: 24px; text-align: center; font-size: 12px; color: #bbb;
+      }
       .mrp-section-label {
         font-size: 10px; font-weight: 700; color: #9fa8da;
         padding: 6px 8px 2px; letter-spacing: 0.06em; text-transform: uppercase;
@@ -333,12 +361,13 @@
         font-size: 13px; font-weight: 500; color: #1a1a1a;
         flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
-      .mrp-item-meta { font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0; }
+      .mrp-item-meta {
+        font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0;
+      }
       .mrp-item-badge {
         font-size: 10px; padding: 1px 7px; border-radius: 10px;
         white-space: nowrap; flex-shrink: 0;
       }
-      .badge-recipe { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
       .badge-sub { background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; }
       .badge-mat { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     </style>
@@ -428,7 +457,7 @@
             </div>
             <div class="field" id="f-effect-wrap" style="display:none">
               <label>効果<span class="opt">任意・料理のみ</span></label>
-              <textarea id="f-effect" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4" style="width:100%;padding:9px 12px;background:#f5f4f0;border:1px solid #ddd;border-radius:8px;color:#1a1a1a;font-size:14px;outline:none;transition:border-color 0.2s;resize:vertical;font-family:inherit;line-height:1.6;" onfocus="this.style.borderColor='#888';this.style.background='#fff'" onblur="this.style.borderColor='#ddd';this.style.background='#f5f4f0'"></textarea>
+              <input type="text" id="f-effect" placeholder="例: 移動速度 +2、持続時間 90分" />
             </div>
           </div>
           <div class="nav">
@@ -524,7 +553,8 @@
       let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
 
-      // masterListCache: { name, type:'recipe'|'sub'|'mat', recipeId, sheet, recipeName }
+      // ── マスターリストのキャッシュ（副材料＋製作材料の両方） ──
+      // 各エントリ: { name: string, type: 'sub'|'mat', sheet: string, recipeName: string }
       let masterListCache = [];
 
       // ============================================================
@@ -573,12 +603,11 @@
             const o = document.createElement("option"); o.value = c; dl.appendChild(o);
           });
         });
+        // パネル外クリックで閉じる
         document.addEventListener("click", function(e) {
           document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
             if (!panel.closest(".master-input-wrap").contains(e.target)) {
               closeRefPanel(panel);
-              const wrap = panel.closest(".master-input-wrap");
-              if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
             }
           });
         });
@@ -699,39 +728,80 @@
       }
 
       // ============================================================
-      // マスターリスト（レシピ名 + 副材料 + 製作材料）
+      // ★ マスターリスト（レシピ名 + 副材料 + 製作材料 の3種取得）
       // ============================================================
       async function loadMasterList() {
-        const { data: recipeData } = await sb.from("recipes").select("id, name, sheets(name)").order("name");
-        const { data: subData } = await sb.from("recipe_subgroups").select("parent, recipes(id, name, sheets(name))").order("parent");
-        const { data: matData } = await sb.from("recipe_mats").select("mat_name, recipe_id, recipes(name, sheets(name))").is("parent_mat_id", null).order("mat_name");
+        // ① レシピ名（recipes テーブルから直接）
+        const { data: recipeData } = await sb
+          .from("recipes")
+          .select("id, name, sheets(name)")
+          .order("name");
+
+        // ② 副材料（recipe_subgroups の parent 名）
+        const { data: subData } = await sb
+          .from("recipe_subgroups")
+          .select("parent, recipes(id, name, sheets(name))")
+          .order("parent");
+
+        // ③ 製作材料（recipe_mats の主材料名 = parent_mat_id IS NULL）
+        const { data: matData } = await sb
+          .from("recipe_mats")
+          .select("mat_name, recipe_id, recipes(name, sheets(name))")
+          .is("parent_mat_id", null)
+          .order("mat_name");
 
         const cache = [];
+
+        // ① レシピ名エントリ
         (recipeData || []).forEach(row => {
           const name = (row.name || "").trim();
           if (!name) return;
-          cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" });
+          cache.push({
+            name,
+            type: "recipe",
+            recipeId: row.id,
+            sheet: row.sheets?.name || "",
+            recipeName: ""   // 自身がレシピなので不要
+          });
         });
+
+        // ② 副材料エントリ（重複排除）
         const subSeen = new Set();
         (subData || []).forEach(row => {
           const name = (row.parent || "").trim();
           if (!name || subSeen.has(name)) return;
           subSeen.add(name);
-          cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
+          cache.push({
+            name,
+            type: "sub",
+            recipeId: row.recipes?.id || null,
+            sheet: row.recipes?.sheets?.name || "",
+            recipeName: row.recipes?.name || ""
+          });
         });
+
+        // ③ 製作材料エントリ（重複排除）
         const matSeen = new Set();
         (matData || []).forEach(row => {
           const name = (row.mat_name || "").trim();
           if (!name || matSeen.has(name)) return;
           matSeen.add(name);
-          cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
+          cache.push({
+            name,
+            type: "mat",
+            recipeId: row.recipe_id || null,
+            sheet: row.recipes?.sheets?.name || "",
+            recipeName: row.recipes?.name || ""
+          });
         });
+
+        // 名前順ソート
         cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
         masterListCache = cache;
       }
 
       // ============================================================
-      // 参照パネルUI
+      // ★ 参照パネルUI（カスタムドロップダウン）
       // ============================================================
       function buildRefPanelHTML(panelId) {
         return `
@@ -749,22 +819,22 @@
           </div>`;
       }
 
-      function openRefPanel(panelId, onSelect) {
+      function openRefPanel(panelId, inputEl, onSelect) {
+        // 他のパネルを閉じる
         document.querySelectorAll(".master-ref-panel.open").forEach(p => {
-          if (p.id !== panelId) {
-            closeRefPanel(p);
-            const wrap = p.closest(".master-input-wrap");
-            if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
-          }
+          if (p.id !== panelId) closeRefPanel(p);
         });
         const panel = document.getElementById(panelId);
         panel.classList.add("open");
+        // 検索欄をクリア
         const searchEl = panel.querySelector(".mrp-search");
         searchEl.value = "";
+        // タブをリセット
         panel.querySelectorAll(".mrp-tab").forEach((t, i) => t.classList.toggle("active", i === 0));
         panel._currentTab = "all";
         panel._onSelect = onSelect;
         renderRefPanel(panelId, "", "all");
+        // 検索フォーカス
         setTimeout(() => searchEl.focus(), 50);
       }
 
@@ -778,7 +848,8 @@
         panel.querySelectorAll(".mrp-tab").forEach(t => t.classList.remove("active"));
         btn.classList.add("active");
         panel._currentTab = tab;
-        renderRefPanel(panelId, panel.querySelector(".mrp-search").value, tab);
+        const q = panel.querySelector(".mrp-search").value;
+        renderRefPanel(panelId, q, tab);
       }
 
       function filterRefPanel(panelId, q) {
@@ -789,27 +860,44 @@
       function renderRefPanel(panelId, q, tab) {
         const body = document.getElementById(panelId + "-body");
         const lq = (q || "").toLowerCase();
+
         let items = masterListCache;
         if (tab === "recipe") items = items.filter(i => i.type === "recipe");
         else if (tab === "sub") items = items.filter(i => i.type === "sub");
         else if (tab === "mat") items = items.filter(i => i.type === "mat");
         if (lq) items = items.filter(i =>
           i.name.toLowerCase().includes(lq) ||
-          (i.recipeName || "").toLowerCase().includes(lq) ||
-          (i.sheet || "").toLowerCase().includes(lq)
+          i.recipeName.toLowerCase().includes(lq) ||
+          i.sheet.toLowerCase().includes(lq)
         );
-        if (!items.length) { body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>'; return; }
+
+        if (!items.length) {
+          body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>';
+          return;
+        }
+
         const recipes = items.filter(i => i.type === "recipe");
         const subs    = items.filter(i => i.type === "sub");
         const mats    = items.filter(i => i.type === "mat");
+
         let html = "";
         if (tab === "all") {
-          if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
-          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
-          if (mats.length)    { html += `<div class="mrp-section-label">🧱 製作材料</div>`; mats.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (recipes.length) {
+            html += `<div class="mrp-section-label">🍳 レシピ名</div>`;
+            recipes.forEach(item => { html += renderRefItem(panelId, item); });
+          }
+          if (subs.length) {
+            html += `<div class="mrp-section-label">📦 副材料の作り方</div>`;
+            subs.forEach(item => { html += renderRefItem(panelId, item); });
+          }
+          if (mats.length) {
+            html += `<div class="mrp-section-label">🧱 製作材料</div>`;
+            mats.forEach(item => { html += renderRefItem(panelId, item); });
+          }
         } else {
           items.forEach(item => { html += renderRefItem(panelId, item); });
         }
+
         body.innerHTML = html;
       }
 
@@ -825,8 +913,7 @@
           badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`;
           meta  = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : "";
         }
-        const safeName = item.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${safeName}','${item.type}','${item.recipeId || ""}')">
+        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${item.name.replace(/'/g,"\\'")}','${item.type}','${item.recipeId || ""}')">
           <span class="mrp-item-name">${item.name}</span>
           ${meta}
           ${badge}
@@ -840,170 +927,51 @@
       }
 
       // ============================================================
-      // ★ applyMasterByName（修正版）
-      //
-      // type === 'recipe'（レシピ名を選択した場合）:
-      //   → recipeId で recipe_subgroups を全件取得し、グループを1つずつ展開
-      //   → 「どの材料の作り方か」欄に subgroup.parent を入れる
-      //
-      // type === 'sub'（副材料名を選択した場合）:
-      //   → parent = name で subgroups を検索（1件）
-      //
-      // type === 'mat'（製作材料名を選択した場合）:
-      //   → recipeId で recipe_subgroups を検索し parent = name のものを使う
+      // ★ applyMaster → 副材料・製作材料どちらも適用できる版
       // ============================================================
-      // ── recipe_mats からステップを生成するヘルパー ──
-      // subgroups が存在しないレシピ（製作材料だけ登録されているもの）を
-      // 副材料グループの「ステップ1材料」として展開する
-      async function applyFromRecipeMats(groupEl, gid, recipeId, recipeName) {
-        const { data: mats, error } = await sb
-          .from("recipe_mats")
-          .select("id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id")
-          .eq("recipe_id", recipeId)
-          .order("sort_order");
-
-        groupEl.querySelector(".sg-parent").value = recipeName;
-
-        const stepList = document.getElementById(`step-list-${gid}`);
-        stepList.innerHTML = ""; stepCounters[gid] = 0;
-        Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
-        Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
-
-        addStep(gid);
-        const sid = `${gid}-s1`;
-        const sEl = document.getElementById(sid);
-        if (sEl) {
-          // proc・result は空のまま（ユーザーが必要なら入力）
-          sEl.querySelector(".step-proc").value        = "";
-          sEl.querySelector(".step-result-name").value = recipeName;
-          sEl.querySelector(".step-result-qty").value  = "";
-
-          const sml = document.getElementById(`sml-${sid}`);
-          sml.innerHTML = ""; stepMatCounters[sid] = 0;
-
-          const allMats = (mats || []).sort((a, b) => a.sort_order - b.sort_order);
-          allMats.filter(m => !m.parent_mat_id).forEach(m => {
-            const stepAlts = allMats.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order)
-              .map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-            addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
-          });
-        }
-        calcReverse(gid);
-        showToast("「" + recipeName + "」の製作材料をステップに展開しました");
-      }
-
-      async function applyMasterByName(groupEl, name, type, recipeId) {
+      async function applyMasterByName(groupEl, name, type) {
         const gid = groupEl.id;
 
-        // type が "mat" のとき recipeId は「その材料を使っているレシピ」の id であり
-        // 「name というアイテム自体のレシピ id」ではないため、
-        // まず name に完全一致するレシピを検索して targetRecipeId を確定する。
-        let targetRecipeId = null;
-        let targetRecipeName = name;
+        if (type === "sub") {
+          // 副材料フロー適用（従来通り）
+          const { data } = await sb.from("recipe_subgroups")
+            .select("id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("parent", name).limit(1).single();
+          if (!data) { showToast("「" + name + "」の副材料データが見つかりませんでした"); return; }
+          applySubgroupData(groupEl, gid, data);
+        } else {
+          // 製作材料フロー：その材料が使われているレシピの副材料グループを探す
+          // まず recipe_mats から recipe_id を取得
+          const { data: matRow } = await sb.from("recipe_mats")
+            .select("recipe_id")
+            .eq("mat_name", name)
+            .is("parent_mat_id", null)
+            .limit(1).single();
 
-        const { data: namedRecipe } = await sb
-          .from("recipes")
-          .select("id, name")
-          .eq("name", name)
-          .maybeSingle();
-        if (namedRecipe) {
-          targetRecipeId   = namedRecipe.id;
-          targetRecipeName = namedRecipe.name;
-        } else if (type === "recipe" && recipeId) {
-          targetRecipeId = recipeId;
-        }
+          if (!matRow) { showToast("「" + name + "」のレシピが見つかりませんでした"); return; }
 
-        if (targetRecipeId) {
-          // recipe_mats と recipe_subgroups を並行取得
-          const [{ data: mats }, { data: sgList, error: sgErr }] = await Promise.all([
-            sb.from("recipe_mats")
-              .select("id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id")
-              .eq("recipe_id", targetRecipeId)
-              .order("sort_order"),
-            sb.from("recipe_subgroups")
-              .select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-              .eq("recipe_id", targetRecipeId)
-              .order("sort_order"),
-          ]);
+          // その recipe の副材料グループで parent が name と一致するものを探す
+          const { data: sgData } = await sb.from("recipe_subgroups")
+            .select("id,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("recipe_id", matRow.recipe_id)
+            .eq("parent", name)
+            .limit(1).single();
 
-          // ── Step3 副材料グループ：「どの材料の作り方か」欄にレシピ名を設定 ──
-          groupEl.querySelector(".sg-parent").value = targetRecipeName;
-
-          // ── ステップをリセット ──
-          const stepList = document.getElementById(`step-list-${gid}`);
-          stepList.innerHTML = ""; stepCounters[gid] = 0;
-          Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
-          Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
-
-          if (!sgErr && sgList && sgList.length > 0) {
-            // subgroups あり → 各グループのステップを展開
-            // 最初のグループは現在の groupEl に適用
-            applySubgroupData(groupEl, gid, sgList[0]);
-            // ステップ1の材料欄の先頭に recipe_mats も追加
-            const firstSid = `${gid}-s1`;
-            if (mats && mats.length > 0) {
-              const allMats = mats.sort((a, b) => a.sort_order - b.sort_order);
-              const sml = document.getElementById(`sml-${firstSid}`);
-              if (sml) {
-                // 既存ステップ材料の名前を収集してから追記
-                const existingStepMats = new Set(
-                  [...sml.querySelectorAll(".smat-name")].map(el => el.value.trim()).filter(Boolean)
-                );
-                allMats.filter(m => !m.parent_mat_id).forEach(m => {
-                  if (existingStepMats.has((m.mat_name || "").trim())) return;
-                  const alts = allMats.filter(a => a.parent_mat_id === m.id)
-                    .sort((a, b) => a.sort_order - b.sort_order)
-                    .map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-                  addStepMat(firstSid, m.mat_name || "", m.mat_qty || "", alts);
-                });
-              }
-            }
-            calcReverse(gid);
-
-            // 2つ目以降の subgroup は新しいグループとして追加
-            for (let i = 1; i < sgList.length; i++) {
-              if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
-              addSubgroup();
-              const newGEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
-              const newGid = newGEl.id;
-              newGEl.querySelector(".sg-parent").value = sgList[i].parent || "";
-              applySubgroupData(newGEl, newGid, sgList[i]);
-              calcReverse(newGid);
-            }
-            showToast("「" + targetRecipeName + "」を適用しました");
+          if (!sgData) {
+            // 副材料グループが存在しない→製作材料名だけを親名に設定してステップは空で適用
+            groupEl.querySelector(".sg-parent").value = name;
+            showToast("「" + name + "」を設定しました（副材料ステップなし）");
             return;
           }
-
-          // subgroups なし → recipe_mats だけをステップ材料として展開
-          await applyFromRecipeMats(groupEl, gid, targetRecipeId, targetRecipeName);
-          return;
+          applySubgroupData(groupEl, gid, sgData);
         }
-
-        // recipeId なし → parent = name で recipe_subgroups を検索
-        const { data: byParent, error: e1 } = await sb
-          .from("recipe_subgroups")
-          .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-          .eq("parent", name)
-          .order("sort_order")
-          .limit(1)
-          .maybeSingle();
-
-        if (!e1 && byParent) {
-          groupEl.querySelector(".sg-parent").value = byParent.parent || name;
-          applySubgroupData(groupEl, gid, byParent);
-          calcReverse(gid);
-          showToast("「" + name + "」を適用しました");
-          return;
-        }
-
-        // 何も見つからない
         groupEl.querySelector(".sg-parent").value = name;
-        showToast("「" + name + "」を設定しました（データなし）");
+        calcReverse(gid);
+        showToast("「" + name + "」を適用しました");
       }
 
-      // ── subgroup のステップデータをUIに反映 ──
       function applySubgroupData(groupEl, gid, data) {
-        const stepList = document.getElementById(`step-list-${gid}`);
+        const stepList = groupEl.querySelector(`.step-list-${gid}`);
         stepList.innerHTML = ""; stepCounters[gid] = 0;
         Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
         Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
@@ -1114,7 +1082,7 @@
               ${buildRefPanelHTML(panelId)}
             </div>
           </div>
-          <div id="step-list-${gid}"></div>
+          <div class="step-list-${gid}"></div>
           <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
           <div class="calc-tool" id="calc-${gid}">
             <div class="calc-title">🧮 逆算ツール</div>
@@ -1140,11 +1108,11 @@
           closeRefPanel(panelId);
           btn.classList.remove("open");
         } else {
-          btn.classList.add("open");
           const groupEl = document.getElementById(gid);
-          openRefPanel(panelId, async (name, type, recipeId) => {
+          btn.classList.add("open");
+          openRefPanel(panelId, null, async (name, type) => {
             btn.classList.remove("open");
-            await applyMasterByName(groupEl, name, type, recipeId);
+            await applyMasterByName(groupEl, name, type);
           });
         }
       }
@@ -1153,10 +1121,10 @@
         const groupEl = document.getElementById(gid);
         const name = groupEl.querySelector(".sg-parent").value.trim();
         if (!name) { showToast("材料名を入力してください"); return; }
+        // キャッシュから type を判断
         const found = masterListCache.find(i => i.name === name);
         const type = found ? found.type : "sub";
-        const recipeId = found ? found.recipeId : null;
-        await applyMasterByName(groupEl, name, type, recipeId);
+        await applyMasterByName(groupEl, name, type);
       }
 
       // ============================================================
@@ -1168,7 +1136,7 @@
         stepCounters[gid]++;
         const sc = stepCounters[gid];
         const sid = `${gid}-s${sc}`;
-        const container = document.getElementById(`step-list-${gid}`);
+        const container = document.querySelector(`.step-list-${gid}`);
         if (sc > 1) {
           const conDiv = document.createElement("div");
           conDiv.className = "connector-block"; conDiv.id = `con-${sid}`;
@@ -1221,19 +1189,70 @@
         stepMatAltCounters[mid] = 0;
         const div = document.createElement("div");
         div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px";
+        div.draggable = true;
         div.innerHTML = `
-          <div class="mat-main-row">
+          <div class="smat-main-row">
+            <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
             <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
             <input type="text" placeholder="数量"   class="smat-qty"  value="${escVal(matQty)}">
             <button class="alt-add-btn" onclick="addStepMatAlt('${mid}')">＋ 代替</button>
             <button class="del-btn"     onclick="delStepMat('${mid}','${sid}')">×</button>
           </div>
           <div class="alt-list" id="alt-list-${mid}"></div>`;
-        document.getElementById(`sml-${sid}`).appendChild(div);
+        const smlEl = document.getElementById(`sml-${sid}`);
+        smlEl.appendChild(div);
         if (alts && alts.length) alts.forEach(a => addStepMatAlt(mid, a.connector, a.name, a.qty));
+        initStepMatDragSort(smlEl);
       }
       function delStepMat(mid, sid) {
         document.getElementById(mid).remove(); stepMatCounters[sid]--; delete stepMatAltCounters[mid];
+        // 削除後もドラッグを再初期化
+        const smlEl = document.getElementById(`sml-${sid}`);
+        if (smlEl) initStepMatDragSort(smlEl);
+      }
+
+      // ── ステップ材料リストのドラッグ並び替え ──
+      function initStepMatDragSort(listEl) {
+        if (!listEl) return;
+        let dragSrc = null;
+        // イベントを一度外してから付け直す（重複防止）
+        listEl.querySelectorAll(".mat-block").forEach(block => {
+          const fresh = block.cloneNode(true);
+          block.replaceWith(fresh);
+        });
+        listEl.querySelectorAll(".mat-block").forEach(block => {
+          block.addEventListener("dragstart", e => {
+            // input/button 上の操作はドラッグしない
+            if (e.target.tagName === "INPUT" || e.target.tagName === "BUTTON" || e.target.tagName === "SELECT") {
+              e.preventDefault(); return;
+            }
+            dragSrc = block;
+            block.classList.add("smat-dragging");
+            e.dataTransfer.effectAllowed = "move";
+          });
+          block.addEventListener("dragend", () => {
+            block.classList.remove("smat-dragging");
+            listEl.querySelectorAll(".mat-block").forEach(b => b.classList.remove("smat-drag-over"));
+            dragSrc = null;
+          });
+          block.addEventListener("dragover", e => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (dragSrc && dragSrc !== block) {
+              listEl.querySelectorAll(".mat-block").forEach(b => b.classList.remove("smat-drag-over"));
+              block.classList.add("smat-drag-over");
+            }
+          });
+          block.addEventListener("dragleave", () => block.classList.remove("smat-drag-over"));
+          block.addEventListener("drop", e => {
+            e.preventDefault();
+            if (!dragSrc || dragSrc === block) return;
+            block.classList.remove("smat-drag-over");
+            const all = [...listEl.querySelectorAll(".mat-block")];
+            if (all.indexOf(dragSrc) < all.indexOf(block)) block.after(dragSrc);
+            else block.before(dragSrc);
+          });
+        });
       }
       function addStepMatAlt(mid, connector, name, qty) {
         stepMatAltCounters[mid] = stepMatAltCounters[mid] || 0;
@@ -1328,7 +1347,7 @@
         let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></div>`;
+        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;">${d.effect}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
           d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
@@ -1525,7 +1544,7 @@
           const gEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
           const gid = gEl.id;
           gEl.querySelector(".sg-parent").value = sg.parent;
-          const stepList = document.getElementById(`step-list-${gid}`); stepList.innerHTML = ""; stepCounters[gid] = 0;
+          const stepList = gEl.querySelector(`.step-list-${gid}`); stepList.innerHTML = ""; stepCounters[gid] = 0;
           (sg.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach((step, si) => {
             addStep(gid);
             const sid = `${gid}-s${si + 1}`;
