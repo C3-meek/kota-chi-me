@@ -244,6 +244,19 @@
         color: #1a1a1a;
         font-weight: 600;
       }
+      .mat-alt {
+        font-size: 11px;
+        color: #3a5aad;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding-left: 12px;
+      }
+      .mat-alt-connector {
+        font-size: 10px;
+        color: #9fa8da;
+        white-space: nowrap;
+      }
       input[type="number"] {
         width: 58px;
         padding: 5px 8px;
@@ -519,7 +532,7 @@
               effect,
               sheets(name),
               recipe_cities(sort_order, city_name, city_level),
-              recipe_mats(sort_order, mat_name, mat_qty),
+              recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
               recipe_subgroups(
                 id,
                 sort_order,
@@ -566,10 +579,23 @@
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(c => ({ name: c.city_name || '', level: c.city_level || '' }));
 
-        // 製作材料
-        const mats = (r.recipe_mats || [])
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .map(m => ({ name: m.mat_name || '', qty: m.mat_qty || '', tilde: false }));
+        // 製作材料（代替品を主材料の alts に紐付け）
+        const allRawMats = (r.recipe_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+        const mats = allRawMats
+          .filter(m => !m.parent_mat_id)
+          .map(m => ({
+            name: m.mat_name || '',
+            qty:  m.mat_qty  || '',
+            tilde: false,
+            alts: allRawMats
+              .filter(a => a.parent_mat_id === m.id)
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map(a => ({
+                connector: a.alt_connector || 'あるいは',
+                name: a.mat_name || '',
+                qty:  a.mat_qty  || '',
+              })),
+          }));
 
         // 副材料グループ
         const subgroups = (r.recipe_subgroups || [])
@@ -757,9 +783,12 @@
 
           tr.innerHTML = `
             <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
-            <td><div class="mat-list">${r.mats.map(m =>
-              `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>`
-            ).join('')}</div></td>
+            <td><div class="mat-list">${r.mats.map(m => {
+              const altHTML = (m.alts || []).map(a =>
+                `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty, false)}</span></div>`
+              ).join('');
+              return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty, m.tilde)}</span></div>${altHTML}`;
+            }).join('')}</div></td>
             ${effectCell}
             <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
             <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${safeKey}']=Math.max(1,parseInt(this.value)||1);render()"></td>
