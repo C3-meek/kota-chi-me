@@ -95,6 +95,32 @@
       .smat-drag-handle:active { cursor: grabbing; color: #888; }
       .mat-block.smat-dragging { opacity: 0.4; }
       .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
+
+      /* ステップブロック自体のドラッグ */
+      .step-drag-wrapper {
+        position: relative;
+        margin-bottom: 0;
+      }
+      .step-drag-wrapper.step-dragging { opacity: 0.35; }
+      .step-drag-wrapper.step-drag-over-top {
+        border-top: 2px solid #3a5aad;
+      }
+      .step-drag-wrapper.step-drag-over-bottom {
+        border-bottom: 2px solid #3a5aad;
+      }
+
+      .step-drag-handle {
+        position: absolute;
+        left: -22px; top: 12px;
+        display: flex; align-items: center; justify-content: center;
+        width: 18px; height: 24px;
+        cursor: grab; color: #ccc; font-size: 15px; user-select: none;
+        border-radius: 4px;
+        transition: color 0.15s;
+      }
+      .step-drag-handle:hover { color: #888; }
+      .step-drag-handle:active { cursor: grabbing; }
+
       .alt-add-btn {
         padding: 5px 10px; border: 1px dashed #3a5aad; border-radius: 6px;
         background: #fff; color: #3a5aad; font-size: 11px;
@@ -131,6 +157,11 @@
       }
       .subgroup-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
       .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+      /* step-listをposition:relativeに（ドラッグハンドル用の余白） */
+      .step-list-wrap {
+        position: relative;
+        padding-left: 24px;
+      }
       .step-block { border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff; }
       .step-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
       .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
@@ -442,7 +473,7 @@
             </div>
             <div class="field" id="f-effect-wrap" style="display:none">
               <label>効果<span class="opt">任意・料理のみ</span></label>
-              <input type="text" id="f-effect" placeholder="例: 移動速度 +2、持続時間 90分" />
+              <textarea id="f-effect" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4" style="width:100%;padding:9px 12px;background:#f5f4f0;border:1px solid #ddd;border-radius:8px;color:#1a1a1a;font-size:14px;outline:none;transition:border-color 0.2s;resize:vertical;font-family:inherit;line-height:1.6;" onfocus="this.style.borderColor='#888';this.style.background='#fff'" onblur="this.style.borderColor='#ddd';this.style.background='#f5f4f0'"></textarea>
             </div>
           </div>
           <div class="nav">
@@ -853,16 +884,10 @@
       }
 
       // ============================================================
-      // ★ applyMasterByName（修正版）
-      //
-      // レシピ名 / 副材料名 / 製作材料名 のいずれを選択しても
-      // 対象レシピの「recipe_mats（製作材料）」と
-      // 「recipe_subgroups（副材料グループ）」を両方展開する。
-      //
-      // 展開ルール：
-      //   ステップ1 … recipe_mats の内容（材料名・数量）
-      //   ステップ2以降 … recipe_subgroups の各ステップ
-      //   ※ステップ1とステップ2の間は「↓」コネクタで繋ぐ
+      // ★ applyMasterByName
+      //   レシピ名 / 副材料名 / 製作材料名 のいずれを選択しても
+      //   対象レシピの「recipe_mats（製作材料）」と
+      //   「recipe_subgroups（副材料グループ）」を両方展開する。
       // ============================================================
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
@@ -871,7 +896,7 @@
         let targetRecipeId = null;
         let targetRecipeName = name;
 
-        // まず name に完全一致するレシピを探す（どの type でも）
+        // まず name に完全一致するレシピを探す
         const { data: namedRecipe } = await sb
           .from("recipes")
           .select("id, name")
@@ -884,7 +909,6 @@
         } else if (type === "recipe" && recipeId) {
           targetRecipeId = recipeId;
         } else if (type === "sub") {
-          // 副材料名 → その副材料グループを持つレシピ
           const { data: sgRow } = await sb
             .from("recipe_subgroups")
             .select("recipe_id, recipes(id, name)")
@@ -892,10 +916,6 @@
             .limit(1)
             .maybeSingle();
           if (sgRow) { targetRecipeId = sgRow.recipe_id; targetRecipeName = sgRow.recipes?.name || name; }
-        } else if (type === "mat" && recipeId) {
-          // 製作材料 → recipeId はその材料が登録されているレシピ
-          // → 材料名自身のレシピを探す
-          targetRecipeId = null; // 後段で name 一致したものを使う
         }
 
         // ── レシピが見つかった場合: mats + subgroups を両方取得 ──
@@ -939,9 +959,7 @@
 
           // ── ステップ2以降: recipe_subgroups の各ステップを展開 ──
           if (sgList && sgList.length > 0) {
-            // 最初のサブグループのステップを現在のグループに追加
             const sg0 = sgList[0];
-            const startSc = stepCounters[gid] + 1; // 次に追加されるステップ番号
             (sg0.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach((step, si) => {
               addStep(gid);
               const sc = stepCounters[gid];
@@ -949,7 +967,6 @@
               fillStep(gid, sid, step, sc > 1);
             });
 
-            // 2つ目以降のサブグループは新しいグループとして追加
             for (let gi = 1; gi < sgList.length; gi++) {
               if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
               addSubgroup();
@@ -994,12 +1011,11 @@
           return;
         }
 
-        // 何も見つからない
         groupEl.querySelector(".sg-parent").value = name;
         showToast("「" + name + "」を設定しました（データなし）");
       }
 
-      // ── ステップをリセット（ステップリストを空にする）──
+      // ── ステップをリセット ──
       function resetSteps(gid) {
         const stepList = document.getElementById(`step-list-${gid}`);
         if (stepList) stepList.innerHTML = "";
@@ -1117,7 +1133,7 @@
               ${buildRefPanelHTML(panelId)}
             </div>
           </div>
-          <div id="step-list-${gid}"></div>
+          <div id="step-list-${gid}" class="step-list-wrap"></div>
           <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
           <div class="calc-tool" id="calc-${gid}">
             <div class="calc-title">🧮 逆算ツール</div>
@@ -1163,7 +1179,7 @@
       }
 
       // ============================================================
-      // ステップ
+      // ★ ステップ追加（ドラッグ並び替え対応ラッパー付き）
       // ============================================================
       function addStep(gid) {
         if (!stepCounters[gid]) stepCounters[gid] = 0;
@@ -1171,12 +1187,15 @@
         stepCounters[gid]++;
         const sc = stepCounters[gid];
         const sid = `${gid}-s${sc}`;
-        // ★ 修正: getElementById で取得（クラス名ではなくID）
+
         const container = document.getElementById(`step-list-${gid}`);
         if (!container) { console.error("step-list not found:", gid); return; }
+
+        // コネクター
         if (sc > 1) {
           const conDiv = document.createElement("div");
           conDiv.className = "connector-block"; conDiv.id = `con-${sid}`;
+          conDiv.setAttribute("data-step-id", sid);
           conDiv.innerHTML = `
             <span class="connector-label">接続詞</span>
             <div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div>
@@ -1184,9 +1203,22 @@
           container.appendChild(conDiv);
           selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
         }
-        const div = document.createElement("div");
-        div.className = "step-block"; div.id = sid;
-        div.innerHTML = `
+
+        // ★ ドラッグ可能なラッパー
+        const wrapper = document.createElement("div");
+        wrapper.className = "step-drag-wrapper";
+        wrapper.id = `wrapper-${sid}`;
+        wrapper.setAttribute("data-step-id", sid);
+
+        // ★ ドラッグハンドル（左端に絶対配置）
+        const handle = document.createElement("div");
+        handle.className = "step-drag-handle";
+        handle.title = "ドラッグしてステップを並び替え";
+        handle.textContent = "⠿";
+
+        const stepDiv = document.createElement("div");
+        stepDiv.className = "step-block"; stepDiv.id = sid;
+        stepDiv.innerHTML = `
           <div class="step-header">
             <span class="step-label-text">ステップ ${sc}</span>
             ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ""}
@@ -1200,8 +1232,15 @@
             <input type="text" class="step-result-name" placeholder="例: トネリコ板">
             <input type="text" class="step-result-qty"  placeholder="数量">
           </div>`;
-        container.appendChild(div);
+
+        wrapper.appendChild(handle);
+        wrapper.appendChild(stepDiv);
+        container.appendChild(wrapper);
+
         addStepMat(sid);
+
+        // ドラッグ並び替えを再初期化
+        initStepDragSort(gid);
       }
 
       function selectConnector(sid, val, btn) {
@@ -1216,11 +1255,137 @@
       }
       function delStep(sid, gid) {
         const c = document.getElementById(`con-${sid}`); if (c) c.remove();
-        document.getElementById(sid).remove(); stepCounters[gid]--;
+        const w = document.getElementById(`wrapper-${sid}`); if (w) w.remove();
+        if (stepCounters[gid] > 0) stepCounters[gid]--;
+        // ステップ番号を再振り
+        renumberSteps(gid);
+      }
+
+      // ステップ番号を並び順に従って振り直す
+      function renumberSteps(gid) {
+        const container = document.getElementById(`step-list-${gid}`);
+        if (!container) return;
+        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
+        wrappers.forEach((w, i) => {
+          const stepBlock = w.querySelector(".step-block");
+          if (!stepBlock) return;
+          const labelEl = stepBlock.querySelector(".step-label-text");
+          if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
+        });
       }
 
       // ============================================================
-      // ステップ材料（ドラッグ並び替え対応）
+      // ★ ステップ自体のドラッグ並び替え
+      // ============================================================
+      function initStepDragSort(gid) {
+        const container = document.getElementById(`step-list-${gid}`);
+        if (!container) return;
+
+        // 既存リスナーをcloneで除去
+        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
+        wrappers.forEach(w => {
+          const fresh = w.cloneNode(true);
+          w.replaceWith(fresh);
+        });
+
+        let dragSrc = null;
+
+        container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
+          const handle = wrapper.querySelector(".step-drag-handle");
+          if (!handle) return;
+
+          // ドラッグ開始はハンドルからのみ
+          handle.addEventListener("mousedown", () => { wrapper.draggable = true; });
+          handle.addEventListener("mouseup",   () => { wrapper.draggable = false; });
+
+          wrapper.addEventListener("dragstart", e => {
+            dragSrc = wrapper;
+            wrapper.classList.add("step-dragging");
+            e.dataTransfer.effectAllowed = "move";
+          });
+          wrapper.addEventListener("dragend", () => {
+            wrapper.classList.remove("step-dragging");
+            container.querySelectorAll(".step-drag-wrapper").forEach(w => {
+              w.classList.remove("step-drag-over-top", "step-drag-over-bottom");
+              w.draggable = false;
+            });
+            // コネクターとステップの対応を再整理
+            reorderConnectors(gid);
+            renumberSteps(gid);
+            dragSrc = null;
+          });
+          wrapper.addEventListener("dragover", e => {
+            e.preventDefault();
+            if (!dragSrc || dragSrc === wrapper) return;
+            const rect = wrapper.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            container.querySelectorAll(".step-drag-wrapper").forEach(w => w.classList.remove("step-drag-over-top", "step-drag-over-bottom"));
+            if (e.clientY < mid) wrapper.classList.add("step-drag-over-top");
+            else wrapper.classList.add("step-drag-over-bottom");
+          });
+          wrapper.addEventListener("dragleave", () => {
+            wrapper.classList.remove("step-drag-over-top", "step-drag-over-bottom");
+          });
+          wrapper.addEventListener("drop", e => {
+            e.preventDefault();
+            if (!dragSrc || dragSrc === wrapper) return;
+            wrapper.classList.remove("step-drag-over-top", "step-drag-over-bottom");
+            const rect = wrapper.getBoundingClientRect();
+            const mid = rect.top + rect.height / 2;
+            if (e.clientY < mid) wrapper.before(dragSrc);
+            else wrapper.after(dragSrc);
+          });
+        });
+      }
+
+      // ドラッグ後にコネクターの位置を再整理
+      function reorderConnectors(gid) {
+        const container = document.getElementById(`step-list-${gid}`);
+        if (!container) return;
+
+        // 全コネクターを一旦退避（除去）
+        const connectors = [...container.querySelectorAll(":scope > .connector-block")];
+        connectors.forEach(c => c.remove());
+
+        // ラッパーを順番に取得して、2番目以降の前にコネクターを挿入
+        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
+        wrappers.forEach((wrapper, i) => {
+          const sid = wrapper.getAttribute("data-step-id");
+          if (i === 0) {
+            // 1番目：コネクター不要、ステップ1の削除ボタン非表示
+            const delBtn = wrapper.querySelector(".del-text-btn");
+            if (delBtn) delBtn.style.display = "none";
+          } else {
+            // 2番目以降：コネクターを前に挿入
+            let conEl = document.getElementById(`con-${sid}`);
+            if (!conEl) {
+              // コネクターが存在しない場合（元々1番目だったステップが後ろに移動した）
+              conEl = document.createElement("div");
+              conEl.className = "connector-block"; conEl.id = `con-${sid}`;
+              conEl.setAttribute("data-step-id", sid);
+              conEl.innerHTML = `
+                <span class="connector-label">接続詞</span>
+                <div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div>
+                <input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
+              selectConnector(sid, "↓", conEl.querySelector(".preset-btn"));
+            }
+            wrapper.before(conEl);
+            // 削除ボタンを表示
+            const delBtn = wrapper.querySelector(".del-text-btn");
+            if (delBtn) delBtn.style.display = "";
+          }
+        });
+
+        // 1番目のステップのコネクターがあれば除去
+        if (wrappers.length > 0) {
+          const firstSid = wrappers[0].getAttribute("data-step-id");
+          const firstCon = document.getElementById(`con-${firstSid}`);
+          if (firstCon) firstCon.remove();
+        }
+      }
+
+      // ============================================================
+      // ★ ステップ材料（ドラッグ並び替え対応・修正版）
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
@@ -1228,9 +1393,11 @@
         stepMatCounters[sid]++;
         const mid = `${sid}-m${stepMatCounters[sid]}`;
         stepMatAltCounters[mid] = 0;
+
         const div = document.createElement("div");
         div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px";
-        div.draggable = true;
+        // draggable はハンドルmousedownで設定するためここでは false
+        div.draggable = false;
         div.innerHTML = `
           <div class="smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
@@ -1240,12 +1407,14 @@
             <button class="del-btn"     onclick="delStepMat('${mid}','${sid}')">×</button>
           </div>
           <div class="alt-list" id="alt-list-${mid}"></div>`;
+
         const smlEl = document.getElementById(`sml-${sid}`);
         if (!smlEl) { console.error("sml not found:", sid); return; }
         smlEl.appendChild(div);
+
         if (alts && alts.length) alts.forEach(a => addStepMatAlt(mid, a.connector, a.name, a.qty));
 
-        // ★ ドラッグ並び替えをこの sml コンテナに対して設定
+        // ドラッグ並び替えを再初期化
         initStepMatDragSort(smlEl);
       }
 
@@ -1257,47 +1426,60 @@
         if (smlEl) initStepMatDragSort(smlEl);
       }
 
-      // ★ ドラッグ並び替え：既存イベントをcloneNodeで除去してから再設定
+      // ★ ステップ材料のドラッグ並び替え（修正版：cloneNode を使わず直接イベント管理）
       function initStepMatDragSort(listEl) {
         if (!listEl) return;
-        let dragSrc = null;
 
-        // イベント重複防止のため一度クローンで置き換える
-        const blocks = [...listEl.querySelectorAll(":scope > .mat-block")];
-        blocks.forEach(block => {
+        // 既存ドラッグ状態をリセット
+        listEl._smatDragSrc = null;
+
+        const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block")];
+
+        // 既存イベントを cloneNode で除去してから再付与
+        getDirectBlocks().forEach(block => {
           const fresh = block.cloneNode(true);
           block.replaceWith(fresh);
         });
 
-        listEl.querySelectorAll(":scope > .mat-block").forEach(block => {
-          // dragstart はハンドル上のみ有効にする
+        getDirectBlocks().forEach(block => {
+          const handle = block.querySelector(".smat-drag-handle");
+          if (!handle) return;
+
+          // ハンドルのmousedown/upでdraggableを制御
+          handle.addEventListener("mousedown", () => { block.draggable = true; });
+          handle.addEventListener("mouseup",   () => { block.draggable = false; });
+
           block.addEventListener("dragstart", e => {
-            const handle = e.target.closest(".smat-drag-handle");
-            if (!handle) { e.preventDefault(); return; }
-            dragSrc = block;
+            listEl._smatDragSrc = block;
             block.classList.add("smat-dragging");
             e.dataTransfer.effectAllowed = "move";
+            e.stopPropagation(); // 上位のステップドラッグに伝播しない
           });
           block.addEventListener("dragend", () => {
             block.classList.remove("smat-dragging");
-            listEl.querySelectorAll(":scope > .mat-block").forEach(b => b.classList.remove("smat-drag-over"));
-            dragSrc = null;
+            block.draggable = false;
+            getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over"));
+            listEl._smatDragSrc = null;
           });
           block.addEventListener("dragover", e => {
             e.preventDefault();
-            if (dragSrc && dragSrc !== block) {
-              listEl.querySelectorAll(":scope > .mat-block").forEach(b => b.classList.remove("smat-drag-over"));
+            e.stopPropagation();
+            const src = listEl._smatDragSrc;
+            if (src && src !== block) {
+              getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over"));
               block.classList.add("smat-drag-over");
             }
           });
           block.addEventListener("dragleave", () => block.classList.remove("smat-drag-over"));
           block.addEventListener("drop", e => {
             e.preventDefault();
-            if (!dragSrc || dragSrc === block) return;
+            e.stopPropagation();
+            const src = listEl._smatDragSrc;
+            if (!src || src === block) return;
             block.classList.remove("smat-drag-over");
-            const all = [...listEl.querySelectorAll(":scope > .mat-block")];
-            if (all.indexOf(dragSrc) < all.indexOf(block)) block.after(dragSrc);
-            else block.before(dragSrc);
+            const all = getDirectBlocks();
+            if (all.indexOf(src) < all.indexOf(block)) block.after(src);
+            else block.before(src);
           });
         });
       }
@@ -1354,8 +1536,14 @@
         document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
           const parent = gel.querySelector(".sg-parent").value.trim();
           const steps = [];
-          gel.querySelectorAll(".step-block").forEach(sel => {
-            const sid = sel.id;
+          const gid = gel.id;
+          const container = document.getElementById(`step-list-${gid}`);
+          if (!container) return;
+          // ★ ラッパーの並び順でステップを収集
+          container.querySelectorAll(":scope > .step-drag-wrapper").forEach((wrapper, wi) => {
+            const sid = wrapper.getAttribute("data-step-id");
+            const sel = document.getElementById(sid);
+            if (!sel) return;
             let connector = "";
             const cb = document.getElementById(`con-${sid}`);
             if (cb) {
@@ -1365,7 +1553,6 @@
             }
             const proc = sel.querySelector(".step-proc").value.trim();
             const stepMats = [];
-            // ★ :scope > でネストした alt-entry を除外
             sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
               const n = mb.querySelector(".smat-name").value.trim();
               const q = mb.querySelector(".smat-qty").value.trim();
@@ -1381,7 +1568,7 @@
             });
             const result_name = sel.querySelector(".step-result-name").value.trim();
             const result_qty  = sel.querySelector(".step-result-qty").value.trim();
-            if (proc || stepMats.length) steps.push({ connector, proc, mats: stepMats, result_name, result_qty });
+            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty });
           });
           if (parent) data.subgroups.push({ parent, steps });
         });
@@ -1481,11 +1668,16 @@
       function calcReverse(gid) {
         const gel = document.getElementById(gid); if (!gel) return;
         const steps = [];
-        gel.querySelectorAll(".step-block").forEach(sel => {
+        const container = document.getElementById(`step-list-${gid}`);
+        if (!container) return;
+        container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
+          const sid = wrapper.getAttribute("data-step-id");
+          const sel = document.getElementById(sid);
+          if (!sel) return;
           const result_name = sel.querySelector(".step-result-name").value.trim();
           const result_qty  = parseFloat(sel.querySelector(".step-result-qty").value) || 0;
           const mats = [];
-          sel.querySelectorAll(`#sml-${sel.id} > .mat-block`).forEach(mb => {
+          sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
             const n = mb.querySelector(".smat-name").value.trim();
             const q = parseFloat(mb.querySelector(".smat-qty").value) || 0;
             if (n) mats.push({ name: n, qty: q });
