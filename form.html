@@ -129,6 +129,9 @@
       .calc-qty { width: 60px; padding: 5px 8px; border: 1px solid #c5cfe8; border-radius: 6px; font-size: 13px; text-align: center; background: #fff; color: #1a1a1a; outline: none; }
       .calc-label { font-size: 12px; color: #3a5aad; }
       .calc-result { display: flex; flex-direction: column; gap: 3px; }
+      .calc-step-block { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #c5cfe8; }
+      .calc-step-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+      .calc-step-label { font-size: 10px; font-weight: 700; color: #9fa8da; margin-bottom: 4px; letter-spacing: 0.04em; }
       .calc-row-item { font-size: 12px; color: #1a1a1a; display: flex; gap: 6px; align-items: center; }
       .calc-row-item .ci-name { color: #555; }
       .calc-row-item .ci-qty { font-weight: 600; }
@@ -263,15 +266,9 @@
               <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
               <button type="button" class="add-btn" id="add-city-btn" onclick="addCityRow()">＋ 都市を追加</button>
             </div>
-            <!-- ★ 効果欄：すべてのカテゴリで常に表示 -->
             <div class="field">
               <label>効果<span class="opt">任意</span></label>
-              <textarea
-                id="f-effect"
-                class="effect-input"
-                placeholder="例: 移動速度 +2&#10;持続時間 90分"
-                rows="4"
-              ></textarea>
+              <textarea id="f-effect" class="effect-input" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4"></textarea>
             </div>
           </div>
           <div class="nav">
@@ -404,7 +401,6 @@
           if (sg) calcReverse(sg.id);
         });
         document.getElementById("f-sheet").addEventListener("change", async function() {
-          // ★ 効果欄は常に表示のため、シート変更でのshow/hideは不要
           if (!this.value) return;
           const sid = await getSheetId(this.value);
           const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
@@ -1136,40 +1132,84 @@
       }
 
       // ============================================================
-      // 逆算ツール
+      // 逆算ツール（修正版）
       // ============================================================
       function calcReverse(gid) {
         const gel = document.getElementById(gid); if (!gel) return;
-        const steps = []; const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        const resultEl  = document.getElementById("calc-result-" + gid);
+        const goalLabel = document.getElementById("calc-goal-"   + gid);
+        const goalInput = parseFloat(gel.querySelector(".calc-qty").value) || 1;
+
+        // ── ステップ順にデータ収集 ──────────────────────────────
+        const steps = [];
         container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
-          const sid = wrapper.getAttribute("data-step-id"); const sel = document.getElementById(sid); if (!sel) return;
+          const sid = wrapper.getAttribute("data-step-id");
+          const sel = document.getElementById(sid); if (!sel) return;
           const result_name = sel.querySelector(".step-result-name").value.trim();
           const result_qty  = parseFloat(sel.querySelector(".step-result-qty").value) || 0;
           const mats = [];
           sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
-            const n = mb.querySelector(".smat-name").value.trim(); const q = parseFloat(mb.querySelector(".smat-qty").value) || 0; if (n) mats.push({ name: n, qty: q });
+            const n = mb.querySelector(".smat-name").value.trim();
+            const q = parseFloat(mb.querySelector(".smat-qty").value) || 0;
+            if (n) mats.push({ name: n, qty: q });
           });
           steps.push({ result_name, result_qty, mats });
         });
-        const goalInput = parseFloat(gel.querySelector(".calc-qty").value) || 1;
-        const resultEl  = document.getElementById("calc-result-" + gid);
-        const goalLabel = document.getElementById("calc-goal-"   + gid);
-        const lastStep  = [...steps].reverse().find(s => s.result_name);
+
+        // 最終結果物 = 最後にresult_nameがあるステップ
+        const lastStep = [...steps].reverse().find(s => s.result_name);
         goalLabel.textContent = lastStep ? lastStep.result_name : "個";
-        if (!lastStep) { resultEl.innerHTML = '<div style="font-size:11px;color:#aaa;">結果物を入力してください</div>'; return; }
-        const intermediates = new Set(steps.map(s => s.result_name).filter(Boolean));
-        const needed = {}; needed[lastStep.result_name] = goalInput;
-        for (let i = steps.length - 1; i >= 0; i--) {
-          const s = steps[i]; if (!s.result_name || !s.result_qty || !(s.result_name in needed)) continue;
-          const times = Math.ceil(needed[s.result_name] / s.result_qty);
-          s.mats.forEach(m => { if (!m.name) return; needed[m.name] = (needed[m.name] || 0) + m.qty * times; });
+        if (!lastStep || steps.every(s => s.mats.length === 0)) {
+          resultEl.innerHTML = '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
+          return;
         }
-        const lines = [];
-        Object.entries(needed).forEach(([name, qty]) => {
-          if (name === lastStep.result_name) return;
-          lines.push(`<div class="calc-row-item"><span class="ci-name">${name}</span><span class="ci-qty">×${qty}</span>${!intermediates.has(name) ? '<span class="ci-step">（原材料）</span>' : ""}</div>`);
+
+        // ── 逆算：最終ゴールから各ステップを後ろから辿る ──────────
+        // intermediates = 各ステップの result_name のセット（これらは「中間品」）
+        const intermediates = new Set(steps.map(s => s.result_name).filter(Boolean));
+
+        // needed[name] = 必要数量
+        const needed = {};
+        needed[lastStep.result_name] = goalInput;
+
+        // 後ろのステップから辿ってneedを展開
+        for (let i = steps.length - 1; i >= 0; i--) {
+          const s = steps[i];
+          if (!s.result_name || !s.result_qty || !(s.result_name in needed)) continue;
+          const times = Math.ceil(needed[s.result_name] / s.result_qty);
+          s.mats.forEach(m => {
+            if (!m.name) return;
+            needed[m.name] = (needed[m.name] || 0) + m.qty * times;
+          });
+        }
+
+        // ── 表示：ステップ順（前から）に、そのステップの材料を表示 ──
+        // 各ステップの材料のうち、表示対象（= needed に含まれる）ものを出す。
+        // ただし最終結果物そのものは除外。
+        // 同じ材料名は重複しないよう管理（既出セット）
+        const displayed = new Set();
+        let html = "";
+        let hasAny = false;
+
+        steps.forEach((s, si) => {
+          const stepLines = [];
+          s.mats.forEach(m => {
+            if (!m.name) return;
+            if (m.name === lastStep.result_name) return; // 最終結果物は除外
+            if (displayed.has(m.name)) return;           // 重複除外
+            if (!(m.name in needed)) return;             // neededにない材料は除外
+            displayed.add(m.name);
+            const isRaw = !intermediates.has(m.name);
+            stepLines.push(`<div class="calc-row-item"><span class="ci-name">${m.name}</span><span class="ci-qty">×${needed[m.name]}</span>${isRaw ? '<span class="ci-step">（原材料）</span>' : ""}</div>`);
+          });
+          if (stepLines.length > 0) {
+            hasAny = true;
+            html += `<div class="calc-step-block"><div class="calc-step-label">ステップ ${si + 1}</div>${stepLines.join("")}</div>`;
+          }
         });
-        resultEl.innerHTML = lines.length ? lines.join("") : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
+
+        resultEl.innerHTML = hasAny ? html : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
       }
 
       // ============================================================
@@ -1226,7 +1266,6 @@
         document.getElementById("f-name").value     = data.name      || "";
         document.getElementById("f-category").value = data.category  || "";
         document.getElementById("f-image").value    = data.image_url || "";
-        // ★ 効果欄は常に表示
         document.getElementById("f-effect").value   = data.effect    || "";
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         (data.recipe_cities || []).sort((a, b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
