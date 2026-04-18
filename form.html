@@ -97,22 +97,7 @@
         align-items: center;
       }
       /* ヘッダー行 */
-      .smat-col-header {
-        /* mat-block の padding(10px 12px) に合わせて左右 12px を追加 */
-        padding: 0 12px 4px;
-        margin-bottom: 4px;
-        border-bottom: 1px dashed #e0ddd5;
-      }
-      /* ★修正1: ヘッダーラベルの配置を列順に合わせる
-         列1=ハンドル(空), 列2=材料名, 列3=基準量, 列4=必要量, 列5=空, 列6=空 */
-      .smat-col-header .smat-h-handle { /* 列1: ハンドル */ }
-      .smat-col-header .smat-h-name   { text-align: left; }   /* 列2: 材料名 */
-      .smat-col-header .smat-h-base   { text-align: center; } /* 列3: 基準量 */
-      .smat-col-header .smat-h-needed { text-align: center; } /* 列4: 必要量 */
-      .smat-col-header span {
-        font-size: 10px; color: #aaa; font-weight: 600;
-        letter-spacing: 0.04em; display: block;
-      }
+      /* smat-col-header は sml 内の mat-block に統合 */
       /* 材料データ行 */
       .smat-main-row input { background: #fff; margin: 0; }
 
@@ -1110,15 +1095,18 @@
             入力材料
             <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
           </div>
-          <div class="smat-grid smat-col-header">
-            <span class="smat-h-handle"></span>
-            <span class="smat-h-name">材料名</span>
-            <span class="smat-h-base">基準量</span>
-            <span class="smat-h-needed">必要量</span>
-            <span></span>
-            <span></span>
+          <div id="sml-${sid}">
+            <div class="mat-block" data-smat-header="1" style="padding:4px 12px;background:transparent;border-color:transparent;margin-bottom:2px;">
+              <div class="smat-grid">
+                <span></span>
+                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;">材料名</span>
+                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">基準量</span>
+                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">必要量</span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
           </div>
-          <div id="sml-${sid}"></div>
           <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
           <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
           <div class="result-row">
@@ -1262,7 +1250,7 @@
       }
       function initStepMatDragSort(listEl) {
         if (!listEl) return; listEl._smatDragSrc = null;
-        const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block")];
+        const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])")];
         getDirectBlocks().forEach(block => { const fresh = block.cloneNode(true); block.replaceWith(fresh); });
         getDirectBlocks().forEach(block => {
           const handle = block.querySelector(".smat-drag-handle"); if (!handle) return;
