@@ -7,1214 +7,438 @@
     <title>レシピ入力フォーム</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
-        background: #f5f4f0;
-        color: #1a1a1a;
-        padding: 24px 16px 60px;
+        background: #f5f4f0; color: #1a1a1a; padding: 24px 16px 60px;
       }
-      .app-header {
-        text-align: center;
-        margin-bottom: 28px;
-      }
-      .app-header h1 {
-        font-size: 20px;
-        font-weight: 700;
-      }
+      .app-header { text-align: center; margin-bottom: 28px; }
+      .app-header h1 { font-size: 20px; font-weight: 700; }
       .tab-bar {
-        display: flex;
-        gap: 0;
-        margin-top: 12px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        overflow: hidden;
-        max-width: 300px;
-        margin-left: auto;
-        margin-right: auto;
+        display: flex; gap: 0; margin-top: 12px; border: 1px solid #ddd;
+        border-radius: 8px; overflow: hidden; max-width: 300px;
+        margin-left: auto; margin-right: auto;
       }
-      .tab-btn {
-        flex: 1;
-        padding: 8px;
-        border: none;
-        font-size: 13px;
-        cursor: pointer;
-        transition: all 0.15s;
-      }
-      .tab-btn.active {
-        background: #1a1a1a;
-        color: #fff;
-      }
-      .tab-btn:not(.active) {
-        background: #fff;
-        color: #666;
-        border-left: 1px solid #ddd;
-      }
+      .tab-btn { flex: 1; padding: 8px; border: none; font-size: 13px; cursor: pointer; transition: all 0.15s; }
+      .tab-btn.active { background: #1a1a1a; color: #fff; }
+      .tab-btn:not(.active) { background: #fff; color: #666; border-left: 1px solid #ddd; }
       .steps-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0;
-        margin-bottom: 28px;
-        max-width: 480px;
-        margin-left: auto;
-        margin-right: auto;
+        display: flex; align-items: center; justify-content: center;
+        margin-bottom: 28px; max-width: 480px; margin-left: auto; margin-right: auto;
       }
-      .si-step {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 4px;
-        flex: 1;
-      }
+      .si-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
       .si-circle {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        background: #e8e6e0;
-        color: #aaa;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 12px;
-        font-weight: 600;
-        transition: all 0.2s;
+        width: 30px; height: 30px; border-radius: 50%; background: #e8e6e0; color: #aaa;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 600; transition: all 0.2s;
       }
-      .si-step.active .si-circle {
-        background: #1a1a1a;
-        color: #fff;
-      }
-      .si-step.done .si-circle {
-        background: #4caf50;
-        color: #fff;
-      }
-      .si-label {
-        font-size: 10px;
-        color: #aaa;
-        white-space: nowrap;
-      }
-      .si-step.active .si-label {
-        color: #1a1a1a;
-        font-weight: 600;
-      }
-      .si-line {
-        flex: 1;
-        height: 1px;
-        background: #e0ddd5;
-        margin-top: -18px;
-        max-width: 32px;
-      }
+      .si-step.active .si-circle { background: #1a1a1a; color: #fff; }
+      .si-step.done  .si-circle { background: #4caf50; color: #fff; }
+      .si-label { font-size: 10px; color: #aaa; white-space: nowrap; }
+      .si-step.active .si-label { color: #1a1a1a; font-weight: 600; }
+      .si-line { flex: 1; height: 1px; background: #e0ddd5; margin-top: -18px; max-width: 32px; }
       .card {
-        background: #fff;
-        border: 1px solid #e8e6e0;
-        border-radius: 12px;
-        padding: 20px;
-        max-width: 540px;
-        margin: 0 auto 16px;
+        background: #fff; border: 1px solid #e8e6e0; border-radius: 12px;
+        padding: 20px; max-width: 540px; margin: 0 auto 16px;
       }
       .card-title {
-        font-size: 14px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin-bottom: 14px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #f0ede8;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        font-size: 14px; font-weight: 700; color: #1a1a1a;
+        margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0ede8;
+        display: flex; align-items: center; gap: 8px;
       }
       .card-title .num {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: #1a1a1a;
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        flex-shrink: 0;
+        width: 22px; height: 22px; border-radius: 50%; background: #1a1a1a; color: #fff;
+        display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;
       }
-      .field {
-        margin-bottom: 14px;
+      .field { margin-bottom: 14px; }
+      .field:last-child { margin-bottom: 0; }
+      label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+      label .req { color: #e53935; margin-left: 3px; }
+      label .opt { color: #aaa; font-weight: 400; margin-left: 3px; font-size: 11px; }
+      input[type="text"], input[type="email"], input[type="password"], select {
+        width: 100%; padding: 9px 12px; background: #f5f4f0; border: 1px solid #ddd;
+        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s;
       }
-      .field:last-child {
-        margin-bottom: 0;
-      }
-      label {
-        display: block;
-        font-size: 12px;
-        font-weight: 600;
-        color: #555;
-        margin-bottom: 5px;
-      }
-      label .req {
-        color: #e53935;
-        margin-left: 3px;
-      }
-      label .opt {
-        color: #aaa;
-        font-weight: 400;
-        margin-left: 3px;
-        font-size: 11px;
-      }
-      input[type="text"],
-      input[type="email"],
-      input[type="password"],
-      select {
-        width: 100%;
-        padding: 9px 12px;
-        background: #f5f4f0;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        color: #1a1a1a;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.2s;
-      }
-      input:focus,
-      select:focus {
-        border-color: #888;
-        background: #fff;
-      }
-      input::placeholder {
-        color: #bbb;
-      }
+      input:focus, select:focus { border-color: #888; background: #fff; }
+      input::placeholder { color: #bbb; }
       select {
         appearance: none;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 12px center;
-        padding-right: 32px;
+        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
       }
       textarea.effect-input {
-        width: 100%;
-        padding: 9px 12px;
-        background: #f5f4f0;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        color: #1a1a1a;
-        font-size: 14px;
-        outline: none;
-        transition: border-color 0.2s;
-        resize: vertical;
-        font-family: inherit;
-        line-height: 1.6;
+        width: 100%; padding: 9px 12px; background: #f5f4f0; border: 1px solid #ddd;
+        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none;
+        transition: border-color 0.2s; resize: vertical; font-family: inherit; line-height: 1.6;
       }
-      textarea.effect-input:focus {
-        border-color: #888;
-        background: #fff;
-      }
-      textarea.effect-input::placeholder {
-        color: #bbb;
-      }
+      textarea.effect-input:focus { border-color: #888; background: #fff; }
+      textarea.effect-input::placeholder { color: #bbb; }
       .mat-block {
-        background: #faf9f6;
-        border: 1px solid #e8e6e0;
-        border-radius: 10px;
-        padding: 10px 12px;
-        margin-bottom: 8px;
+        background: #faf9f6; border: 1px solid #e8e6e0;
+        border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
       }
       .mat-main-row {
-        display: grid;
-        grid-template-columns: 1fr 90px auto 32px;
-        gap: 6px;
-        align-items: center;
+        display: grid; grid-template-columns: 1fr 90px auto 32px;
+        gap: 6px; align-items: center;
       }
-      .mat-main-row input {
-        background: #fff;
-        margin: 0;
-      }
+      .mat-main-row input { background: #fff; margin: 0; }
+      /* ── ステップ材料行（逆算付き） ── */
       .smat-main-row {
         display: grid;
-        grid-template-columns: 18px 1fr 90px auto 32px;
-        gap: 6px;
-        align-items: center;
+        grid-template-columns: 18px 1fr 72px 72px auto 32px;
+        gap: 6px; align-items: center;
       }
-      .smat-main-row input {
-        background: #fff;
-        margin: 0;
+      .smat-main-row input { background: #fff; margin: 0; }
+      /* 必要量バッジ */
+      .smat-needed {
+        display: flex; align-items: center; justify-content: center;
+        min-width: 48px; height: 32px; padding: 0 8px;
+        background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
+        font-size: 12px; font-weight: 700; color: #2e7d32;
+        white-space: nowrap; transition: background 0.15s;
       }
-      .smat-drag-handle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: grab;
-        color: #bbb;
-        font-size: 14px;
-        user-select: none;
-        height: 100%;
+      .smat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
+      /* ── ステップヘッダーの目標個数エリア ── */
+      .step-target-row {
+        display: flex; align-items: center; gap: 8px;
+        background: #f0f4ff; border: 1px solid #c5cfe8;
+        border-radius: 8px; padding: 7px 10px; margin-bottom: 10px;
       }
-      .smat-drag-handle:active {
-        cursor: grabbing;
-        color: #888;
+      .step-target-label { font-size: 11px; color: #3a5aad; white-space: nowrap; font-weight: 600; }
+      .step-target-qty {
+        width: 60px; padding: 4px 8px; border: 1px solid #c5cfe8;
+        border-radius: 6px; font-size: 13px; text-align: center;
+        background: #fff; color: #1a1a1a; outline: none;
       }
-      .mat-block.smat-dragging {
-        opacity: 0.4;
-      }
-      .mat-block.smat-drag-over {
-        border-color: #3a5aad !important;
-        background: #f0f4ff !important;
-      }
-      .step-drag-wrapper {
-        position: relative;
-        margin-bottom: 0;
-      }
-      .step-drag-wrapper.step-dragging {
-        opacity: 0.35;
-      }
-      .step-drag-wrapper.step-drag-over-top {
-        border-top: 2px solid #3a5aad;
-      }
-      .step-drag-wrapper.step-drag-over-bottom {
-        border-bottom: 2px solid #3a5aad;
-      }
-      .step-drag-handle {
-        position: absolute;
-        left: -22px;
-        top: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 18px;
-        height: 24px;
-        cursor: grab;
-        color: #ccc;
-        font-size: 15px;
-        user-select: none;
-        border-radius: 4px;
-        transition: color 0.15s;
-      }
-      .step-drag-handle:hover {
-        color: #888;
-      }
-      .step-drag-handle:active {
-        cursor: grabbing;
-      }
-      .alt-add-btn {
-        padding: 5px 10px;
-        border: 1px dashed #3a5aad;
-        border-radius: 6px;
-        background: #fff;
-        color: #3a5aad;
-        font-size: 11px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all 0.15s;
-      }
-      .alt-add-btn:hover {
-        background: #f0f4ff;
-        border-style: solid;
-      }
-      .alt-list {
-        margin-top: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .alt-entry {
+      .step-target-qty:focus { border-color: #3a5aad; }
+      .step-target-unit { font-size: 11px; color: #3a5aad; }
+      .step-target-hint { font-size: 10px; color: #9fa8da; margin-left: auto; }
+      /* 列ヘッダー（材料名／基準量／必要量） */
+      .smat-col-header {
         display: grid;
-        grid-template-columns: 20px auto 1fr 90px 32px;
-        gap: 6px;
-        align-items: center;
-        padding: 7px 10px 7px 8px;
-        background: #f0f4ff;
-        border: 1px solid #c5cfe8;
-        border-radius: 8px;
+        grid-template-columns: 18px 1fr 72px 72px auto 32px;
+        gap: 6px; align-items: center;
+        padding: 0 0 4px;
+        margin-bottom: 2px;
+        border-bottom: 1px dashed #e0ddd5;
       }
-      .alt-tree-icon {
-        color: #9fa8da;
-        font-size: 14px;
+      .smat-col-header span {
+        font-size: 10px; color: #aaa; font-weight: 600; letter-spacing: 0.04em;
         text-align: center;
-        line-height: 1;
       }
+      .smat-col-header span:nth-child(2) { text-align: left; }
+      .smat-drag-handle {
+        display: flex; align-items: center; justify-content: center;
+        cursor: grab; color: #bbb; font-size: 14px; user-select: none; height: 100%;
+      }
+      .smat-drag-handle:active { cursor: grabbing; color: #888; }
+      .mat-block.smat-dragging { opacity: 0.4; }
+      .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
+      .step-drag-wrapper { position: relative; margin-bottom: 0; }
+      .step-drag-wrapper.step-dragging { opacity: 0.35; }
+      .step-drag-wrapper.step-drag-over-top    { border-top:    2px solid #3a5aad; }
+      .step-drag-wrapper.step-drag-over-bottom { border-bottom: 2px solid #3a5aad; }
+      .step-drag-handle {
+        position: absolute; left: -22px; top: 12px;
+        display: flex; align-items: center; justify-content: center;
+        width: 18px; height: 24px; cursor: grab; color: #ccc; font-size: 15px;
+        user-select: none; border-radius: 4px; transition: color 0.15s;
+      }
+      .step-drag-handle:hover { color: #888; }
+      .step-drag-handle:active { cursor: grabbing; }
+      .alt-add-btn {
+        padding: 5px 10px; border: 1px dashed #3a5aad; border-radius: 6px;
+        background: #fff; color: #3a5aad; font-size: 11px; cursor: pointer;
+        white-space: nowrap; transition: all 0.15s;
+      }
+      .alt-add-btn:hover { background: #f0f4ff; border-style: solid; }
+      .alt-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+      .alt-entry {
+        display: grid; grid-template-columns: 20px auto 1fr 90px 32px;
+        gap: 6px; align-items: center;
+        padding: 7px 10px 7px 8px; background: #f0f4ff;
+        border: 1px solid #c5cfe8; border-radius: 8px;
+      }
+      .alt-tree-icon { color: #9fa8da; font-size: 14px; text-align: center; line-height: 1; }
       .alt-connector-select {
-        width: auto;
-        padding: 5px 24px 5px 8px;
-        font-size: 12px;
-        background: #fff;
-        border: 1px solid #c5cfe8;
-        border-radius: 6px;
-        color: #3a5aad;
-        font-weight: 600;
+        width: auto; padding: 5px 24px 5px 8px; font-size: 12px;
+        background: #fff; border: 1px solid #c5cfe8; border-radius: 6px;
+        color: #3a5aad; font-weight: 600;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239fa8da' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 6px center;
+        background-repeat: no-repeat; background-position: right 6px center;
       }
-      .alt-entry input {
-        background: #fff;
-        margin: 0;
-      }
+      .alt-entry input { background: #fff; margin: 0; }
       .del-btn {
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        border: 1px solid #eee;
-        background: #fff;
-        color: #ccc;
-        font-size: 16px;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s;
+        width: 28px; height: 28px; border-radius: 6px; border: 1px solid #eee;
+        background: #fff; color: #ccc; font-size: 16px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; transition: all 0.15s;
       }
-      .del-btn:hover {
-        border-color: #e53935;
-        color: #e53935;
-      }
+      .del-btn:hover { border-color: #e53935; color: #e53935; }
       .subgroup {
-        border: 1px solid #e8e6e0;
-        border-radius: 10px;
-        padding: 14px;
-        margin-bottom: 10px;
-        background: #faf9f6;
+        border: 1px solid #e8e6e0; border-radius: 10px;
+        padding: 14px; margin-bottom: 10px; background: #faf9f6;
       }
       .subgroup-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
+        display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
       }
-      .subgroup-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: #1a1a1a;
-      }
-      .step-list-wrap {
-        position: relative;
-        padding-left: 24px;
-      }
+      .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+      .step-list-wrap { position: relative; padding-left: 24px; }
       .step-block {
-        border: 1px solid #e8e6e0;
-        border-radius: 8px;
-        padding: 10px 12px;
-        background: #fff;
+        border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff;
       }
       .step-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 10px;
+        display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
       }
-      .step-label-text {
-        font-size: 12px;
-        font-weight: 600;
-        color: #666;
-      }
-      .result-row {
-        display: grid;
-        grid-template-columns: 1fr 90px;
-        gap: 8px;
-      }
+      .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
+      .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
       .connector-block {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: 8px 0;
-        padding: 8px 12px;
-        background: #f0ede8;
-        border-radius: 8px;
+        display: flex; align-items: center; gap: 8px;
+        margin: 8px 0; padding: 8px 12px; background: #f0ede8; border-radius: 8px;
       }
-      .connector-label {
-        font-size: 11px;
-        color: #888;
-        white-space: nowrap;
-      }
-      .connector-presets {
-        display: flex;
-        gap: 5px;
-        flex-wrap: wrap;
-      }
+      .connector-label { font-size: 11px; color: #888; white-space: nowrap; }
+      .connector-presets { display: flex; gap: 5px; flex-wrap: wrap; }
       .preset-btn {
-        padding: 4px 10px;
-        border: 1px solid #ddd;
-        border-radius: 20px;
-        background: #fff;
-        color: #555;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.15s;
-        white-space: nowrap;
+        padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px;
+        background: #fff; color: #555; font-size: 12px; cursor: pointer;
+        transition: all 0.15s; white-space: nowrap;
       }
-      .preset-btn:hover {
-        border-color: #888;
-        color: #1a1a1a;
-      }
-      .preset-btn.selected {
-        background: #1a1a1a;
-        color: #fff;
-        border-color: #1a1a1a;
-      }
-      .connector-custom {
-        flex: 1;
-        min-width: 80px;
-        padding: 5px 8px;
-        font-size: 12px;
-      }
+      .preset-btn:hover { border-color: #888; color: #1a1a1a; }
+      .preset-btn.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+      .connector-custom { flex: 1; min-width: 80px; padding: 5px 8px; font-size: 12px; }
       .add-btn {
-        width: 100%;
-        padding: 8px;
-        border: 1px dashed #ccc;
-        border-radius: 8px;
-        background: transparent;
-        color: #888;
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.15s;
-        margin-top: 8px;
+        width: 100%; padding: 8px; border: 1px dashed #ccc; border-radius: 8px;
+        background: transparent; color: #888; font-size: 12px; cursor: pointer;
+        transition: all 0.15s; margin-top: 8px;
       }
-      .add-btn:hover {
-        border-color: #888;
-        color: #1a1a1a;
-        background: #faf9f6;
-      }
+      .add-btn:hover { border-color: #888; color: #1a1a1a; background: #faf9f6; }
       .del-text-btn {
-        background: none;
-        border: none;
-        color: #ccc;
-        font-size: 12px;
-        cursor: pointer;
-        padding: 2px 6px;
-        border-radius: 4px;
+        background: none; border: none; color: #ccc; font-size: 12px;
+        cursor: pointer; padding: 2px 6px; border-radius: 4px;
       }
-      .del-text-btn:hover {
-        color: #e53935;
-        background: #fff0f0;
-      }
-      .section-divider {
-        font-size: 11px;
-        color: #aaa;
-        margin: 10px 0 6px;
-        font-weight: 600;
-      }
+      .del-text-btn:hover { color: #e53935; background: #fff0f0; }
+      .section-divider { font-size: 11px; color: #aaa; margin: 10px 0 6px; font-weight: 600; }
       .nav {
-        display: flex;
-        gap: 10px;
-        max-width: 540px;
-        margin: 0 auto;
-        justify-content: space-between;
+        display: flex; gap: 10px; max-width: 540px;
+        margin: 0 auto; justify-content: space-between;
       }
       .btn-back {
-        padding: 11px 24px;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        background: #fff;
-        color: #666;
-        font-size: 14px;
-        cursor: pointer;
-        transition: all 0.15s;
+        padding: 11px 24px; border: 1px solid #ddd; border-radius: 8px;
+        background: #fff; color: #666; font-size: 14px; cursor: pointer; transition: all 0.15s;
       }
-      .btn-back:hover {
-        border-color: #888;
-        color: #1a1a1a;
-      }
+      .btn-back:hover { border-color: #888; color: #1a1a1a; }
       .btn-next {
-        flex: 1;
-        padding: 11px 24px;
-        border: none;
-        border-radius: 8px;
-        background: #1a1a1a;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s;
+        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
+        background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
       }
-      .btn-next:hover {
-        background: #333;
-      }
+      .btn-next:hover { background: #333; }
       .btn-submit {
-        flex: 1;
-        padding: 11px 24px;
-        border: none;
-        border-radius: 8px;
-        background: #2e7d32;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.15s;
+        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
+        background: #2e7d32; color: #fff; font-size: 14px; font-weight: 600;
+        cursor: pointer; transition: all 0.15s;
       }
-      .btn-submit:hover {
-        background: #1b5e20;
-      }
-      .btn-submit:disabled {
-        background: #aaa;
-        cursor: not-allowed;
-      }
-      .confirm-section {
-        margin-bottom: 14px;
-      }
-      .confirm-label {
-        font-size: 11px;
-        color: #aaa;
-        margin-bottom: 3px;
-      }
-      .confirm-value {
-        font-size: 13px;
-        color: #1a1a1a;
-      }
-      .confirm-mat {
-        font-size: 12px;
-        color: #555;
-        padding: 2px 0;
-      }
-      .confirm-mat .qty {
-        font-weight: 600;
-        color: #1a1a1a;
-      }
+      .btn-submit:hover { background: #1b5e20; }
+      .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+      .confirm-section { margin-bottom: 14px; }
+      .confirm-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
+      .confirm-value { font-size: 13px; color: #1a1a1a; }
+      .confirm-mat { font-size: 12px; color: #555; padding: 2px 0; }
+      .confirm-mat .qty { font-weight: 600; color: #1a1a1a; }
       .confirm-mat-alt {
-        font-size: 12px;
-        color: #3a5aad;
-        padding: 1px 0 1px 16px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
+        font-size: 12px; color: #3a5aad; padding: 1px 0 1px 16px;
+        display: flex; align-items: center; gap: 6px;
       }
-      .confirm-mat-alt .alt-connector {
-        font-size: 10px;
-        color: #9fa8da;
-      }
-      .confirm-step {
-        background: #f5f4f0;
-        border-radius: 6px;
-        padding: 8px 10px;
-        margin-bottom: 4px;
-      }
+      .confirm-mat-alt .alt-connector { font-size: 10px; color: #9fa8da; }
+      .confirm-step { background: #f5f4f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; }
       .confirm-proc {
-        font-size: 10px;
-        display: inline-block;
-        padding: 1px 6px;
-        border-radius: 4px;
-        background: #e8e6e0;
-        color: #666;
-        margin-bottom: 4px;
+        font-size: 10px; display: inline-block; padding: 1px 6px; border-radius: 4px;
+        background: #e8e6e0; color: #666; margin-bottom: 4px;
       }
       .confirm-result {
-        font-size: 12px;
-        color: #2e7d32;
-        font-weight: 600;
-        margin-top: 5px;
-        padding-top: 5px;
-        border-top: 1px dashed #e0ddd5;
+        font-size: 12px; color: #2e7d32; font-weight: 600;
+        margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5;
       }
-      .confirm-connector {
-        text-align: center;
-        font-size: 12px;
-        color: #aaa;
-        padding: 3px 0;
-      }
+      .confirm-connector { text-align: center; font-size: 12px; color: #aaa; padding: 3px 0; }
       .toast {
-        position: fixed;
-        bottom: 24px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #1a1a1a;
-        color: #fff;
-        padding: 12px 24px;
-        border-radius: 8px;
-        font-size: 13px;
-        opacity: 0;
-        transition: opacity 0.3s;
-        pointer-events: none;
-        z-index: 100;
-        white-space: nowrap;
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
+        font-size: 13px; opacity: 0; transition: opacity 0.3s;
+        pointer-events: none; z-index: 100; white-space: nowrap;
       }
-      .toast.show {
-        opacity: 1;
-      }
-      .hidden {
-        display: none !important;
-      }
+      .toast.show { opacity: 1; }
+      .hidden { display: none !important; }
       .edit-item {
-        padding: 10px 14px;
-        background: #fff;
-        border: 1px solid #e8e6e0;
-        border-radius: 8px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: background 0.1s;
+        padding: 10px 14px; background: #fff; border: 1px solid #e8e6e0;
+        border-radius: 8px; cursor: pointer; display: flex;
+        justify-content: space-between; align-items: center; transition: background 0.1s;
       }
-      .edit-item:hover {
-        background: #f5f4f0;
-      }
-      .edit-item-name {
-        font-size: 13px;
-        font-weight: 500;
-      }
-      .edit-item-sheet {
-        font-size: 11px;
-        color: #aaa;
-      }
+      .edit-item:hover { background: #f5f4f0; }
+      .edit-item-name { font-size: 13px; font-weight: 500; }
+      .edit-item-sheet { font-size: 11px; color: #aaa; }
       .login-wrap {
-        max-width: 400px;
-        margin: 60px auto;
-        background: #fff;
-        border: 1px solid #e8e6e0;
-        border-radius: 12px;
-        padding: 32px 24px;
-        text-align: center;
+        max-width: 400px; margin: 60px auto; background: #fff;
+        border: 1px solid #e8e6e0; border-radius: 12px; padding: 32px 24px; text-align: center;
       }
-      .login-wrap h2 {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 8px;
-      }
-      .login-wrap p {
-        font-size: 13px;
-        color: #888;
-        margin-bottom: 24px;
-      }
-      .login-wrap input {
-        width: 100%;
-        margin-bottom: 12px;
-      }
-      /* ── 逆算ツール ── */
-      .calc-tool {
-        margin-top: 12px;
-        background: #f0f4ff;
-        border: 1px solid #c5cfe8;
-        border-radius: 8px;
-        padding: 10px 12px;
-      }
-      .calc-title {
-        font-size: 11px;
-        font-weight: 600;
-        color: #3a5aad;
-        margin-bottom: 8px;
-      }
-      /* ── 逆算ツール：入力エリア ── */
-      .calc-inputs {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-bottom: 10px;
-        padding-bottom: 10px;
-        border-bottom: 1px dashed #c5cfe8;
-      }
-      .calc-input-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      .calc-input-label {
-        font-size: 11px;
-        color: #3a5aad;
-        white-space: nowrap;
-        min-width: 60px;
-      }
-      .calc-qty {
-        width: 60px;
-        padding: 5px 8px;
-        border: 1px solid #c5cfe8;
-        border-radius: 6px;
-        font-size: 13px;
-        text-align: center;
-        background: #fff;
-        color: #1a1a1a;
-        outline: none;
-      }
-      .calc-qty:focus {
-        border-color: #3a5aad;
-      }
-      .calc-unit-label {
-        font-size: 11px;
-        color: #555;
-        white-space: nowrap;
-      }
-      /* ── 逆算ツール：結果エリア ── */
-      .calc-result {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-      .calc-step-block {
-        margin-bottom: 8px;
-        padding-bottom: 8px;
-        border-bottom: 1px dashed #c5cfe8;
-      }
-      .calc-step-block:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-      }
-      .calc-step-label {
-        font-size: 10px;
-        font-weight: 700;
-        color: #9fa8da;
-        margin-bottom: 4px;
-        letter-spacing: 0.04em;
-      }
-      .calc-row-item {
-        font-size: 12px;
-        color: #1a1a1a;
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      .calc-row-item .ci-name {
-        color: #555;
-      }
-      .calc-row-item .ci-qty {
-        font-weight: 600;
-      }
-      .calc-row-item .ci-base {
-        font-size: 10px;
-        color: #9fa8da;
-      }
+      .login-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+      .login-wrap p { font-size: 13px; color: #888; margin-bottom: 24px; }
+      .login-wrap input { width: 100%; margin-bottom: 12px; }
       .admin-box {
-        max-width: 540px;
-        margin: 0 auto 20px;
-        background: #f0f4ff;
-        border: 1px solid #c5cfe8;
-        border-radius: 10px;
-        padding: 12px 16px;
+        max-width: 540px; margin: 0 auto 20px; background: #f0f4ff;
+        border: 1px solid #c5cfe8; border-radius: 10px; padding: 12px 16px;
       }
-      .admin-box-title {
-        font-size: 12px;
-        font-weight: 600;
-        color: #3a5aad;
-        margin-bottom: 6px;
-      }
+      .admin-box-title { font-size: 12px; font-weight: 600; color: #3a5aad; margin-bottom: 6px; }
       #city-master-panel {
-        display: none;
-        margin-top: 10px;
-        background: #fff;
-        border: 1px solid #c5cfe8;
-        border-radius: 8px;
-        padding: 14px;
+        display: none; margin-top: 10px; background: #fff;
+        border: 1px solid #c5cfe8; border-radius: 8px; padding: 14px;
       }
       #city-master-panel .panel-title {
-        font-size: 12px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #f0ede8;
+        font-size: 12px; font-weight: 700; color: #1a1a1a;
+        margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0ede8;
       }
       .city-master-list {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        max-height: 220px;
-        overflow-y: auto;
-        margin-bottom: 10px;
+        display: flex; flex-direction: column; gap: 4px;
+        max-height: 220px; overflow-y: auto; margin-bottom: 10px;
       }
       .city-master-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 7px 10px;
-        background: #faf9f6;
-        border: 1px solid #f0ede8;
-        border-radius: 6px;
-        font-size: 13px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 7px 10px; background: #faf9f6; border: 1px solid #f0ede8;
+        border-radius: 6px; font-size: 13px;
       }
       .city-master-item .city-del-btn {
-        background: none;
-        border: 1px solid #eee;
-        border-radius: 5px;
-        color: #ccc;
-        font-size: 12px;
-        padding: 2px 8px;
-        cursor: pointer;
-        transition: all 0.15s;
-        white-space: nowrap;
+        background: none; border: 1px solid #eee; border-radius: 5px;
+        color: #ccc; font-size: 12px; padding: 2px 8px; cursor: pointer;
+        transition: all 0.15s; white-space: nowrap;
       }
-      .city-master-item .city-del-btn:hover {
-        border-color: #e53935;
-        color: #e53935;
-        background: #fff0f0;
-      }
-      .city-add-row {
-        display: flex;
-        gap: 6px;
-      }
-      .city-add-row input {
-        flex: 1;
-      }
+      .city-master-item .city-del-btn:hover { border-color: #e53935; color: #e53935; background: #fff0f0; }
+      .city-add-row { display: flex; gap: 6px; }
+      .city-add-row input { flex: 1; }
       .city-add-row button {
-        padding: 8px 14px;
-        border: none;
-        border-radius: 8px;
-        background: #1a1a1a;
-        color: #fff;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
+        padding: 8px 14px; border: none; border-radius: 8px;
+        background: #1a1a1a; color: #fff; font-size: 13px; font-weight: 600;
+        cursor: pointer; white-space: nowrap;
       }
-      .city-add-row button:hover {
-        background: #333;
-      }
-      .city-master-empty {
-        font-size: 12px;
-        color: #bbb;
-        text-align: center;
-        padding: 16px 0;
-      }
-      .city-row {
-        cursor: default;
-        transition: opacity 0.15s;
-      }
-      .city-row.dragging {
-        opacity: 0.4;
-      }
-      .city-row.drag-over {
-        border-color: #3a5aad !important;
-        background: #f0f4ff !important;
-      }
+      .city-add-row button:hover { background: #333; }
+      .city-master-empty { font-size: 12px; color: #bbb; text-align: center; padding: 16px 0; }
+      .city-row { cursor: default; transition: opacity 0.15s; }
+      .city-row.dragging { opacity: 0.4; }
+      .city-row.drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
       .city-drag-handle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: grab;
-        color: #ccc;
-        font-size: 14px;
-        user-select: none;
+        display: flex; align-items: center; justify-content: center;
+        cursor: grab; color: #ccc; font-size: 14px; user-select: none;
       }
-      .city-drag-handle:active {
-        cursor: grabbing;
-      }
-      .master-input-wrap {
-        position: relative;
-      }
-      .master-input-row {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-      }
-      .master-input-row input {
-        flex: 1;
-      }
+      .city-drag-handle:active { cursor: grabbing; }
+      .master-input-wrap { position: relative; }
+      .master-input-row { display: flex; gap: 6px; align-items: center; }
+      .master-input-row input { flex: 1; }
       .master-ref-btn {
-        padding: 7px 12px;
-        border: 1px solid #3a5aad;
-        border-radius: 8px;
-        background: #fff;
-        color: #3a5aad;
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all 0.15s;
-        flex-shrink: 0;
+        padding: 7px 12px; border: 1px solid #3a5aad; border-radius: 8px;
+        background: #fff; color: #3a5aad; font-size: 12px; cursor: pointer;
+        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
       }
-      .master-ref-btn:hover {
-        background: #f0f4ff;
-      }
-      .master-ref-btn.open {
-        background: #1a1a1a;
-        color: #fff;
-        border-color: #1a1a1a;
-      }
+      .master-ref-btn:hover { background: #f0f4ff; }
+      .master-ref-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
       .apply-btn {
-        padding: 7px 12px;
-        border: 1px solid #2e7d32;
-        border-radius: 8px;
-        background: #fff;
-        color: #2e7d32;
-        font-size: 12px;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: all 0.15s;
-        flex-shrink: 0;
+        padding: 7px 12px; border: 1px solid #2e7d32; border-radius: 8px;
+        background: #fff; color: #2e7d32; font-size: 12px; cursor: pointer;
+        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
       }
-      .apply-btn:hover {
-        background: #f0fff1;
-      }
+      .apply-btn:hover { background: #f0fff1; }
       .master-ref-panel {
-        display: none;
-        position: absolute;
-        top: calc(100% + 6px);
-        left: 0;
-        right: 0;
-        background: #fff;
-        border: 1px solid #c5cfe8;
-        border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
-        z-index: 50;
-        overflow: hidden;
+        display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+        background: #fff; border: 1px solid #c5cfe8; border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 50; overflow: hidden;
       }
-      .master-ref-panel.open {
-        display: block;
-      }
+      .master-ref-panel.open { display: block; }
       .mrp-header {
-        padding: 10px 12px 8px;
-        background: #f5f7ff;
-        border-bottom: 1px solid #e0e5f5;
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        padding: 10px 12px 8px; background: #f5f7ff;
+        border-bottom: 1px solid #e0e5f5; display: flex; align-items: center; gap: 8px;
       }
       .mrp-search {
-        flex: 1;
-        padding: 6px 10px;
-        font-size: 13px;
-        border: 1px solid #dde;
-        border-radius: 6px;
-        background: #fff;
-        outline: none;
+        flex: 1; padding: 6px 10px; font-size: 13px; border: 1px solid #dde;
+        border-radius: 6px; background: #fff; outline: none;
       }
-      .mrp-search:focus {
-        border-color: #3a5aad;
-      }
-      .mrp-tabs {
-        display: flex;
-        gap: 0;
-        border: 1px solid #dde;
-        border-radius: 6px;
-        overflow: hidden;
-      }
+      .mrp-search:focus { border-color: #3a5aad; }
+      .mrp-tabs { display: flex; border: 1px solid #dde; border-radius: 6px; overflow: hidden; }
       .mrp-tab {
-        padding: 5px 10px;
-        font-size: 11px;
-        border: none;
-        background: #fff;
-        color: #888;
-        cursor: pointer;
-        transition: all 0.15s;
-        white-space: nowrap;
+        padding: 5px 10px; font-size: 11px; border: none; background: #fff;
+        color: #888; cursor: pointer; transition: all 0.15s; white-space: nowrap;
       }
-      .mrp-tab.active {
-        background: #3a5aad;
-        color: #fff;
-      }
-      .mrp-body {
-        max-height: 260px;
-        overflow-y: auto;
-        padding: 6px;
-      }
-      .mrp-empty {
-        padding: 24px;
-        text-align: center;
-        font-size: 12px;
-        color: #bbb;
-      }
+      .mrp-tab.active { background: #3a5aad; color: #fff; }
+      .mrp-body { max-height: 260px; overflow-y: auto; padding: 6px; }
+      .mrp-empty { padding: 24px; text-align: center; font-size: 12px; color: #bbb; }
       .mrp-section-label {
-        font-size: 10px;
-        font-weight: 700;
-        color: #9fa8da;
-        padding: 6px 8px 2px;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        font-size: 10px; font-weight: 700; color: #9fa8da;
+        padding: 6px 8px 2px; letter-spacing: 0.06em; text-transform: uppercase;
       }
       .mrp-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 10px;
-        border-radius: 7px;
-        cursor: pointer;
-        transition: background 0.1s;
-        gap: 8px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 10px; border-radius: 7px; cursor: pointer;
+        transition: background 0.1s; gap: 8px;
       }
-      .mrp-item:hover {
-        background: #f0f4ff;
-      }
-      .mrp-item-name {
-        font-size: 13px;
-        font-weight: 500;
-        color: #1a1a1a;
-        flex: 1;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .mrp-item-meta {
-        font-size: 10px;
-        color: #aaa;
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-      .mrp-item-badge {
-        font-size: 10px;
-        padding: 1px 7px;
-        border-radius: 10px;
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-      .badge-recipe {
-        background: #fce4ec;
-        color: #c62828;
-        border: 1px solid #ef9a9a;
-      }
-      .badge-sub {
-        background: #e8eaf6;
-        color: #3949ab;
-        border: 1px solid #9fa8da;
-      }
-      .badge-mat {
-        background: #e8f5e9;
-        color: #2e7d32;
-        border: 1px solid #a5d6a7;
-      }
+      .mrp-item:hover { background: #f0f4ff; }
+      .mrp-item-name { font-size: 13px; font-weight: 500; color: #1a1a1a; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .mrp-item-meta { font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0; }
+      .mrp-item-badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
+      .badge-recipe { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
+      .badge-sub    { background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; }
+      .badge-mat    { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
     </style>
   </head>
   <body>
-    <div id="login-area" class="login-wrap" style="display: none">
+    <div id="login-area" class="login-wrap" style="display:none">
       <h2>🔐 ログイン</h2>
       <p>レシピ管理にはログインが必要です</p>
       <input type="email" id="login-email" placeholder="メールアドレス" />
       <input type="password" id="login-password" placeholder="パスワード" />
-      <button
-        class="btn-submit"
-        style="width: 100%; margin-top: 4px"
-        onclick="doLogin()"
-      >
-        ログイン
-      </button>
-      <p
-        style="font-size: 11px; color: #e53935; margin-top: 12px"
-        id="login-error"
-      ></p>
+      <button class="btn-submit" style="width:100%;margin-top:4px" onclick="doLogin()">ログイン</button>
+      <p style="font-size:11px;color:#e53935;margin-top:12px" id="login-error"></p>
     </div>
 
-    <div id="main-area" style="display: none">
+    <div id="main-area" style="display:none">
       <div class="app-header">
         <h1>🏠 レシピ入力フォーム</h1>
-        <p
-          id="user-email-label"
-          style="font-size: 11px; color: #aaa; margin-top: 4px"
-        ></p>
-        <div class="tab-bar" style="margin-top: 12px">
-          <button
-            id="tab-new"
-            class="tab-btn active"
-            onclick="switchTab('new')"
-          >
-            ＋ 新規登録
-          </button>
-          <button id="tab-edit" class="tab-btn" onclick="switchTab('edit')">
-            ✏ 編集・削除
-          </button>
+        <p id="user-email-label" style="font-size:11px;color:#aaa;margin-top:4px"></p>
+        <div class="tab-bar" style="margin-top:12px">
+          <button id="tab-new"  class="tab-btn active" onclick="switchTab('new')">＋ 新規登録</button>
+          <button id="tab-edit" class="tab-btn"        onclick="switchTab('edit')">✏ 編集・削除</button>
         </div>
-        <button
-          onclick="doLogout()"
-          style="
-            margin-top: 8px;
-            padding: 4px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            background: #fff;
-            color: #888;
-            font-size: 11px;
-            cursor: pointer;
-          "
-        >
-          ログアウト
-        </button>
+        <button onclick="doLogout()" style="margin-top:8px;padding:4px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#888;font-size:11px;cursor:pointer">ログアウト</button>
       </div>
 
       <div id="area-new">
         <div class="admin-box">
           <div class="admin-box-title">🔧 管理者メニュー</div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap">
-            <button
-              type="button"
-              onclick="showNewSheetDialog()"
-              style="
-                padding: 7px 14px;
-                border: 1px solid #3a5aad;
-                border-radius: 6px;
-                background: #fff;
-                color: #3a5aad;
-                font-size: 12px;
-                cursor: pointer;
-              "
-            >
-              ＋ 新しいシートを作成
-            </button>
-            <button
-              type="button"
-              onclick="toggleCityMasterPanel()"
-              id="city-master-toggle-btn"
-              style="
-                padding: 7px 14px;
-                border: 1px solid #3a5aad;
-                border-radius: 6px;
-                background: #fff;
-                color: #3a5aad;
-                font-size: 12px;
-                cursor: pointer;
-              "
-            >
-              🏙 都市マスタを管理
-            </button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" onclick="showNewSheetDialog()" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">＋ 新しいシートを作成</button>
+            <button type="button" onclick="toggleCityMasterPanel()" id="city-master-toggle-btn" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">🏙 都市マスタを管理</button>
           </div>
-          <div id="new-sheet-dialog" style="display: none; margin-top: 10px">
-            <div style="display: flex; gap: 6px">
-              <input
-                type="text"
-                id="new-sheet-name"
-                placeholder="例: 加工品"
-                style="flex: 1"
-              />
-              <button
-                class="btn-next"
-                style="padding: 8px 14px; font-size: 13px; flex: none"
-                onclick="submitNewSheet()"
-              >
-                作成
-              </button>
-              <button
-                class="btn-back"
-                style="padding: 8px 14px; font-size: 13px"
-                onclick="hideNewSheetDialog()"
-              >
-                ✕
-              </button>
+          <div id="new-sheet-dialog" style="display:none;margin-top:10px">
+            <div style="display:flex;gap:6px">
+              <input type="text" id="new-sheet-name" placeholder="例: 加工品" style="flex:1" />
+              <button class="btn-next" style="padding:8px 14px;font-size:13px;flex:none" onclick="submitNewSheet()">作成</button>
+              <button class="btn-back" style="padding:8px 14px;font-size:13px" onclick="hideNewSheetDialog()">✕</button>
             </div>
           </div>
           <div id="city-master-panel">
             <div class="panel-title">🏙 都市マスタ管理</div>
-            <div class="city-master-list" id="city-master-list">
-              <div class="city-master-empty">読み込み中...</div>
-            </div>
+            <div class="city-master-list" id="city-master-list"><div class="city-master-empty">読み込み中...</div></div>
             <div class="city-add-row">
-              <input
-                type="text"
-                id="new-city-name"
-                placeholder="都市名を入力（例: カルフェオン）"
-              />
+              <input type="text" id="new-city-name" placeholder="都市名を入力（例: カルフェオン）" />
               <button onclick="submitNewCity()">＋ 追加</button>
             </div>
-            <div style="font-size: 11px; color: #888; margin-top: 8px">
-              ※ 追加した都市はフォームの「製作できる都市」候補に反映されます
-            </div>
+            <div style="font-size:11px;color:#888;margin-top:8px">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
           </div>
-          <div style="font-size: 11px; color: #888; margin-top: 6px">
-            ※ シートを追加するとフォームのカテゴリ選択に反映されます
-          </div>
+          <div style="font-size:11px;color:#888;margin-top:6px">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
         </div>
 
         <div class="steps-indicator">
-          <div class="si-step active" id="si-1">
-            <div class="si-circle">1</div>
-            <div class="si-label">基本情報</div>
-          </div>
+          <div class="si-step active" id="si-1"><div class="si-circle">1</div><div class="si-label">基本情報</div></div>
           <div class="si-line"></div>
-          <div class="si-step" id="si-2">
-            <div class="si-circle">2</div>
-            <div class="si-label">製作材料</div>
-          </div>
+          <div class="si-step" id="si-2"><div class="si-circle">2</div><div class="si-label">製作材料</div></div>
           <div class="si-line"></div>
-          <div class="si-step" id="si-3">
-            <div class="si-circle">3</div>
-            <div class="si-label">副材料</div>
-          </div>
+          <div class="si-step" id="si-3"><div class="si-circle">3</div><div class="si-label">副材料</div></div>
           <div class="si-line"></div>
-          <div class="si-step" id="si-4">
-            <div class="si-circle">4</div>
-            <div class="si-label">確認</div>
-          </div>
+          <div class="si-step" id="si-4"><div class="si-circle">4</div><div class="si-label">確認</div></div>
         </div>
 
         <!-- Step 1 -->
@@ -1231,67 +455,26 @@
             </div>
             <div class="field">
               <label>サブカテゴリ<span class="opt">任意</span></label>
-              <input
-                type="text"
-                id="f-category"
-                list="cat-list"
-                placeholder="例: ソース類・家具セット"
-              />
+              <input type="text" id="f-category" list="cat-list" placeholder="例: ソース類・家具セット" />
               <datalist id="cat-list"></datalist>
             </div>
             <div class="field">
               <label>画像URL<span class="opt">任意</span></label>
-              <input
-                type="text"
-                id="f-image"
-                placeholder="https://i.imgur.com/..."
-              />
+              <input type="text" id="f-image" placeholder="https://i.imgur.com/..." />
             </div>
             <div class="field">
-              <label
-                >製作できる都市 ＆ 製作所レベル<span class="opt"
-                  >任意・最大10都市</span
-                ></label
-              >
-              <div
-                id="city-level-list"
-                style="
-                  display: flex;
-                  flex-direction: column;
-                  gap: 6px;
-                  margin-bottom: 8px;
-                "
-              ></div>
-              <button
-                type="button"
-                class="add-btn"
-                id="add-city-btn"
-                onclick="addCityRow()"
-              >
-                ＋ 都市を追加
-              </button>
+              <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
+              <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+              <button type="button" class="add-btn" id="add-city-btn" onclick="addCityRow()">＋ 都市を追加</button>
             </div>
             <div class="field">
               <label>効果<span class="opt">任意</span></label>
-              <textarea
-                id="f-effect"
-                class="effect-input"
-                placeholder="例: 移動速度 +2&#10;持続時間 90分"
-                rows="4"
-              ></textarea>
+              <textarea id="f-effect" class="effect-input" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4"></textarea>
             </div>
           </div>
           <div class="nav">
-            <button
-              class="btn-submit edit-only-btn"
-              style="display: none"
-              onclick="updateCurrentRecipe()"
-            >
-              ✏ 更新する
-            </button>
-            <button class="btn-next" onclick="goStep(2)">
-              次へ：製作材料 →
-            </button>
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
+            <button class="btn-next" onclick="goStep(2)">次へ：製作材料 →</button>
           </div>
         </div>
 
@@ -1300,30 +483,14 @@
           <div class="card">
             <div class="card-title">
               <span class="num">2</span>製作材料
-              <span
-                style="
-                  font-size: 11px;
-                  font-weight: 400;
-                  color: #aaa;
-                  margin-left: auto;
-                "
-                >最大6種 ／ 各材料に代替品を追加可</span
-              >
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に代替品を追加可</span>
             </div>
             <div id="mat-block-list"></div>
-            <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">
-              ＋ 材料を追加
-            </button>
+            <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">＋ 材料を追加</button>
           </div>
           <div class="nav">
             <button class="btn-back" onclick="goStep(1)">← 戻る</button>
-            <button
-              class="btn-submit edit-only-btn"
-              style="display: none"
-              onclick="updateCurrentRecipe()"
-            >
-              ✏ 更新する
-            </button>
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
             <button class="btn-next" onclick="goStep(3)">次へ：副材料 →</button>
           </div>
         </div>
@@ -1333,33 +500,15 @@
           <div class="card">
             <div class="card-title">
               <span class="num">3</span>副材料（材料の作り方）
-              <span
-                style="
-                  font-size: 11px;
-                  font-weight: 400;
-                  color: #aaa;
-                  margin-left: auto;
-                "
-                >任意・最大7グループ</span
-              >
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大7グループ</span>
             </div>
-            <p style="font-size: 12px; color: #888; margin-bottom: 14px">
-              材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。
-            </p>
+            <p style="font-size:12px;color:#888;margin-bottom:14px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
             <div id="subgroup-list"></div>
-            <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">
-              ＋ 副材料グループを追加
-            </button>
+            <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
           </div>
           <div class="nav">
             <button class="btn-back" onclick="goStep(2)">← 戻る</button>
-            <button
-              class="btn-submit edit-only-btn"
-              style="display: none"
-              onclick="updateCurrentRecipe()"
-            >
-              ✏ 更新する
-            </button>
+            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
             <button class="btn-next" onclick="goStep(4)">次へ：確認 →</button>
           </div>
         </div>
@@ -1372,81 +521,26 @@
           </div>
           <div class="nav">
             <button class="btn-back" onclick="goStep(3)">← 戻る</button>
-            <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">
-              ✓ 保存する
-            </button>
+            <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">✓ 保存する</button>
           </div>
         </div>
       </div>
 
       <!-- 編集・削除エリア -->
-      <div id="area-edit" style="display: none">
-        <div style="max-width: 540px; margin: 0 auto 16px">
-          <div style="display: flex; gap: 8px; margin-bottom: 12px">
-            <input
-              type="text"
-              id="edit-search"
-              placeholder="アイテム名で検索..."
-              oninput="filterEditList()"
-              style="flex: 1"
-            />
-            <select
-              id="edit-sheet-filter"
-              onchange="filterEditList()"
-              style="width: 100px"
-            >
+      <div id="area-edit" style="display:none">
+        <div style="max-width:540px;margin:0 auto 16px">
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input type="text" id="edit-search" placeholder="アイテム名で検索..." oninput="filterEditList()" style="flex:1" />
+            <select id="edit-sheet-filter" onchange="filterEditList()" style="width:100px">
               <option value="">全シート</option>
             </select>
           </div>
-          <div
-            id="edit-list"
-            style="
-              display: flex;
-              flex-direction: column;
-              gap: 4px;
-              max-height: 300px;
-              overflow-y: auto;
-            "
-          ></div>
+          <div id="edit-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto"></div>
         </div>
-        <div id="edit-form-area" style="display: none">
-          <div
-            style="
-              max-width: 540px;
-              margin: 0 auto 8px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-            "
-          >
-            <button
-              onclick="clearEditForm()"
-              style="
-                padding: 6px 12px;
-                border: 1px solid #ddd;
-                border-radius: 6px;
-                background: #fff;
-                color: #666;
-                font-size: 12px;
-                cursor: pointer;
-              "
-            >
-              ← 一覧に戻る
-            </button>
-            <button
-              onclick="deleteCurrentRecipe()"
-              style="
-                padding: 6px 12px;
-                border: 1px solid #e53935;
-                border-radius: 6px;
-                background: #fff;
-                color: #e53935;
-                font-size: 12px;
-                cursor: pointer;
-              "
-            >
-              🗑 削除
-            </button>
+        <div id="edit-form-area" style="display:none">
+          <div style="max-width:540px;margin:0 auto 8px;display:flex;justify-content:space-between;align-items:center">
+            <button onclick="clearEditForm()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#666;font-size:12px;cursor:pointer">← 一覧に戻る</button>
+            <button onclick="deleteCurrentRecipe()" style="padding:6px 12px;border:1px solid #e53935;border-radius:6px;background:#fff;color:#e53935;font-size:12px;cursor:pointer">🗑 削除</button>
           </div>
         </div>
       </div>
@@ -1455,32 +549,20 @@
     <div class="toast" id="toast"></div>
 
     <script>
-      const SUPABASE_URL = "https://qvdlqqlstohsxfdersqf.supabase.co";
+      const SUPABASE_URL  = "https://qvdlqqlstohsxfdersqf.supabase.co";
       const SUPABASE_ANON = "sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6";
-
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      const CONNECTORS = ["↓", "あるいは", "または", "さらに"];
+      const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
-      const MAX_GROUPS = 7,
-        MAX_STEPS = 10,
-        MAX_MATS = 10,
-        MAX_BASIC_MATS = 6,
-        MAX_CITIES = 10,
-        MAX_ALTS = 3;
+      const MAX_GROUPS = 7, MAX_STEPS = 10, MAX_MATS = 10,
+            MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
-      let matBlockCount = 0,
-        altCounters = {},
-        subgroupCount = 0;
-      let stepCounters = {},
-        stepMatCounters = {},
-        stepMatAltCounters = {};
-      let cityRowCount = 0,
-        availableCities = [];
-      let editRecipes = [],
-        currentEditId = null,
-        currentEditSheet = null;
+      let matBlockCount = 0, altCounters = {}, subgroupCount = 0;
+      let stepCounters = {}, stepMatCounters = {}, stepMatAltCounters = {};
+      let cityRowCount = 0, availableCities = [];
+      let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
       let masterListCache = [];
 
@@ -1488,30 +570,22 @@
       // 認証
       // ============================================================
       async function checkAuth() {
-        const {
-          data: { session },
-        } = await sb.auth.getSession();
+        const { data: { session } } = await sb.auth.getSession();
         if (session) showMain(session.user.email);
         else document.getElementById("login-area").style.display = "";
       }
       async function doLogin() {
-        const email = document.getElementById("login-email").value.trim();
+        const email    = document.getElementById("login-email").value.trim();
         const password = document.getElementById("login-password").value;
         const { error } = await sb.auth.signInWithPassword({ email, password });
         if (error) {
-          document.getElementById("login-error").textContent =
-            "ログイン失敗: " + error.message;
+          document.getElementById("login-error").textContent = "ログイン失敗: " + error.message;
         } else {
-          const {
-            data: { session },
-          } = await sb.auth.getSession();
+          const { data: { session } } = await sb.auth.getSession();
           showMain(session.user.email);
         }
       }
-      async function doLogout() {
-        await sb.auth.signOut();
-        location.reload();
-      }
+      async function doLogout() { await sb.auth.signOut(); location.reload(); }
       function showMain(email) {
         document.getElementById("login-area").style.display = "none";
         document.getElementById("main-area").style.display = "";
@@ -1527,43 +601,24 @@
         await loadSheetList();
         await loadMasterList();
         await loadCityList();
-        document
-          .getElementById("subgroup-list")
-          .addEventListener("input", function (e) {
-            const sg = e.target.closest(".subgroup");
-            if (sg) calcReverse(sg.id);
+        document.getElementById("f-sheet").addEventListener("change", async function () {
+          if (!this.value) return;
+          const sid = await getSheetId(this.value);
+          const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
+          const dl = document.getElementById("cat-list");
+          dl.innerHTML = "";
+          [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
+            const o = document.createElement("option"); o.value = c; dl.appendChild(o);
           });
-        document
-          .getElementById("f-sheet")
-          .addEventListener("change", async function () {
-            if (!this.value) return;
-            const sid = await getSheetId(this.value);
-            const { data } = await sb
-              .from("recipes")
-              .select("category")
-              .eq("sheet_id", sid);
-            const dl = document.getElementById("cat-list");
-            dl.innerHTML = "";
-            [...new Set((data || []).map((r) => r.category).filter(Boolean))]
-              .sort()
-              .forEach((c) => {
-                const o = document.createElement("option");
-                o.value = c;
-                dl.appendChild(o);
-              });
-          });
+        });
         document.addEventListener("click", function (e) {
-          document
-            .querySelectorAll(".master-ref-panel.open")
-            .forEach((panel) => {
-              const wrap = panel.closest(".master-input-wrap");
-              if (wrap && !wrap.contains(e.target)) {
-                closeRefPanel(panel);
-                wrap
-                  .querySelectorAll(".master-ref-btn")
-                  .forEach((b) => b.classList.remove("open"));
-              }
-            });
+          document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
+            const wrap = panel.closest(".master-input-wrap");
+            if (wrap && !wrap.contains(e.target)) {
+              closeRefPanel(panel);
+              wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
+            }
+          });
         });
       }
 
@@ -1571,70 +626,33 @@
       // シート管理
       // ============================================================
       async function loadSheetList() {
-        const { data } = await sb
-          .from("sheets")
-          .select("id,name")
-          .order("sort_order");
+        const { data } = await sb.from("sheets").select("id,name").order("sort_order");
         const sel = document.getElementById("f-sheet");
         sel.innerHTML = '<option value="">選択してください</option>';
-        (data || []).forEach((s) => {
-          const o = document.createElement("option");
-          o.value = s.name;
-          o.textContent = s.name;
-          sel.appendChild(o);
+        (data || []).forEach(s => {
+          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; sel.appendChild(o);
         });
         const ef = document.getElementById("edit-sheet-filter");
         ef.innerHTML = '<option value="">全シート</option>';
-        (data || []).forEach((s) => {
-          const o = document.createElement("option");
-          o.value = s.name;
-          o.textContent = s.name;
-          ef.appendChild(o);
+        (data || []).forEach(s => {
+          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ef.appendChild(o);
         });
       }
       async function getSheetId(name) {
-        const { data } = await sb
-          .from("sheets")
-          .select("id")
-          .eq("name", name)
-          .single();
+        const { data } = await sb.from("sheets").select("id").eq("name", name).single();
         return data ? data.id : null;
       }
       async function submitNewSheet() {
         const name = document.getElementById("new-sheet-name").value.trim();
-        if (!name) {
-          showToast("タグ名を入力してください");
-          return;
-        }
-        const { data: last } = await sb
-          .from("sheets")
-          .select("sort_order")
-          .order("sort_order", { ascending: false })
-          .limit(1);
+        if (!name) { showToast("タグ名を入力してください"); return; }
+        const { data: last } = await sb.from("sheets").select("sort_order").order("sort_order", { ascending: false }).limit(1);
         const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-        const { error } = await sb
-          .from("sheets")
-          .insert({ name, sort_order: nextOrder });
-        if (error) {
-          showToast(
-            error.code === "23505"
-              ? "同じ名前のシートが既に存在します"
-              : "エラー: " + error.message,
-          );
-        } else {
-          showToast("「" + name + "」を作成しました");
-          hideNewSheetDialog();
-          await loadSheetList();
-        }
+        const { error } = await sb.from("sheets").insert({ name, sort_order: nextOrder });
+        if (error) { showToast(error.code === "23505" ? "同じ名前のシートが既に存在します" : "エラー: " + error.message); }
+        else { showToast("「" + name + "」を作成しました"); hideNewSheetDialog(); await loadSheetList(); }
       }
-      function showNewSheetDialog() {
-        document.getElementById("new-sheet-dialog").style.display = "";
-        document.getElementById("new-sheet-name").focus();
-      }
-      function hideNewSheetDialog() {
-        document.getElementById("new-sheet-dialog").style.display = "none";
-        document.getElementById("new-sheet-name").value = "";
-      }
+      function showNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = ""; document.getElementById("new-sheet-name").focus(); }
+      function hideNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = "none"; document.getElementById("new-sheet-name").value = ""; }
 
       // ============================================================
       // 都市マスタ
@@ -1642,180 +660,86 @@
       async function toggleCityMasterPanel() {
         cityMasterPanelOpen = !cityMasterPanelOpen;
         const panel = document.getElementById("city-master-panel");
-        const btn = document.getElementById("city-master-toggle-btn");
-        panel.style.display = cityMasterPanelOpen ? "block" : "none";
+        const btn   = document.getElementById("city-master-toggle-btn");
+        panel.style.display  = cityMasterPanelOpen ? "block" : "none";
         btn.style.background = cityMasterPanelOpen ? "#1a1a1a" : "#fff";
-        btn.style.color = cityMasterPanelOpen ? "#fff" : "#3a5aad";
-        btn.style.borderColor = cityMasterPanelOpen ? "#1a1a1a" : "#3a5aad";
+        btn.style.color      = cityMasterPanelOpen ? "#fff"    : "#3a5aad";
+        btn.style.borderColor= cityMasterPanelOpen ? "#1a1a1a" : "#3a5aad";
         if (cityMasterPanelOpen) await renderCityMasterList();
       }
       async function renderCityMasterList() {
         const listEl = document.getElementById("city-master-list");
         listEl.innerHTML = '<div class="city-master-empty">読み込み中...</div>';
-        const { data, error } = await sb
-          .from("sheet_cities")
-          .select("id,city_name,sort_order")
-          .order("sort_order");
-        if (error) {
-          listEl.innerHTML =
-            '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>';
-          return;
-        }
-        if (!data || data.length === 0) {
-          listEl.innerHTML =
-            '<div class="city-master-empty">都市が登録されていません</div>';
-          return;
-        }
-        listEl.innerHTML = data
-          .map(
-            (c) => `
+        const { data, error } = await sb.from("sheet_cities").select("id,city_name,sort_order").order("sort_order");
+        if (error) { listEl.innerHTML = '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>'; return; }
+        if (!data || data.length === 0) { listEl.innerHTML = '<div class="city-master-empty">都市が登録されていません</div>'; return; }
+        listEl.innerHTML = data.map(c => `
           <div class="city-master-item" id="city-master-row-${c.id}">
             <span>${c.city_name}</span>
-            <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g, "\\'")}')">× 削除</button>
-          </div>`,
-          )
-          .join("");
+            <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g,"\\'")}')">× 削除</button>
+          </div>`).join("");
       }
       async function submitNewCity() {
         const input = document.getElementById("new-city-name");
-        const name = input.value.trim();
-        if (!name) {
-          showToast("都市名を入力してください");
-          return;
-        }
-        const { data: last } = await sb
-          .from("sheet_cities")
-          .select("sort_order")
-          .order("sort_order", { ascending: false })
-          .limit(1);
+        const name  = input.value.trim();
+        if (!name) { showToast("都市名を入力してください"); return; }
+        const { data: last } = await sb.from("sheet_cities").select("sort_order").order("sort_order", { ascending: false }).limit(1);
         const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-        const { error } = await sb
-          .from("sheet_cities")
-          .insert({ city_name: name, sort_order: nextOrder });
-        if (error) {
-          showToast(
-            error.code === "23505"
-              ? "同じ都市名が既に存在します"
-              : "エラー: " + error.message,
-          );
-        } else {
-          showToast("「" + name + "」を追加しました");
-          input.value = "";
-          await renderCityMasterList();
-          await loadCityList();
-        }
+        const { error } = await sb.from("sheet_cities").insert({ city_name: name, sort_order: nextOrder });
+        if (error) { showToast(error.code === "23505" ? "同じ都市名が既に存在します" : "エラー: " + error.message); }
+        else { showToast("「" + name + "」を追加しました"); input.value = ""; await renderCityMasterList(); await loadCityList(); }
       }
       async function deleteCityMaster(id, name) {
-        if (
-          !confirm(
-            `「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`,
-          )
-        )
-          return;
+        if (!confirm(`「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`)) return;
         const { error } = await sb.from("sheet_cities").delete().eq("id", id);
-        if (error) {
-          showToast("エラー: " + error.message);
-        } else {
-          showToast("「" + name + "」を削除しました");
-          await renderCityMasterList();
-          await loadCityList();
-        }
+        if (error) { showToast("エラー: " + error.message); }
+        else { showToast("「" + name + "」を削除しました"); await renderCityMasterList(); await loadCityList(); }
       }
       async function loadCityList() {
-        const { data } = await sb
-          .from("sheet_cities")
-          .select("city_name")
-          .order("sort_order");
-        availableCities = (data || []).map((r) => r.city_name);
+        const { data } = await sb.from("sheet_cities").select("city_name").order("sort_order");
+        availableCities = (data || []).map(r => r.city_name);
         const dl = document.getElementById("city-datalist");
-        if (dl)
-          dl.innerHTML = availableCities
-            .map((c) => `<option value="${c}">`)
-            .join("");
+        if (dl) dl.innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
       }
       function buildLevelOptions(sel) {
         let h = '<option value="">レベル未設定</option>';
-        for (let i = 1; i <= 10; i++)
-          h += `<option value="${i}"${sel == i ? " selected" : ""}>Lv.${i}</option>`;
+        for (let i = 1; i <= 10; i++) h += `<option value="${i}"${sel == i ? " selected" : ""}>Lv.${i}</option>`;
         return h;
       }
       function addCityRow(cityName, cityLevel) {
-        if (cityRowCount >= MAX_CITIES) {
-          showToast("都市は最大10件までです");
-          return;
-        }
+        if (cityRowCount >= MAX_CITIES) { showToast("都市は最大10件までです"); return; }
         cityRowCount++;
         const rowId = `city-row-${cityRowCount}`;
         if (!document.getElementById("city-datalist")) {
-          const dl = document.createElement("datalist");
-          dl.id = "city-datalist";
-          document.body.appendChild(dl);
+          const dl = document.createElement("datalist"); dl.id = "city-datalist"; document.body.appendChild(dl);
         }
-        document.getElementById("city-datalist").innerHTML = availableCities
-          .map((c) => `<option value="${c}">`)
-          .join("");
+        document.getElementById("city-datalist").innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
         const div = document.createElement("div");
-        div.className = "city-row";
-        div.id = rowId;
-        div.draggable = true;
-        div.style.cssText =
-          "display:grid;grid-template-columns:24px 1fr 120px 32px;gap:6px;align-items:center;background:#faf9f6;border:1px solid #e8e6e0;border-radius:8px;padding:8px 10px;";
+        div.className = "city-row"; div.id = rowId; div.draggable = true;
+        div.style.cssText = "display:grid;grid-template-columns:24px 1fr 120px 32px;gap:6px;align-items:center;background:#faf9f6;border:1px solid #e8e6e0;border-radius:8px;padding:8px 10px;";
         div.innerHTML = `
           <span class="city-drag-handle" title="ドラッグで並び替え">⠿</span>
           <input type="text" class="city-name-input" placeholder="都市名" list="city-datalist" value="${escVal(cityName)}">
           <select class="city-level-select">${buildLevelOptions(cityLevel || "")}</select>
           <button class="del-btn" onclick="delCityRow('${rowId}')">×</button>`;
         document.getElementById("city-level-list").appendChild(div);
-        if (cityRowCount >= MAX_CITIES)
-          document.getElementById("add-city-btn").style.display = "none";
+        if (cityRowCount >= MAX_CITIES) document.getElementById("add-city-btn").style.display = "none";
         initCityDragSort();
       }
       function delCityRow(id) {
-        document.getElementById(id).remove();
-        cityRowCount--;
+        document.getElementById(id).remove(); cityRowCount--;
         document.getElementById("add-city-btn").style.display = "";
       }
       function initCityDragSort() {
         const list = document.getElementById("city-level-list");
         let dragSrc = null;
-        list.querySelectorAll(".city-row").forEach((row) => {
-          const f = row.cloneNode(true);
-          row.replaceWith(f);
-        });
-        list.querySelectorAll(".city-row").forEach((row) => {
-          row.addEventListener("dragstart", (e) => {
-            dragSrc = row;
-            row.classList.add("dragging");
-            e.dataTransfer.effectAllowed = "move";
-          });
-          row.addEventListener("dragend", () => {
-            row.classList.remove("dragging");
-            list
-              .querySelectorAll(".city-row")
-              .forEach((r) => r.classList.remove("drag-over"));
-            dragSrc = null;
-          });
-          row.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "move";
-            if (dragSrc && dragSrc !== row) {
-              list
-                .querySelectorAll(".city-row")
-                .forEach((r) => r.classList.remove("drag-over"));
-              row.classList.add("drag-over");
-            }
-          });
-          row.addEventListener("dragleave", () =>
-            row.classList.remove("drag-over"),
-          );
-          row.addEventListener("drop", (e) => {
-            e.preventDefault();
-            if (!dragSrc || dragSrc === row) return;
-            row.classList.remove("drag-over");
-            const all = [...list.querySelectorAll(".city-row")];
-            if (all.indexOf(dragSrc) < all.indexOf(row)) row.after(dragSrc);
-            else row.before(dragSrc);
-          });
+        list.querySelectorAll(".city-row").forEach(row => { const f = row.cloneNode(true); row.replaceWith(f); });
+        list.querySelectorAll(".city-row").forEach(row => {
+          row.addEventListener("dragstart", e => { dragSrc = row; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+          row.addEventListener("dragend",   () => { row.classList.remove("dragging"); list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); dragSrc = null; });
+          row.addEventListener("dragover",  e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragSrc && dragSrc !== row) { list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); row.classList.add("drag-over"); } });
+          row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
+          row.addEventListener("drop",      e => { e.preventDefault(); if (!dragSrc || dragSrc === row) return; row.classList.remove("drag-over"); const all = [...list.querySelectorAll(".city-row")]; if (all.indexOf(dragSrc) < all.indexOf(row)) row.after(dragSrc); else row.before(dragSrc); });
         });
       }
 
@@ -1823,56 +747,23 @@
       // マスターリスト
       // ============================================================
       async function loadMasterList() {
-        const { data: recipeData } = await sb
-          .from("recipes")
-          .select("id, name, sheets(name)")
-          .order("name");
-        const { data: subData } = await sb
-          .from("recipe_subgroups")
-          .select("parent, recipes(id, name, sheets(name))")
-          .order("parent");
-        const { data: matData } = await sb
-          .from("recipe_mats")
-          .select("mat_name, recipe_id, recipes(name, sheets(name))")
-          .is("parent_mat_id", null)
-          .order("mat_name");
+        const { data: recipeData } = await sb.from("recipes").select("id, name, sheets(name)").order("name");
+        const { data: subData }    = await sb.from("recipe_subgroups").select("parent, recipes(id, name, sheets(name))").order("parent");
+        const { data: matData }    = await sb.from("recipe_mats").select("mat_name, recipe_id, recipes(name, sheets(name))").is("parent_mat_id", null).order("mat_name");
         const cache = [];
-        (recipeData || []).forEach((row) => {
-          const name = (row.name || "").trim();
-          if (!name) return;
-          cache.push({
-            name,
-            type: "recipe",
-            recipeId: row.id,
-            sheet: row.sheets?.name || "",
-            recipeName: "",
-          });
+        (recipeData || []).forEach(row => {
+          const name = (row.name || "").trim(); if (!name) return;
+          cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" });
         });
         const subSeen = new Set();
-        (subData || []).forEach((row) => {
-          const name = (row.parent || "").trim();
-          if (!name || subSeen.has(name)) return;
-          subSeen.add(name);
-          cache.push({
-            name,
-            type: "sub",
-            recipeId: row.recipes?.id || null,
-            sheet: row.recipes?.sheets?.name || "",
-            recipeName: row.recipes?.name || "",
-          });
+        (subData || []).forEach(row => {
+          const name = (row.parent || "").trim(); if (!name || subSeen.has(name)) return; subSeen.add(name);
+          cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
         const matSeen = new Set();
-        (matData || []).forEach((row) => {
-          const name = (row.mat_name || "").trim();
-          if (!name || matSeen.has(name)) return;
-          matSeen.add(name);
-          cache.push({
-            name,
-            type: "mat",
-            recipeId: row.recipe_id || null,
-            sheet: row.recipes?.sheets?.name || "",
-            recipeName: row.recipes?.name || "",
-          });
+        (matData || []).forEach(row => {
+          const name = (row.mat_name || "").trim(); if (!name || matSeen.has(name)) return; matSeen.add(name);
+          cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
         });
         cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
         masterListCache = cache;
@@ -1882,136 +773,66 @@
       // 参照パネルUI
       // ============================================================
       function buildRefPanelHTML(panelId) {
-        return `
-          <div class="master-ref-panel" id="${panelId}">
-            <div class="mrp-header">
-              <input class="mrp-search" type="text" placeholder="名前で絞り込み..." oninput="filterRefPanel('${panelId}', this.value)">
-              <div class="mrp-tabs">
-                <button class="mrp-tab active" onclick="setRefTab('${panelId}','all',this)">すべて</button>
-                <button class="mrp-tab" onclick="setRefTab('${panelId}','recipe',this)">レシピ名</button>
-                <button class="mrp-tab" onclick="setRefTab('${panelId}','sub',this)">副材料</button>
-                <button class="mrp-tab" onclick="setRefTab('${panelId}','mat',this)">製作材料</button>
-              </div>
+        return `<div class="master-ref-panel" id="${panelId}">
+          <div class="mrp-header">
+            <input class="mrp-search" type="text" placeholder="名前で絞り込み..." oninput="filterRefPanel('${panelId}', this.value)">
+            <div class="mrp-tabs">
+              <button class="mrp-tab active" onclick="setRefTab('${panelId}','all',this)">すべて</button>
+              <button class="mrp-tab" onclick="setRefTab('${panelId}','recipe',this)">レシピ名</button>
+              <button class="mrp-tab" onclick="setRefTab('${panelId}','sub',this)">副材料</button>
+              <button class="mrp-tab" onclick="setRefTab('${panelId}','mat',this)">製作材料</button>
             </div>
-            <div class="mrp-body" id="${panelId}-body"></div>
-          </div>`;
+          </div>
+          <div class="mrp-body" id="${panelId}-body"></div>
+        </div>`;
       }
       function openRefPanel(panelId, onSelect) {
-        document.querySelectorAll(".master-ref-panel.open").forEach((p) => {
-          if (p.id !== panelId) {
-            closeRefPanel(p);
-            const wrap = p.closest(".master-input-wrap");
-            if (wrap)
-              wrap
-                .querySelectorAll(".master-ref-btn")
-                .forEach((b) => b.classList.remove("open"));
-          }
+        document.querySelectorAll(".master-ref-panel.open").forEach(p => {
+          if (p.id !== panelId) { closeRefPanel(p); const wrap = p.closest(".master-input-wrap"); if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open")); }
         });
         const panel = document.getElementById(panelId);
         panel.classList.add("open");
-        const searchEl = panel.querySelector(".mrp-search");
-        searchEl.value = "";
-        panel
-          .querySelectorAll(".mrp-tab")
-          .forEach((t, i) => t.classList.toggle("active", i === 0));
-        panel._currentTab = "all";
-        panel._onSelect = onSelect;
-        renderRefPanel(panelId, "", "all");
-        setTimeout(() => searchEl.focus(), 50);
+        const searchEl = panel.querySelector(".mrp-search"); searchEl.value = "";
+        panel.querySelectorAll(".mrp-tab").forEach((t, i) => t.classList.toggle("active", i === 0));
+        panel._currentTab = "all"; panel._onSelect = onSelect;
+        renderRefPanel(panelId, "", "all"); setTimeout(() => searchEl.focus(), 50);
       }
-      function closeRefPanel(panelOrId) {
-        const panel =
-          typeof panelOrId === "string"
-            ? document.getElementById(panelOrId)
-            : panelOrId;
-        if (panel) panel.classList.remove("open");
-      }
+      function closeRefPanel(panelOrId) { const panel = typeof panelOrId === "string" ? document.getElementById(panelOrId) : panelOrId; if (panel) panel.classList.remove("open"); }
       function setRefTab(panelId, tab, btn) {
         const panel = document.getElementById(panelId);
-        panel
-          .querySelectorAll(".mrp-tab")
-          .forEach((t) => t.classList.remove("active"));
-        btn.classList.add("active");
-        panel._currentTab = tab;
-        renderRefPanel(panelId, panel.querySelector(".mrp-search").value, tab);
+        panel.querySelectorAll(".mrp-tab").forEach(t => t.classList.remove("active")); btn.classList.add("active");
+        panel._currentTab = tab; renderRefPanel(panelId, panel.querySelector(".mrp-search").value, tab);
       }
-      function filterRefPanel(panelId, q) {
-        const panel = document.getElementById(panelId);
-        renderRefPanel(panelId, q, panel._currentTab || "all");
-      }
+      function filterRefPanel(panelId, q) { const panel = document.getElementById(panelId); renderRefPanel(panelId, q, panel._currentTab || "all"); }
       function renderRefPanel(panelId, q, tab) {
         const body = document.getElementById(panelId + "-body");
         const lq = (q || "").toLowerCase();
         let items = masterListCache;
-        if (tab === "recipe") items = items.filter((i) => i.type === "recipe");
-        else if (tab === "sub") items = items.filter((i) => i.type === "sub");
-        else if (tab === "mat") items = items.filter((i) => i.type === "mat");
-        if (lq)
-          items = items.filter(
-            (i) =>
-              i.name.toLowerCase().includes(lq) ||
-              (i.recipeName || "").toLowerCase().includes(lq) ||
-              (i.sheet || "").toLowerCase().includes(lq),
-          );
-        if (!items.length) {
-          body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>';
-          return;
-        }
-        const recipes = items.filter((i) => i.type === "recipe");
-        const subs = items.filter((i) => i.type === "sub");
-        const mats = items.filter((i) => i.type === "mat");
+        if (tab === "recipe") items = items.filter(i => i.type === "recipe");
+        else if (tab === "sub") items = items.filter(i => i.type === "sub");
+        else if (tab === "mat") items = items.filter(i => i.type === "mat");
+        if (lq) items = items.filter(i => i.name.toLowerCase().includes(lq) || (i.recipeName || "").toLowerCase().includes(lq) || (i.sheet || "").toLowerCase().includes(lq));
+        if (!items.length) { body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>'; return; }
+        const recipes = items.filter(i => i.type === "recipe"), subs = items.filter(i => i.type === "sub"), mats = items.filter(i => i.type === "mat");
         let html = "";
         if (tab === "all") {
-          if (recipes.length) {
-            html += `<div class="mrp-section-label">🍳 レシピ名</div>`;
-            recipes.forEach((item) => {
-              html += renderRefItem(panelId, item);
-            });
-          }
-          if (subs.length) {
-            html += `<div class="mrp-section-label">📦 副材料の作り方</div>`;
-            subs.forEach((item) => {
-              html += renderRefItem(panelId, item);
-            });
-          }
-          if (mats.length) {
-            html += `<div class="mrp-section-label">🧱 製作材料</div>`;
-            mats.forEach((item) => {
-              html += renderRefItem(panelId, item);
-            });
-          }
-        } else {
-          items.forEach((item) => {
-            html += renderRefItem(panelId, item);
-          });
-        }
+          if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (mats.length)    { html += `<div class="mrp-section-label">🧱 製作材料</div>`; mats.forEach(item => { html += renderRefItem(panelId, item); }); }
+        } else { items.forEach(item => { html += renderRefItem(panelId, item); }); }
         body.innerHTML = html;
       }
       function renderRefItem(panelId, item) {
         let badge, meta;
-        if (item.type === "recipe") {
-          badge = `<span class="mrp-item-badge badge-recipe">レシピ</span>`;
-          meta = item.sheet
-            ? `<span class="mrp-item-meta">${item.sheet}</span>`
-            : "";
-        } else if (item.type === "sub") {
-          badge = `<span class="mrp-item-badge badge-sub">副材料</span>`;
-          meta = item.recipeName
-            ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>`
-            : "";
-        } else {
-          badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`;
-          meta = item.recipeName
-            ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>`
-            : "";
-        }
+        if (item.type === "recipe") { badge = `<span class="mrp-item-badge badge-recipe">レシピ</span>`; meta = item.sheet ? `<span class="mrp-item-meta">${item.sheet}</span>` : ""; }
+        else if (item.type === "sub") { badge = `<span class="mrp-item-badge badge-sub">副材料</span>`; meta = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : ""; }
+        else { badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`; meta = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : ""; }
         const safeName = item.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
         return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${safeName}','${item.type}','${item.recipeId || ""}')"><span class="mrp-item-name">${item.name}</span>${meta}${badge}</div>`;
       }
       async function selectRefItem(panelId, name, type, recipeId) {
         const panel = document.getElementById(panelId);
-        if (panel._onSelect)
-          await panel._onSelect(name, type, recipeId || null);
+        if (panel._onSelect) await panel._onSelect(name, type, recipeId || null);
         closeRefPanel(panelId);
       }
 
@@ -2020,46 +841,18 @@
       // ============================================================
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
-        let targetRecipeId = null,
-          targetRecipeName = name;
-        const { data: namedRecipe } = await sb
-          .from("recipes")
-          .select("id, name")
-          .eq("name", name)
-          .maybeSingle();
-        if (namedRecipe) {
-          targetRecipeId = namedRecipe.id;
-          targetRecipeName = namedRecipe.name;
-        } else if (type === "recipe" && recipeId) {
-          targetRecipeId = recipeId;
-        } else if (type === "sub") {
-          const { data: sgRow } = await sb
-            .from("recipe_subgroups")
-            .select("recipe_id, recipes(id, name)")
-            .eq("parent", name)
-            .limit(1)
-            .maybeSingle();
-          if (sgRow) {
-            targetRecipeId = sgRow.recipe_id;
-            targetRecipeName = sgRow.recipes?.name || name;
-          }
+        let targetRecipeId = null, targetRecipeName = name;
+        const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle();
+        if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; }
+        else if (type === "recipe" && recipeId) { targetRecipeId = recipeId; }
+        else if (type === "sub") {
+          const { data: sgRow } = await sb.from("recipe_subgroups").select("recipe_id, recipes(id, name)").eq("parent", name).limit(1).maybeSingle();
+          if (sgRow) { targetRecipeId = sgRow.recipe_id; targetRecipeName = sgRow.recipes?.name || name; }
         }
         if (targetRecipeId) {
           const [{ data: mats }, { data: sgList }] = await Promise.all([
-            sb
-              .from("recipe_mats")
-              .select(
-                "id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id",
-              )
-              .eq("recipe_id", targetRecipeId)
-              .order("sort_order"),
-            sb
-              .from("recipe_subgroups")
-              .select(
-                "id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))",
-              )
-              .eq("recipe_id", targetRecipeId)
-              .order("sort_order"),
+            sb.from("recipe_mats").select("id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id").eq("recipe_id", targetRecipeId).order("sort_order"),
+            sb.from("recipe_subgroups").select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("recipe_id", targetRecipeId).order("sort_order"),
           ]);
           groupEl.querySelector(".sg-parent").value = targetRecipeName;
           resetSteps(gid);
@@ -2068,88 +861,46 @@
             const s1id = `${gid}-s1`;
             const s1el = document.getElementById(s1id);
             if (s1el) {
-              s1el.querySelector(".step-proc").value = "";
-              s1el.querySelector(".step-result-name").value = targetRecipeName;
-              s1el.querySelector(".step-result-qty").value = "";
-              const sml = document.getElementById(`sml-${s1id}`);
-              sml.innerHTML = "";
-              stepMatCounters[s1id] = 0;
+              s1el.querySelector(".step-proc").value = ""; s1el.querySelector(".step-result-name").value = targetRecipeName; s1el.querySelector(".step-result-qty").value = "";
+              const sml = document.getElementById(`sml-${s1id}`); sml.innerHTML = ""; stepMatCounters[s1id] = 0;
               const allMats = mats.sort((a, b) => a.sort_order - b.sort_order);
-              allMats
-                .filter((m) => !m.parent_mat_id)
-                .forEach((m) => {
-                  const alts = allMats
-                    .filter((a) => a.parent_mat_id === m.id)
-                    .sort((a, b) => a.sort_order - b.sort_order)
-                    .map((a) => ({
-                      connector: a.alt_connector || "あるいは",
-                      name: a.mat_name || "",
-                      qty: a.mat_qty || "",
-                    }));
-                  addStepMat(s1id, m.mat_name || "", m.mat_qty || "", alts);
-                });
+              allMats.filter(m => !m.parent_mat_id).forEach(m => {
+                const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
+                addStepMat(s1id, m.mat_name || "", m.mat_qty || "", alts);
+              });
+              updateStepNeeded(s1id);
             }
           }
           if (sgList && sgList.length > 0) {
             const sg0 = sgList[0];
-            (sg0.recipe_steps || [])
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .forEach((step) => {
-                addStep(gid);
-                const sc = stepCounters[gid];
-                const sid = `${gid}-s${sc}`;
-                fillStep(gid, sid, step, sc > 1);
-              });
+            (sg0.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
+              addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
+              fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
+            });
             for (let gi = 1; gi < sgList.length; gi++) {
-              if (subgroupCount >= MAX_GROUPS) {
-                showToast("グループ上限に達しました");
-                break;
-              }
+              if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
               addSubgroup();
-              const newGEl = [
-                ...document.querySelectorAll("#subgroup-list .subgroup"),
-              ].at(-1);
+              const newGEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
               const newGid = newGEl.id;
-              newGEl.querySelector(".sg-parent").value =
-                sgList[gi].parent || targetRecipeName;
+              newGEl.querySelector(".sg-parent").value = sgList[gi].parent || targetRecipeName;
               resetSteps(newGid);
-              (sgList[gi].recipe_steps || [])
-                .sort((a, b) => a.sort_order - b.sort_order)
-                .forEach((step) => {
-                  addStep(newGid);
-                  const sc = stepCounters[newGid];
-                  const sid = `${newGid}-s${sc}`;
-                  fillStep(newGid, sid, step, sc > 1);
-                });
-              calcReverse(newGid);
+              (sgList[gi].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
+                addStep(newGid); const sc = stepCounters[newGid]; const sid = `${newGid}-s${sc}`;
+                fillStep(newGid, sid, step, sc > 1); updateStepNeeded(sid);
+              });
             }
           }
-          calcReverse(gid);
-          showToast("「" + targetRecipeName + "」を適用しました");
-          return;
+          showToast("「" + targetRecipeName + "」を適用しました"); return;
         }
-        const { data: byParent } = await sb
-          .from("recipe_subgroups")
-          .select(
-            "id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))",
-          )
-          .eq("parent", name)
-          .limit(1)
-          .maybeSingle();
+        const { data: byParent } = await sb.from("recipe_subgroups").select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("parent", name).limit(1).maybeSingle();
         if (byParent) {
           groupEl.querySelector(".sg-parent").value = byParent.parent || name;
           resetSteps(gid);
-          (byParent.recipe_steps || [])
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .forEach((step) => {
-              addStep(gid);
-              const sc = stepCounters[gid];
-              const sid = `${gid}-s${sc}`;
-              fillStep(gid, sid, step, sc > 1);
-            });
-          calcReverse(gid);
-          showToast("「" + name + "」を適用しました");
-          return;
+          (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
+            addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
+            fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
+          });
+          showToast("「" + name + "」を適用しました"); return;
         }
         groupEl.querySelector(".sg-parent").value = name;
         showToast("「" + name + "」を設定しました（データなし）");
@@ -2158,85 +909,46 @@
         const stepList = document.getElementById(`step-list-${gid}`);
         if (stepList) stepList.innerHTML = "";
         stepCounters[gid] = 0;
-        Object.keys(stepMatCounters)
-          .filter((k) => k.startsWith(gid + "-s"))
-          .forEach((k) => delete stepMatCounters[k]);
-        Object.keys(stepMatAltCounters)
-          .filter((k) => k.startsWith(gid + "-s"))
-          .forEach((k) => delete stepMatAltCounters[k]);
+        Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
+        Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
       }
       function fillStep(gid, sid, step, hasConnector) {
-        const sEl = document.getElementById(sid);
-        if (!sEl) return;
-        sEl.querySelector(".step-proc").value = step.proc || "";
+        const sEl = document.getElementById(sid); if (!sEl) return;
+        sEl.querySelector(".step-proc").value        = step.proc || "";
         sEl.querySelector(".step-result-name").value = step.result_name || "";
-        sEl.querySelector(".step-result-qty").value = step.result_qty || "";
+        sEl.querySelector(".step-result-qty").value  = step.result_qty  || "";
         if (hasConnector && step.connector) {
           const cb = document.getElementById(`con-${sid}`);
           if (cb) {
             let matched = false;
-            cb.querySelectorAll(".preset-btn").forEach((b) => {
-              if (b.textContent === step.connector) {
-                b.classList.add("selected");
-                matched = true;
-              } else b.classList.remove("selected");
-            });
-            if (!matched) {
-              cb.querySelectorAll(".preset-btn").forEach((b) =>
-                b.classList.remove("selected"),
-              );
-              document.getElementById(`coninput-${sid}`).value = step.connector;
-            }
+            cb.querySelectorAll(".preset-btn").forEach(b => { if (b.textContent === step.connector) { b.classList.add("selected"); matched = true; } else b.classList.remove("selected"); });
+            if (!matched) { cb.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); document.getElementById(`coninput-${sid}`).value = step.connector; }
           }
         }
-        const sml = document.getElementById(`sml-${sid}`);
-        sml.innerHTML = "";
-        stepMatCounters[sid] = 0;
-        const allSM = (step.recipe_step_mats || []).sort(
-          (a, b) => a.sort_order - b.sort_order,
-        );
-        allSM
-          .filter((m) => !m.parent_mat_id)
-          .forEach((m) => {
-            const stepAlts = allSM
-              .filter((a) => a.parent_mat_id === m.id)
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map((a) => ({
-                connector: a.alt_connector || "あるいは",
-                name: a.mat_name || "",
-                qty: a.mat_qty || "",
-              }));
-            addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
-          });
+        const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
+        const allSM = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+        allSM.filter(m => !m.parent_mat_id).forEach(m => {
+          const stepAlts = allSM.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
+          addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
+        });
       }
 
       // ============================================================
       // ユーティリティ
       // ============================================================
-      function escVal(v) {
-        return v ? String(v).replace(/"/g, "&quot;") : "";
-      }
+      function escVal(v) { return v ? String(v).replace(/"/g, "&quot;") : ""; }
       function buildAltConnSel(selected) {
-        return ALT_CONNECTORS.map(
-          (c) =>
-            `<option value="${c}"${c === (selected || "あるいは") ? " selected" : ""}>${c}</option>`,
-        ).join("");
+        return ALT_CONNECTORS.map(c => `<option value="${c}"${c === (selected || "あるいは") ? " selected" : ""}>${c}</option>`).join("");
       }
 
       // ============================================================
-      // 製作材料ブロック
+      // 製作材料ブロック（Step2）
       // ============================================================
       function addMatBlock(matName, matQty, alts) {
-        if (matBlockCount >= MAX_BASIC_MATS) {
-          showToast("材料は最大6種までです");
-          return;
-        }
+        if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
         matBlockCount++;
-        const bid = `mb-${matBlockCount}`;
-        altCounters[bid] = 0;
-        const div = document.createElement("div");
-        div.className = "mat-block";
-        div.id = bid;
+        const bid = `mb-${matBlockCount}`; altCounters[bid] = 0;
+        const div = document.createElement("div"); div.className = "mat-block"; div.id = bid;
         div.innerHTML = `
           <div class="mat-main-row">
             <input type="text" placeholder="材料名" class="mat-name" value="${escVal(matName)}">
@@ -2246,28 +958,19 @@
           </div>
           <div class="alt-list" id="alt-list-${bid}"></div>`;
         document.getElementById("mat-block-list").appendChild(div);
-        if (alts && alts.length)
-          alts.forEach((a) => addAltRow(bid, a.connector, a.name, a.qty));
-        if (matBlockCount >= MAX_BASIC_MATS)
-          document.getElementById("add-mat-btn").style.display = "none";
+        if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
+        if (matBlockCount >= MAX_BASIC_MATS) document.getElementById("add-mat-btn").style.display = "none";
       }
       function delMatBlock(bid) {
-        document.getElementById(bid).remove();
-        matBlockCount--;
-        delete altCounters[bid];
+        document.getElementById(bid).remove(); matBlockCount--; delete altCounters[bid];
         document.getElementById("add-mat-btn").style.display = "";
       }
       function addAltRow(bid, connector, name, qty) {
         altCounters[bid] = altCounters[bid] || 0;
-        if (altCounters[bid] >= MAX_ALTS) {
-          showToast("代替品は1材料につき最大3つまでです");
-          return;
-        }
+        if (altCounters[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         altCounters[bid]++;
         const aid = `alt-${bid}-${altCounters[bid]}`;
-        const div = document.createElement("div");
-        div.className = "alt-entry";
-        div.id = aid;
+        const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -2276,25 +979,16 @@
           <button class="del-btn" onclick="delAltRow('${bid}','${aid}')">×</button>`;
         document.getElementById(`alt-list-${bid}`).appendChild(div);
       }
-      function delAltRow(bid, aid) {
-        document.getElementById(aid).remove();
-        altCounters[bid]--;
-      }
+      function delAltRow(bid, aid) { document.getElementById(aid).remove(); altCounters[bid]--; }
 
       // ============================================================
       // 副材料グループ
       // ============================================================
       function addSubgroup() {
-        if (subgroupCount >= MAX_GROUPS) {
-          showToast("副材料グループは最大7つまでです");
-          return;
-        }
+        if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大7つまでです"); return; }
         subgroupCount++;
-        const gid = `sg-${subgroupCount}`;
-        const panelId = `ref-panel-${gid}`;
-        const div = document.createElement("div");
-        div.className = "subgroup";
-        div.id = gid;
+        const gid = `sg-${subgroupCount}`, panelId = `ref-panel-${gid}`;
+        const div = document.createElement("div"); div.className = "subgroup"; div.id = gid;
         div.innerHTML = `
           <div class="subgroup-header">
             <div class="subgroup-title">グループ ${subgroupCount}</div>
@@ -2312,59 +1006,25 @@
             </div>
           </div>
           <div id="step-list-${gid}" class="step-list-wrap"></div>
-          <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>
-          <div class="calc-tool" id="calc-${gid}">
-            <div class="calc-title">🧮 逆算ツール</div>
-            <div class="calc-inputs">
-              <div class="calc-input-row">
-                <span class="calc-input-label">基準個数</span>
-                <input type="number" min="1" value="1" class="calc-qty calc-base-qty" oninput="calcReverse('${gid}')">
-                <span class="calc-unit-label" id="calc-base-unit-${gid}">個 作るのに必要な材料数（smat-qty の値）</span>
-              </div>
-              <div class="calc-input-row">
-                <span class="calc-input-label">目標個数</span>
-                <input type="number" min="1" value="1" class="calc-qty calc-target-qty" oninput="calcReverse('${gid}')">
-                <span class="calc-unit-label" id="calc-target-unit-${gid}">個 作りたい</span>
-              </div>
-            </div>
-            <div class="calc-result" id="calc-result-${gid}"></div>
-          </div>`;
+          <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>`;
         document.getElementById("subgroup-list").appendChild(div);
         addStep(gid);
-        if (subgroupCount >= MAX_GROUPS)
-          document.getElementById("add-sub-btn").style.display = "none";
+        if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
       }
       function delSubgroup(gid) {
-        document.getElementById(gid).remove();
-        subgroupCount--;
+        document.getElementById(gid).remove(); subgroupCount--;
         document.getElementById("add-sub-btn").style.display = "";
       }
       function toggleRefPanel(panelId, gid) {
-        const panel = document.getElementById(panelId);
-        const btn = document.getElementById(`ref-btn-${gid}`);
-        if (panel.classList.contains("open")) {
-          closeRefPanel(panelId);
-          btn.classList.remove("open");
-        } else {
-          btn.classList.add("open");
-          const groupEl = document.getElementById(gid);
-          openRefPanel(panelId, async (name, type, recipeId) => {
-            btn.classList.remove("open");
-            await applyMasterByName(groupEl, name, type, recipeId);
-          });
-        }
+        const panel = document.getElementById(panelId), btn = document.getElementById(`ref-btn-${gid}`);
+        if (panel.classList.contains("open")) { closeRefPanel(panelId); btn.classList.remove("open"); }
+        else { btn.classList.add("open"); const groupEl = document.getElementById(gid); openRefPanel(panelId, async (name, type, recipeId) => { btn.classList.remove("open"); await applyMasterByName(groupEl, name, type, recipeId); }); }
       }
       async function applyCurrentParent(gid) {
-        const groupEl = document.getElementById(gid);
-        const name = groupEl.querySelector(".sg-parent").value.trim();
-        if (!name) {
-          showToast("材料名を入力してください");
-          return;
-        }
-        const found = masterListCache.find((i) => i.name === name);
-        const type = found ? found.type : "sub";
-        const recipeId = found ? found.recipeId : null;
-        await applyMasterByName(groupEl, name, type, recipeId);
+        const groupEl = document.getElementById(gid), name = groupEl.querySelector(".sg-parent").value.trim();
+        if (!name) { showToast("材料名を入力してください"); return; }
+        const found = masterListCache.find(i => i.name === name);
+        await applyMasterByName(groupEl, name, found ? found.type : "sub", found ? found.recipeId : null);
       }
 
       // ============================================================
@@ -2372,45 +1032,54 @@
       // ============================================================
       function addStep(gid) {
         if (!stepCounters[gid]) stepCounters[gid] = 0;
-        if (stepCounters[gid] >= MAX_STEPS) {
-          showToast("ステップは最大10つまでです");
-          return;
-        }
+        if (stepCounters[gid] >= MAX_STEPS) { showToast("ステップは最大10つまでです"); return; }
         stepCounters[gid]++;
-        const sc = stepCounters[gid];
-        const sid = `${gid}-s${sc}`;
+        const sc = stepCounters[gid], sid = `${gid}-s${sc}`;
         const container = document.getElementById(`step-list-${gid}`);
-        if (!container) {
-          console.error("step-list not found:", gid);
-          return;
-        }
+        if (!container) { console.error("step-list not found:", gid); return; }
         if (sc > 1) {
           const conDiv = document.createElement("div");
-          conDiv.className = "connector-block";
-          conDiv.id = `con-${sid}`;
-          conDiv.setAttribute("data-step-id", sid);
-          conDiv.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map((c) => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
+          conDiv.className = "connector-block"; conDiv.id = `con-${sid}`; conDiv.setAttribute("data-step-id", sid);
+          conDiv.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
           container.appendChild(conDiv);
           selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
         }
         const wrapper = document.createElement("div");
-        wrapper.className = "step-drag-wrapper";
-        wrapper.id = `wrapper-${sid}`;
-        wrapper.setAttribute("data-step-id", sid);
+        wrapper.className = "step-drag-wrapper"; wrapper.id = `wrapper-${sid}`; wrapper.setAttribute("data-step-id", sid);
         const handle = document.createElement("div");
-        handle.className = "step-drag-handle";
-        handle.title = "ドラッグしてステップを並び替え";
-        handle.textContent = "⠿";
-        const stepDiv = document.createElement("div");
-        stepDiv.className = "step-block";
-        stepDiv.id = sid;
+        handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え"; handle.textContent = "⠿";
+        const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
         stepDiv.innerHTML = `
           <div class="step-header">
             <span class="step-label-text">ステップ ${sc}</span>
             ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ""}
           </div>
-          <div class="field"><label>加工名<span class="opt">任意</span></label><input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理"></div>
-          <div class="section-divider">入力材料 <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span></div>
+          <!-- 目標個数 -->
+          <div class="step-target-row">
+            <span class="step-target-label">🎯 目標個数</span>
+            <input type="number" min="1" value="1" class="step-target-qty"
+              oninput="updateStepNeeded('${sid}')"
+              title="このステップで作りたい最終個数">
+            <span class="step-target-unit">個 作りたい</span>
+            <span class="step-target-hint">→ 各材料の必要量を自動計算</span>
+          </div>
+          <div class="field">
+            <label>加工名<span class="opt">任意</span></label>
+            <input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理">
+          </div>
+          <div class="section-divider">
+            入力材料
+            <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
+          </div>
+          <!-- 列ヘッダー -->
+          <div class="smat-col-header">
+            <span></span>
+            <span>材料名</span>
+            <span>基準量</span>
+            <span>必要量</span>
+            <span></span>
+            <span></span>
+          </div>
           <div id="sml-${sid}"></div>
           <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
           <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
@@ -2418,277 +1087,157 @@
             <input type="text" class="step-result-name" placeholder="例: トネリコ板">
             <input type="text" class="step-result-qty"  placeholder="数量">
           </div>`;
-        wrapper.appendChild(handle);
-        wrapper.appendChild(stepDiv);
+        wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
         container.appendChild(wrapper);
         addStepMat(sid);
         initStepDragSort(gid);
       }
+
+      // ============================================================
+      // ★ 必要量インライン更新
+      //   基準量（smat-qty）× 目標個数 で各材料の必要量バッジを更新する
+      // ============================================================
+      function updateStepNeeded(sid) {
+        const stepEl = document.getElementById(sid); if (!stepEl) return;
+        const targetInput = stepEl.querySelector(".step-target-qty");
+        const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
+
+        const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
+        smlEl.querySelectorAll(":scope > .mat-block").forEach(block => {
+          const qtyInput  = block.querySelector(".smat-qty");
+          const badge     = block.querySelector(".smat-needed");
+          if (!qtyInput || !badge) return;
+          const baseQty = parseFloat(qtyInput.value);
+          if (!isNaN(baseQty) && baseQty > 0) {
+            const needed = Math.ceil(baseQty * target);
+            badge.textContent = `×${needed}`;
+            badge.classList.remove("empty");
+          } else {
+            badge.textContent = "—";
+            badge.classList.add("empty");
+          }
+        });
+      }
+
       function selectConnector(sid, val, btn) {
         const block = document.getElementById(`con-${sid}`);
-        block
-          .querySelectorAll(".preset-btn")
-          .forEach((b) => b.classList.remove("selected"));
-        btn.classList.add("selected");
+        block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); btn.classList.add("selected");
         document.getElementById(`coninput-${sid}`).value = "";
       }
-      function clearPresets(sid) {
-        const block = document.getElementById(`con-${sid}`);
-        if (block)
-          block
-            .querySelectorAll(".preset-btn")
-            .forEach((b) => b.classList.remove("selected"));
-      }
+      function clearPresets(sid) { const block = document.getElementById(`con-${sid}`); if (block) block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); }
       function delStep(sid, gid) {
-        const c = document.getElementById(`con-${sid}`);
-        if (c) c.remove();
-        const w = document.getElementById(`wrapper-${sid}`);
-        if (w) w.remove();
+        const c = document.getElementById(`con-${sid}`); if (c) c.remove();
+        const w = document.getElementById(`wrapper-${sid}`); if (w) w.remove();
         if (stepCounters[gid] > 0) stepCounters[gid]--;
         renumberSteps(gid);
-        calcReverse(gid);
       }
       function renumberSteps(gid) {
-        const container = document.getElementById(`step-list-${gid}`);
-        if (!container) return;
-        [...container.querySelectorAll(":scope > .step-drag-wrapper")].forEach(
-          (w, i) => {
-            const stepBlock = w.querySelector(".step-block");
-            if (!stepBlock) return;
-            const labelEl = stepBlock.querySelector(".step-label-text");
-            if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
-          },
-        );
+        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        [...container.querySelectorAll(":scope > .step-drag-wrapper")].forEach((w, i) => {
+          const stepBlock = w.querySelector(".step-block"); if (!stepBlock) return;
+          const labelEl = stepBlock.querySelector(".step-label-text"); if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
+        });
       }
       function initStepDragSort(gid) {
-        const container = document.getElementById(`step-list-${gid}`);
-        if (!container) return;
-        const wrappers = [
-          ...container.querySelectorAll(":scope > .step-drag-wrapper"),
-        ];
-        wrappers.forEach((w) => {
-          const fresh = w.cloneNode(true);
-          w.replaceWith(fresh);
-        });
+        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
+        wrappers.forEach(w => { const fresh = w.cloneNode(true); w.replaceWith(fresh); });
         let dragSrc = null;
-        container
-          .querySelectorAll(":scope > .step-drag-wrapper")
-          .forEach((wrapper) => {
-            const handle = wrapper.querySelector(".step-drag-handle");
-            if (!handle) return;
-            handle.addEventListener("mousedown", () => {
-              wrapper.draggable = true;
-            });
-            handle.addEventListener("mouseup", () => {
-              wrapper.draggable = false;
-            });
-            wrapper.addEventListener("dragstart", (e) => {
-              dragSrc = wrapper;
-              wrapper.classList.add("step-dragging");
-              e.dataTransfer.effectAllowed = "move";
-            });
-            wrapper.addEventListener("dragend", () => {
-              wrapper.classList.remove("step-dragging");
-              container.querySelectorAll(".step-drag-wrapper").forEach((w) => {
-                w.classList.remove(
-                  "step-drag-over-top",
-                  "step-drag-over-bottom",
-                );
-                w.draggable = false;
-              });
-              reorderConnectors(gid);
-              renumberSteps(gid);
-              calcReverse(gid);
-              dragSrc = null;
-            });
-            wrapper.addEventListener("dragover", (e) => {
-              e.preventDefault();
-              if (!dragSrc || dragSrc === wrapper) return;
-              const rect = wrapper.getBoundingClientRect();
-              const mid = rect.top + rect.height / 2;
-              container
-                .querySelectorAll(".step-drag-wrapper")
-                .forEach((w) =>
-                  w.classList.remove(
-                    "step-drag-over-top",
-                    "step-drag-over-bottom",
-                  ),
-                );
-              if (e.clientY < mid) wrapper.classList.add("step-drag-over-top");
-              else wrapper.classList.add("step-drag-over-bottom");
-            });
-            wrapper.addEventListener("dragleave", () => {
-              wrapper.classList.remove(
-                "step-drag-over-top",
-                "step-drag-over-bottom",
-              );
-            });
-            wrapper.addEventListener("drop", (e) => {
-              e.preventDefault();
-              if (!dragSrc || dragSrc === wrapper) return;
-              wrapper.classList.remove(
-                "step-drag-over-top",
-                "step-drag-over-bottom",
-              );
-              const rect = wrapper.getBoundingClientRect();
-              const mid = rect.top + rect.height / 2;
-              if (e.clientY < mid) wrapper.before(dragSrc);
-              else wrapper.after(dragSrc);
-            });
-          });
+        container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
+          const handle = wrapper.querySelector(".step-drag-handle"); if (!handle) return;
+          handle.addEventListener("mousedown", () => { wrapper.draggable = true; });
+          handle.addEventListener("mouseup",   () => { wrapper.draggable = false; });
+          wrapper.addEventListener("dragstart", e => { dragSrc = wrapper; wrapper.classList.add("step-dragging"); e.dataTransfer.effectAllowed = "move"; });
+          wrapper.addEventListener("dragend",   () => { wrapper.classList.remove("step-dragging"); container.querySelectorAll(".step-drag-wrapper").forEach(w => { w.classList.remove("step-drag-over-top","step-drag-over-bottom"); w.draggable = false; }); reorderConnectors(gid); renumberSteps(gid); dragSrc = null; });
+          wrapper.addEventListener("dragover",  e => { e.preventDefault(); if (!dragSrc || dragSrc === wrapper) return; const rect = wrapper.getBoundingClientRect(); const mid = rect.top + rect.height / 2; container.querySelectorAll(".step-drag-wrapper").forEach(w => w.classList.remove("step-drag-over-top","step-drag-over-bottom")); if (e.clientY < mid) wrapper.classList.add("step-drag-over-top"); else wrapper.classList.add("step-drag-over-bottom"); });
+          wrapper.addEventListener("dragleave", () => { wrapper.classList.remove("step-drag-over-top","step-drag-over-bottom"); });
+          wrapper.addEventListener("drop",      e => { e.preventDefault(); if (!dragSrc || dragSrc === wrapper) return; wrapper.classList.remove("step-drag-over-top","step-drag-over-bottom"); const rect = wrapper.getBoundingClientRect(); const mid = rect.top + rect.height / 2; if (e.clientY < mid) wrapper.before(dragSrc); else wrapper.after(dragSrc); });
+        });
       }
       function reorderConnectors(gid) {
-        const container = document.getElementById(`step-list-${gid}`);
-        if (!container) return;
-        [...container.querySelectorAll(":scope > .connector-block")].forEach(
-          (c) => c.remove(),
-        );
-        const wrappers = [
-          ...container.querySelectorAll(":scope > .step-drag-wrapper"),
-        ];
+        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        [...container.querySelectorAll(":scope > .connector-block")].forEach(c => c.remove());
+        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
         wrappers.forEach((wrapper, i) => {
           const sid = wrapper.getAttribute("data-step-id");
-          if (i === 0) {
-            const delBtn = wrapper.querySelector(".del-text-btn");
-            if (delBtn) delBtn.style.display = "none";
-          } else {
+          if (i === 0) { const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "none"; }
+          else {
             let conEl = document.getElementById(`con-${sid}`);
             if (!conEl) {
-              conEl = document.createElement("div");
-              conEl.className = "connector-block";
-              conEl.id = `con-${sid}`;
-              conEl.setAttribute("data-step-id", sid);
-              conEl.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map((c) => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
+              conEl = document.createElement("div"); conEl.className = "connector-block"; conEl.id = `con-${sid}`; conEl.setAttribute("data-step-id", sid);
+              conEl.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
               selectConnector(sid, "↓", conEl.querySelector(".preset-btn"));
             }
             wrapper.before(conEl);
-            const delBtn = wrapper.querySelector(".del-text-btn");
-            if (delBtn) delBtn.style.display = "";
+            const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "";
           }
         });
-        if (wrappers.length > 0) {
-          const firstSid = wrappers[0].getAttribute("data-step-id");
-          const firstCon = document.getElementById(`con-${firstSid}`);
-          if (firstCon) firstCon.remove();
-        }
+        if (wrappers.length > 0) { const firstSid = wrappers[0].getAttribute("data-step-id"); const firstCon = document.getElementById(`con-${firstSid}`); if (firstCon) firstCon.remove(); }
       }
 
       // ============================================================
-      // ステップ材料
+      // ステップ材料（基準量欄 + 必要量バッジ付き）
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
-        if (stepMatCounters[sid] >= MAX_MATS) {
-          showToast("1ステップの材料は最大10つまでです");
-          return;
-        }
+        if (stepMatCounters[sid] >= MAX_MATS) { showToast("1ステップの材料は最大10つまでです"); return; }
         stepMatCounters[sid]++;
-        const mid = `${sid}-m${stepMatCounters[sid]}`;
-        stepMatAltCounters[mid] = 0;
-        const div = document.createElement("div");
-        div.className = "mat-block";
-        div.id = mid;
-        div.style.marginBottom = "6px";
-        div.draggable = false;
+        const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
+        const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px"; div.draggable = false;
+
+        // 初期必要量を計算
+        const stepEl   = document.getElementById(sid);
+        const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
+        const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
+        const baseQtyN = parseFloat(matQty);
+        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
+
         div.innerHTML = `
           <div class="smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
-            <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
-            <input type="text" placeholder="数量（基準量）" class="smat-qty" value="${escVal(matQty)}">
+            <input type="text"   placeholder="材料名" class="smat-name" value="${escVal(matName)}"
+              oninput="">
+            <input type="text"   placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}"
+              oninput="updateStepNeeded('${sid}')">
+            <span class="${neededClass}" id="needed-${mid}">${neededStr}</span>
             <button class="alt-add-btn" onclick="addStepMatAlt('${mid}')">＋ 代替</button>
             <button class="del-btn"     onclick="delStepMat('${mid}','${sid}')">×</button>
           </div>
           <div class="alt-list" id="alt-list-${mid}"></div>`;
         const smlEl = document.getElementById(`sml-${sid}`);
-        if (!smlEl) {
-          console.error("sml not found:", sid);
-          return;
-        }
+        if (!smlEl) { console.error("sml not found:", sid); return; }
         smlEl.appendChild(div);
-        if (alts && alts.length)
-          alts.forEach((a) => addStepMatAlt(mid, a.connector, a.name, a.qty));
+        if (alts && alts.length) alts.forEach(a => addStepMatAlt(mid, a.connector, a.name, a.qty));
         initStepMatDragSort(smlEl);
       }
       function delStepMat(mid, sid) {
         document.getElementById(mid).remove();
         if (stepMatCounters[sid] > 0) stepMatCounters[sid]--;
         delete stepMatAltCounters[mid];
-        const smlEl = document.getElementById(`sml-${sid}`);
-        if (smlEl) initStepMatDragSort(smlEl);
-        // 削除後に逆算を再計算
-        const gid = sid.split("-s")[0];
-        calcReverse(gid);
+        const smlEl = document.getElementById(`sml-${sid}`); if (smlEl) initStepMatDragSort(smlEl);
       }
       function initStepMatDragSort(listEl) {
-        if (!listEl) return;
-        listEl._smatDragSrc = null;
-        const getDirectBlocks = () => [
-          ...listEl.querySelectorAll(":scope > .mat-block"),
-        ];
-        getDirectBlocks().forEach((block) => {
-          const fresh = block.cloneNode(true);
-          block.replaceWith(fresh);
-        });
-        getDirectBlocks().forEach((block) => {
-          const handle = block.querySelector(".smat-drag-handle");
-          if (!handle) return;
-          handle.addEventListener("mousedown", () => {
-            block.draggable = true;
-          });
-          handle.addEventListener("mouseup", () => {
-            block.draggable = false;
-          });
-          block.addEventListener("dragstart", (e) => {
-            listEl._smatDragSrc = block;
-            block.classList.add("smat-dragging");
-            e.dataTransfer.effectAllowed = "move";
-            e.stopPropagation();
-          });
-          block.addEventListener("dragend", () => {
-            block.classList.remove("smat-dragging");
-            block.draggable = false;
-            getDirectBlocks().forEach((b) =>
-              b.classList.remove("smat-drag-over"),
-            );
-            listEl._smatDragSrc = null;
-          });
-          block.addEventListener("dragover", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const src = listEl._smatDragSrc;
-            if (src && src !== block) {
-              getDirectBlocks().forEach((b) =>
-                b.classList.remove("smat-drag-over"),
-              );
-              block.classList.add("smat-drag-over");
-            }
-          });
-          block.addEventListener("dragleave", () =>
-            block.classList.remove("smat-drag-over"),
-          );
-          block.addEventListener("drop", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            const src = listEl._smatDragSrc;
-            if (!src || src === block) return;
-            block.classList.remove("smat-drag-over");
-            const all = getDirectBlocks();
-            if (all.indexOf(src) < all.indexOf(block)) block.after(src);
-            else block.before(src);
-          });
+        if (!listEl) return; listEl._smatDragSrc = null;
+        const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block")];
+        getDirectBlocks().forEach(block => { const fresh = block.cloneNode(true); block.replaceWith(fresh); });
+        getDirectBlocks().forEach(block => {
+          const handle = block.querySelector(".smat-drag-handle"); if (!handle) return;
+          handle.addEventListener("mousedown", () => { block.draggable = true; });
+          handle.addEventListener("mouseup",   () => { block.draggable = false; });
+          block.addEventListener("dragstart", e => { listEl._smatDragSrc = block; block.classList.add("smat-dragging"); e.dataTransfer.effectAllowed = "move"; e.stopPropagation(); });
+          block.addEventListener("dragend",   () => { block.classList.remove("smat-dragging"); block.draggable = false; getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over")); listEl._smatDragSrc = null; });
+          block.addEventListener("dragover",  e => { e.preventDefault(); e.stopPropagation(); const src = listEl._smatDragSrc; if (src && src !== block) { getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over")); block.classList.add("smat-drag-over"); } });
+          block.addEventListener("dragleave", () => block.classList.remove("smat-drag-over"));
+          block.addEventListener("drop",      e => { e.preventDefault(); e.stopPropagation(); const src = listEl._smatDragSrc; if (!src || src === block) return; block.classList.remove("smat-drag-over"); const all = getDirectBlocks(); if (all.indexOf(src) < all.indexOf(block)) block.after(src); else block.before(src); });
         });
       }
       function addStepMatAlt(mid, connector, name, qty) {
         stepMatAltCounters[mid] = stepMatAltCounters[mid] || 0;
-        if (stepMatAltCounters[mid] >= MAX_ALTS) {
-          showToast("代替品は1材料につき最大3つまでです");
-          return;
-        }
+        if (stepMatAltCounters[mid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         stepMatAltCounters[mid]++;
         const aid = `salt-${mid}-${stepMatAltCounters[mid]}`;
-        const div = document.createElement("div");
-        div.className = "alt-entry";
-        div.id = aid;
+        const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -2697,100 +1246,70 @@
           <button class="del-btn" onclick="delStepMatAlt('${mid}','${aid}')">×</button>`;
         document.getElementById(`alt-list-${mid}`).appendChild(div);
       }
-      function delStepMatAlt(mid, aid) {
-        document.getElementById(aid).remove();
-        stepMatAltCounters[mid]--;
-      }
+      function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
       // フォームデータ収集
       // ============================================================
       function collectData() {
         const cities = [];
-        document
-          .querySelectorAll("#city-level-list .city-row")
-          .forEach((row) => {
-            const name = row.querySelector(".city-name-input").value.trim();
-            const level = row.querySelector(".city-level-select").value;
-            if (name) cities.push({ name, level });
-          });
+        document.querySelectorAll("#city-level-list .city-row").forEach(row => {
+          const name = row.querySelector(".city-name-input").value.trim();
+          const level = row.querySelector(".city-level-select").value;
+          if (name) cities.push({ name, level });
+        });
         const mats = [];
-        document
-          .querySelectorAll("#mat-block-list .mat-block")
-          .forEach((block) => {
-            const name = block.querySelector(".mat-name").value.trim();
-            const qty = block.querySelector(".mat-qty").value.trim();
-            if (!name) return;
-            const alts = [];
-            block.querySelectorAll(".alt-entry").forEach((ae) => {
-              const an = ae.querySelector(".alt-name").value.trim();
-              const aq = ae.querySelector(".alt-qty").value.trim();
-              const ac = ae.querySelector(".alt-connector-select").value;
-              if (an) alts.push({ connector: ac, name: an, qty: aq });
-            });
-            mats.push({ name, qty, alts });
+        document.querySelectorAll("#mat-block-list .mat-block").forEach(block => {
+          const name = block.querySelector(".mat-name").value.trim();
+          const qty  = block.querySelector(".mat-qty").value.trim();
+          if (!name) return;
+          const alts = [];
+          block.querySelectorAll(".alt-entry").forEach(ae => {
+            const an = ae.querySelector(".alt-name").value.trim();
+            const aq = ae.querySelector(".alt-qty").value.trim();
+            const ac = ae.querySelector(".alt-connector-select").value;
+            if (an) alts.push({ connector: ac, name: an, qty: aq });
           });
+          mats.push({ name, qty, alts });
+        });
         const data = {
           sheet_name: document.getElementById("f-sheet").value,
-          name: document.getElementById("f-name").value.trim(),
-          category: document.getElementById("f-category").value.trim(),
-          image_url: document.getElementById("f-image").value.trim(),
-          effect: document.getElementById("f-effect").value.trim(),
-          cities,
-          mats,
-          subgroups: [],
+          name:       document.getElementById("f-name").value.trim(),
+          category:   document.getElementById("f-category").value.trim(),
+          image_url:  document.getElementById("f-image").value.trim(),
+          effect:     document.getElementById("f-effect").value.trim(),
+          cities, mats, subgroups: [],
         };
-        document.querySelectorAll("#subgroup-list .subgroup").forEach((gel) => {
+        document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
           const parent = gel.querySelector(".sg-parent").value.trim();
-          const steps = [];
-          const gid = gel.id;
-          const container = document.getElementById(`step-list-${gid}`);
-          if (!container) return;
-          container
-            .querySelectorAll(":scope > .step-drag-wrapper")
-            .forEach((wrapper, wi) => {
-              const sid = wrapper.getAttribute("data-step-id");
-              const sel = document.getElementById(sid);
-              if (!sel) return;
-              let connector = "";
-              const cb = document.getElementById(`con-${sid}`);
-              if (cb) {
-                const s = cb.querySelector(".preset-btn.selected");
-                const cu = document
-                  .getElementById(`coninput-${sid}`)
-                  .value.trim();
-                connector = cu || (s ? s.textContent : "↓");
-              }
-              const proc = sel.querySelector(".step-proc").value.trim();
-              const stepMats = [];
-              sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach((mb) => {
-                const n = mb.querySelector(".smat-name").value.trim();
-                const q = mb.querySelector(".smat-qty").value.trim();
-                if (!n) return;
-                const alts = [];
-                mb.querySelectorAll(".alt-entry").forEach((ae) => {
-                  const an = ae.querySelector(".smat-alt-name").value.trim();
-                  const aq = ae.querySelector(".smat-alt-qty").value.trim();
-                  const ac = ae.querySelector(".alt-connector-select").value;
-                  if (an) alts.push({ connector: ac, name: an, qty: aq });
-                });
-                stepMats.push({ name: n, qty: q, alts });
+          const steps  = [];
+          const gid    = gel.id;
+          const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+          container.querySelectorAll(":scope > .step-drag-wrapper").forEach((wrapper, wi) => {
+            const sid = wrapper.getAttribute("data-step-id");
+            const sel = document.getElementById(sid); if (!sel) return;
+            let connector = "";
+            const cb = document.getElementById(`con-${sid}`);
+            if (cb) { const s = cb.querySelector(".preset-btn.selected"); const cu = document.getElementById(`coninput-${sid}`).value.trim(); connector = cu || (s ? s.textContent : "↓"); }
+            const proc = sel.querySelector(".step-proc").value.trim();
+            const stepMats = [];
+            sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
+              const n = mb.querySelector(".smat-name").value.trim();
+              const q = mb.querySelector(".smat-qty").value.trim();
+              if (!n) return;
+              const alts = [];
+              mb.querySelectorAll(".alt-entry").forEach(ae => {
+                const an = ae.querySelector(".smat-alt-name").value.trim();
+                const aq = ae.querySelector(".smat-alt-qty").value.trim();
+                const ac = ae.querySelector(".alt-connector-select").value;
+                if (an) alts.push({ connector: ac, name: an, qty: aq });
               });
-              const result_name = sel
-                .querySelector(".step-result-name")
-                .value.trim();
-              const result_qty = sel
-                .querySelector(".step-result-qty")
-                .value.trim();
-              if (proc || stepMats.length)
-                steps.push({
-                  connector: wi === 0 ? "" : connector,
-                  proc,
-                  mats: stepMats,
-                  result_name,
-                  result_qty,
-                });
+              stepMats.push({ name: n, qty: q, alts });
             });
+            const result_name = sel.querySelector(".step-result-name").value.trim();
+            const result_qty  = sel.querySelector(".step-result-qty").value.trim();
+            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty });
+          });
           if (parent) data.subgroups.push({ parent, steps });
         });
         return data;
@@ -2800,50 +1319,38 @@
       // 確認画面
       // ============================================================
       function buildConfirm() {
-        const d = collectData();
-        let html = "";
+        const d = collectData(); let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-        if (d.effect)
-          html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div></div>`;
+        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
-          d.cities.forEach((c) => {
-            html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`;
-          });
+          d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
           html += `</div>`;
         }
-        if (d.category)
-          html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
-        if (d.image_url)
-          html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
+        if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
+        if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
         if (d.mats.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
-          d.mats.forEach((m) => {
+          d.mats.forEach(m => {
             html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
-            (m.alts || []).forEach((a) => {
-              html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`;
-            });
+            (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
           });
           html += `</div>`;
         }
         if (d.subgroups.length) {
           html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
-          d.subgroups.forEach((g) => {
+          d.subgroups.forEach(g => {
             html += `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">▸ ${g.parent} の作り方</div>`;
             g.steps.forEach((s, i) => {
-              if (i > 0 && s.connector)
-                html += `<div class="confirm-connector">${s.connector}</div>`;
+              if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
               if (s.proc) html += `<span class="confirm-proc">${s.proc}</span>`;
-              s.mats.forEach((m) => {
+              s.mats.forEach(m => {
                 html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
-                (m.alts || []).forEach((a) => {
-                  html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`;
-                });
+                (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
               });
-              if (s.result_name)
-                html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? " ×" + s.result_qty : ""}</div>`;
+              if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? " ×" + s.result_qty : ""}</div>`;
               html += `</div>`;
             });
             html += `</div>`;
@@ -2857,150 +1364,33 @@
       // 保存・更新・削除
       // ============================================================
       async function submitRecipe() {
-        const data = collectData();
-        if (!data.name) {
-          showToast("アイテム名がありません");
-          return;
-        }
-        const btn = document.getElementById("submit-btn");
-        btn.disabled = true;
-        btn.textContent = "保存中...";
+        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
+        const btn = document.getElementById("submit-btn"); btn.disabled = true; btn.textContent = "保存中...";
         const { error } = await sb.rpc("insert_recipe_full", { payload: data });
-        if (error) {
-          showToast("エラー: " + error.message);
-          btn.disabled = false;
-          btn.textContent = "✓ 保存する";
-        } else {
-          showToast("✓ 保存しました！");
-          setTimeout(async () => {
-            resetForm();
-            await loadMasterList();
-            btn.disabled = false;
-            btn.textContent = "✓ 保存する";
-          }, 1500);
-        }
+        if (error) { showToast("エラー: " + error.message); btn.disabled = false; btn.textContent = "✓ 保存する"; }
+        else { showToast("✓ 保存しました！"); setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = "✓ 保存する"; }, 1500); }
       }
       function resetForm() {
         document.getElementById("f-sheet").selectedIndex = 0;
-        ["f-name", "f-category", "f-image", "f-effect"].forEach(
-          (id) => (document.getElementById(id).value = ""),
-        );
-        document.getElementById("city-level-list").innerHTML = "";
-        cityRowCount = 0;
-        document.getElementById("add-city-btn").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = "";
-        document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0;
-        altCounters = {};
-        subgroupCount = 0;
-        stepCounters = {};
-        stepMatCounters = {};
-        stepMatAltCounters = {};
-        addMatBlock();
-        goStep(1);
+        ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
+        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        addMatBlock(); goStep(1);
       }
       async function goStep(n) {
         if (n === 2 && !validate1()) return;
         if (n === 3) await loadMasterList();
         if (n === 4) buildConfirm();
-        [1, 2, 3, 4].forEach((i) => {
-          document
-            .getElementById(`page-${i}`)
-            .classList.toggle("hidden", i !== n);
-          const si = document.getElementById(`si-${i}`);
-          si.classList.toggle("active", i === n);
-          si.classList.toggle("done", i < n);
+        [1,2,3,4].forEach(i => {
+          document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
+          const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
         });
       }
       function validate1() {
-        if (!document.getElementById("f-sheet").value) {
-          showToast("カテゴリ（シート）を選択してください");
-          return false;
-        }
-        if (!document.getElementById("f-name").value.trim()) {
-          showToast("アイテム名を入力してください");
-          return false;
-        }
+        if (!document.getElementById("f-sheet").value) { showToast("カテゴリ（シート）を選択してください"); return false; }
+        if (!document.getElementById("f-name").value.trim()) { showToast("アイテム名を入力してください"); return false; }
         return true;
-      }
-
-      // ============================================================
-      // ★ 逆算ツール（新方式）
-      //
-      //   smat-qty = 「基準個数（◯個）作るときの材料量」として扱う
-      //   calc-base-qty  = ◯（基準個数、デフォルト1）
-      //   calc-target-qty = △（目標個数）
-      //   算出式: □ = smat-qty × △ ÷ ◯
-      //   結果は Math.ceil で切り上げ（端数が出る場合を考慮）
-      //   ステップ単位でグループ化して表示（現行と同じ構造）
-      // ============================================================
-      function calcReverse(gid) {
-        const gel = document.getElementById(gid);
-        if (!gel) return;
-        const container = document.getElementById(`step-list-${gid}`);
-        if (!container) return;
-        const resultEl = document.getElementById("calc-result-" + gid);
-
-        // 入力値取得
-        const baseQty  = Math.max(1, parseFloat(gel.querySelector(".calc-base-qty").value)   || 1);
-        const targetQty = Math.max(1, parseFloat(gel.querySelector(".calc-target-qty").value) || 1);
-        const ratio = targetQty / baseQty; // 倍率
-
-        // ── ステップ順にデータ収集 ──
-        const steps = [];
-        container
-          .querySelectorAll(":scope > .step-drag-wrapper")
-          .forEach((wrapper) => {
-            const sid = wrapper.getAttribute("data-step-id");
-            const sel = document.getElementById(sid);
-            if (!sel) return;
-            const result_name = sel.querySelector(".step-result-name").value.trim();
-            const mats = [];
-            sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach((mb) => {
-              const n = mb.querySelector(".smat-name").value.trim();
-              const q = parseFloat(mb.querySelector(".smat-qty").value) || 0;
-              if (n) mats.push({ name: n, baseQty: q });
-            });
-            steps.push({ result_name, mats });
-          });
-
-        // 材料が1つもない場合はメッセージ表示
-        const hasMats = steps.some((s) => s.mats.length > 0);
-        if (!hasMats) {
-          resultEl.innerHTML =
-            '<div style="font-size:11px;color:#aaa;">材料を入力すると必要量が表示されます</div>';
-          return;
-        }
-
-        // ── ステップ単位で表示 ──
-        let html = "";
-        steps.forEach((s, si) => {
-          if (s.mats.length === 0) return;
-          const lines = s.mats.map((m) => {
-            // 基準量 × 倍率（切り上げ）
-            const needed = m.baseQty > 0
-              ? Math.ceil(m.baseQty * ratio)
-              : "—";
-            const baseStr = m.baseQty > 0
-              ? `<span class="ci-base">（基準 ×${m.baseQty}）</span>`
-              : "";
-            return `<div class="calc-row-item">` +
-              `<span class="ci-name">${m.name}</span>` +
-              `<span class="ci-qty">×${needed}</span>` +
-              baseStr +
-              `</div>`;
-          });
-          const stepLabel = s.result_name
-            ? `ステップ ${si + 1}（→ ${s.result_name}）`
-            : `ステップ ${si + 1}`;
-          html += `<div class="calc-step-block">` +
-            `<div class="calc-step-label">${stepLabel}</div>` +
-            lines.join("") +
-            `</div>`;
-        });
-
-        resultEl.innerHTML = html ||
-          '<div style="font-size:11px;color:#aaa;">材料を入力すると必要量が表示されます</div>';
       }
 
       // ============================================================
@@ -3009,11 +1399,9 @@
       function switchTab(tab) {
         const isNew = tab === "new";
         if (isNew && (currentEditId || currentEditSheet)) clearEditForm();
-        document.getElementById("area-new").style.display = isNew ? "" : "none";
-        document.getElementById("area-edit").style.display = isNew
-          ? "none"
-          : "";
-        document.getElementById("tab-new").classList.toggle("active", isNew);
+        document.getElementById("area-new").style.display  = isNew ? "" : "none";
+        document.getElementById("area-edit").style.display = isNew ? "none" : "";
+        document.getElementById("tab-new").classList.toggle("active",  isNew);
         document.getElementById("tab-edit").classList.toggle("active", !isNew);
         if (!isNew && editRecipes.length === 0) loadEditList();
       }
@@ -3022,230 +1410,106 @@
       // 編集リスト
       // ============================================================
       async function loadEditList() {
-        document.getElementById("edit-list").innerHTML =
-          '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">読み込み中...</div>';
-        const { data } = await sb
-          .from("recipes")
-          .select("id,name,sheets(name)")
-          .order("name");
-        editRecipes = (data || []).map((r) => ({
-          id: r.id,
-          name: r.name,
-          sheet: r.sheets ? r.sheets.name : "",
-        }));
+        document.getElementById("edit-list").innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">読み込み中...</div>';
+        const { data } = await sb.from("recipes").select("id,name,sheets(name)").order("name");
+        editRecipes = (data || []).map(r => ({ id: r.id, name: r.name, sheet: r.sheets ? r.sheets.name : "" }));
         renderEditList(editRecipes);
       }
       function filterEditList() {
-        const q = document.getElementById("edit-search").value.toLowerCase();
+        const q     = document.getElementById("edit-search").value.toLowerCase();
         const sheet = document.getElementById("edit-sheet-filter").value;
-        renderEditList(
-          editRecipes.filter(
-            (r) =>
-              (!q || r.name.toLowerCase().includes(q)) &&
-              (!sheet || r.sheet === sheet),
-          ),
-        );
+        renderEditList(editRecipes.filter(r => (!q || r.name.toLowerCase().includes(q)) && (!sheet || r.sheet === sheet)));
       }
       function renderEditList(list) {
         const el = document.getElementById("edit-list");
-        if (!list.length) {
-          el.innerHTML =
-            '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>';
-          return;
-        }
-        el.innerHTML = list
-          .map(
-            (r) => `
-          <div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g, "\\'")}')">
-            <span class="edit-item-name">${r.name}</span>
-            <span class="edit-item-sheet">${r.sheet}</span>
-          </div>`,
-          )
-          .join("");
+        if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>'; return; }
+        el.innerHTML = list.map(r => `<div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')"><span class="edit-item-name">${r.name}</span><span class="edit-item-sheet">${r.sheet}</span></div>`).join("");
       }
       async function loadEditRecipe(id, sheetName, itemName) {
-        currentEditId = id;
-        currentEditSheet = sheetName;
-        showToast("読み込み中...");
-        const { data } = await sb
-          .from("recipes")
-          .select(
-            `id,name,category,image_url,effect,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`,
-          )
-          .eq("id", id)
-          .single();
-        if (!data) {
-          showToast("データが見つかりません");
-          return;
-        }
+        currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
+        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
+        if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
       function fillEditForm(data, sheetName) {
         document.getElementById("edit-form-area").style.display = "";
         document.getElementById("edit-list").style.display = "none";
-        document.getElementById("edit-search").parentElement.style.display =
-          "none";
+        document.getElementById("edit-search").parentElement.style.display = "none";
         document.getElementById("area-new").style.display = "";
         document.getElementById("area-edit").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = "";
-        document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0;
-        altCounters = {};
-        subgroupCount = 0;
-        stepCounters = {};
-        stepMatCounters = {};
-        stepMatAltCounters = {};
-        document.getElementById("f-sheet").value = sheetName;
-        document.getElementById("f-name").value = data.name || "";
+        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        document.getElementById("f-sheet").value    = sheetName;
+        document.getElementById("f-name").value     = data.name     || "";
         document.getElementById("f-category").value = data.category || "";
-        document.getElementById("f-image").value = data.image_url || "";
-        document.getElementById("f-effect").value = data.effect || "";
-        document.getElementById("city-level-list").innerHTML = "";
-        cityRowCount = 0;
-        document.getElementById("add-city-btn").style.display = "";
-        (data.recipe_cities || [])
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .forEach((c) => addCityRow(c.city_name, c.city_level));
-        const allMats = (data.recipe_mats || []).sort(
-          (a, b) => a.sort_order - b.sort_order,
-        );
-        allMats
-          .filter((m) => !m.parent_mat_id)
-          .forEach((m) => {
-            const alts = allMats
-              .filter((a) => a.parent_mat_id === m.id)
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map((a) => ({
-                connector: a.alt_connector || "あるいは",
-                name: a.mat_name || "",
-                qty: a.mat_qty || "",
-              }));
-            addMatBlock(m.mat_name, m.mat_qty, alts);
-          });
+        document.getElementById("f-image").value    = data.image_url|| "";
+        document.getElementById("f-effect").value   = data.effect   || "";
+        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
+        (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
+        const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
+        allMats.filter(m => !m.parent_mat_id).forEach(m => {
+          const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a,b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
+          addMatBlock(m.mat_name, m.mat_qty, alts);
+        });
         if (matBlockCount === 0) addMatBlock();
-        (data.recipe_subgroups || [])
-          .sort((a, b) => a.sort_order - b.sort_order)
-          .forEach((sg) => {
-            addSubgroup();
-            const gEl = [
-              ...document.querySelectorAll("#subgroup-list .subgroup"),
-            ].at(-1);
-            const gid = gEl.id;
-            gEl.querySelector(".sg-parent").value = sg.parent;
-            resetSteps(gid);
-            (sg.recipe_steps || [])
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .forEach((step) => {
-                addStep(gid);
-                const sc = stepCounters[gid];
-                const sid = `${gid}-s${sc}`;
-                fillStep(gid, sid, step, sc > 1);
-              });
+        (data.recipe_subgroups || []).sort((a,b) => a.sort_order - b.sort_order).forEach(sg => {
+          addSubgroup();
+          const gEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
+          const gid = gEl.id;
+          gEl.querySelector(".sg-parent").value = sg.parent;
+          resetSteps(gid);
+          (sg.recipe_steps || []).sort((a,b) => a.sort_order - b.sort_order).forEach(step => {
+            addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
+            fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
           });
+        });
         goStep(1);
         const sb4 = document.querySelector("#page-4 .btn-submit");
-        if (sb4) {
-          sb4.textContent = "✏ 更新する";
-          sb4.onclick = updateCurrentRecipe;
-        }
-        document
-          .querySelectorAll(".edit-only-btn")
-          .forEach((b) => (b.style.display = ""));
+        if (sb4) { sb4.textContent = "✏ 更新する"; sb4.onclick = updateCurrentRecipe; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = ""));
         showToast(`「${data.name}」を読み込みました`);
       }
       async function updateCurrentRecipe() {
         if (!currentEditId) return;
-        const data = collectData();
-        if (!data.name) {
-          showToast("アイテム名がありません");
-          return;
-        }
-        document.querySelectorAll(".edit-only-btn").forEach((b) => {
-          b.disabled = true;
-          b.textContent = "更新中...";
-        });
-        const { error } = await sb.rpc("update_recipe_full", {
-          p_recipe_id: currentEditId,
-          payload: data,
-        });
-        document.querySelectorAll(".edit-only-btn").forEach((b) => {
-          b.disabled = false;
-          b.textContent = "✏ 更新する";
-        });
-        if (error) {
-          showToast("エラー: " + error.message);
-        } else {
-          showToast("更新しました");
-          editRecipes = [];
-          await loadMasterList();
-          clearEditForm();
-        }
+        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
+        const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
+        if (error) { showToast("エラー: " + error.message); }
+        else { showToast("更新しました"); editRecipes = []; await loadMasterList(); clearEditForm(); }
       }
       async function deleteCurrentRecipe() {
         if (!currentEditId) return;
         const name = document.getElementById("f-name").value;
-        if (!confirm(`「${name}」を削除しますか？\nこの操作は元に戻せません。`))
-          return;
-        const { error } = await sb
-          .from("recipes")
-          .delete()
-          .eq("id", currentEditId);
-        if (error) {
-          showToast("エラー: " + error.message);
-        } else {
-          showToast("削除しました");
-          editRecipes = [];
-          clearEditForm();
-          switchTab("edit");
-          await loadEditList();
-        }
+        if (!confirm(`「${name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
+        const { error } = await sb.from("recipes").delete().eq("id", currentEditId);
+        if (error) { showToast("エラー: " + error.message); }
+        else { showToast("削除しました"); editRecipes = []; clearEditForm(); switchTab("edit"); await loadEditList(); }
       }
       function clearEditForm() {
-        currentEditId = null;
-        currentEditSheet = null;
-        const fs = document.getElementById("f-sheet");
-        if (fs && fs.options.length > 0) fs.selectedIndex = 0;
-        ["f-name", "f-category", "f-image", "f-effect"].forEach(
-          (id) => (document.getElementById(id).value = ""),
-        );
-        document.getElementById("city-level-list").innerHTML = "";
-        cityRowCount = 0;
-        document.getElementById("add-city-btn").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = "";
-        document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0;
-        altCounters = {};
-        subgroupCount = 0;
-        stepCounters = {};
-        stepMatCounters = {};
-        stepMatAltCounters = {};
-        addMatBlock();
-        goStep(1);
+        currentEditId = null; currentEditSheet = null;
+        const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
+        ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
+        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
+        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        addMatBlock(); goStep(1);
         document.getElementById("edit-list").style.display = "";
         document.getElementById("edit-search").parentElement.style.display = "";
         document.getElementById("edit-form-area").style.display = "none";
         document.getElementById("area-new").style.display = "none";
         const sb4 = document.querySelector("#page-4 .btn-submit");
-        if (sb4) {
-          sb4.textContent = "✓ 保存する";
-          sb4.onclick = submitRecipe;
-        }
-        document
-          .querySelectorAll(".edit-only-btn")
-          .forEach((b) => (b.style.display = "none"));
-        document.getElementById("edit-search").value = "";
-        document.getElementById("edit-sheet-filter").value = "";
-        if (editRecipes.length > 0) renderEditList(editRecipes);
-        else loadEditList();
+        if (sb4) { sb4.textContent = "✓ 保存する"; sb4.onclick = submitRecipe; }
+        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = "none"));
+        document.getElementById("edit-search").value = ""; document.getElementById("edit-sheet-filter").value = "";
+        if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
       }
 
       // ============================================================
       // トースト
       // ============================================================
       function showToast(msg) {
-        const t = document.getElementById("toast");
-        t.textContent = msg;
-        t.classList.add("show");
+        const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
         setTimeout(() => t.classList.remove("show"), 2500);
       }
 
