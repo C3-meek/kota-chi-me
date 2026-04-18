@@ -73,6 +73,7 @@
       }
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
+      /* ── Step2 製作材料ブロック ── */
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
         border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
@@ -82,7 +83,8 @@
         gap: 6px; align-items: center;
       }
       .mat-main-row input { background: #fff; margin: 0; }
-      /* ── ステップ材料行（逆算付き） ── */
+      /* ── ステップ材料行: [⠿][材料名][基準量][必要量]=[結果量][＋代替][×] ── */
+      /*  grid: drag | name | baseQty | needed | alt-btn | del-btn */
       .smat-main-row {
         display: grid;
         grid-template-columns: 18px 1fr 72px 72px auto 32px;
@@ -92,13 +94,25 @@
       /* 必要量バッジ */
       .smat-needed {
         display: flex; align-items: center; justify-content: center;
-        min-width: 48px; height: 32px; padding: 0 8px;
+        min-width: 56px; height: 32px; padding: 0 6px;
         background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
         font-size: 12px; font-weight: 700; color: #2e7d32;
         white-space: nowrap; transition: background 0.15s;
       }
       .smat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
-      /* ── ステップヘッダーの目標個数エリア ── */
+      /* 列ヘッダー */
+      .smat-col-header {
+        display: grid;
+        grid-template-columns: 18px 1fr 72px 72px auto 32px;
+        gap: 6px; align-items: center;
+        padding: 0 0 4px; margin-bottom: 4px;
+        border-bottom: 1px dashed #e0ddd5;
+      }
+      .smat-col-header span {
+        font-size: 10px; color: #aaa; font-weight: 600; letter-spacing: 0.04em; text-align: center;
+      }
+      .smat-col-header span:nth-child(2) { text-align: left; }
+      /* 目標個数行 */
       .step-target-row {
         display: flex; align-items: center; gap: 8px;
         background: #f0f4ff; border: 1px solid #c5cfe8;
@@ -106,27 +120,14 @@
       }
       .step-target-label { font-size: 11px; color: #3a5aad; white-space: nowrap; font-weight: 600; }
       .step-target-qty {
-        width: 60px; padding: 4px 8px; border: 1px solid #c5cfe8;
-        border-radius: 6px; font-size: 13px; text-align: center;
+        width: 64px; padding: 4px 8px; border: 1px solid #c5cfe8;
+        border-radius: 6px; font-size: 14px; font-weight: 700; text-align: center;
         background: #fff; color: #1a1a1a; outline: none;
       }
       .step-target-qty:focus { border-color: #3a5aad; }
-      .step-target-unit { font-size: 11px; color: #3a5aad; }
+      .step-target-unit { font-size: 11px; color: #3a5aad; white-space: nowrap; }
       .step-target-hint { font-size: 10px; color: #9fa8da; margin-left: auto; }
-      /* 列ヘッダー（材料名／基準量／必要量） */
-      .smat-col-header {
-        display: grid;
-        grid-template-columns: 18px 1fr 72px 72px auto 32px;
-        gap: 6px; align-items: center;
-        padding: 0 0 4px;
-        margin-bottom: 2px;
-        border-bottom: 1px dashed #e0ddd5;
-      }
-      .smat-col-header span {
-        font-size: 10px; color: #aaa; font-weight: 600; letter-spacing: 0.04em;
-        text-align: center;
-      }
-      .smat-col-header span:nth-child(2) { text-align: left; }
+      /* ドラッグハンドル */
       .smat-drag-handle {
         display: flex; align-items: center; justify-content: center;
         cursor: grab; color: #bbb; font-size: 14px; user-select: none; height: 100%;
@@ -190,6 +191,7 @@
         display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
       }
       .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
+      /* 結果物行: 材料名欄 + 目標個数 */
       .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
       .connector-block {
         display: flex; align-items: center; gap: 8px;
@@ -817,8 +819,8 @@
         let html = "";
         if (tab === "all") {
           if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
-          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
           if (mats.length)    { html += `<div class="mrp-section-label">🧱 製作材料</div>`; mats.forEach(item => { html += renderRefItem(panelId, item); }); }
+          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
         } else { items.forEach(item => { html += renderRefItem(panelId, item); }); }
         body.innerHTML = html;
       }
@@ -838,16 +840,72 @@
 
       // ============================================================
       // applyMasterByName
+      // ★ type別に適用範囲を制御:
+      //   "recipe" → レシピ名＋製作材料＋副材料すべて
+      //   "mat"    → 製作材料名を sg-parent にセット＋その材料に紐づく副材料のみ
+      //   "sub"    → 副材料（recipe_subgroups）のみ
       // ============================================================
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
-        let targetRecipeId = null, targetRecipeName = name;
-        const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle();
-        if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; }
-        else if (type === "recipe" && recipeId) { targetRecipeId = recipeId; }
-        else if (type === "sub") {
-          const { data: sgRow } = await sb.from("recipe_subgroups").select("recipe_id, recipes(id, name)").eq("parent", name).limit(1).maybeSingle();
-          if (sgRow) { targetRecipeId = sgRow.recipe_id; targetRecipeName = sgRow.recipes?.name || name; }
+
+        // ── type="sub"：副材料のみ ──
+        if (type === "sub") {
+          const { data: byParent } = await sb
+            .from("recipe_subgroups")
+            .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+            .eq("parent", name).limit(1).maybeSingle();
+          if (byParent) {
+            groupEl.querySelector(".sg-parent").value = byParent.parent || name;
+            resetSteps(gid);
+            (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
+              addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
+              fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
+            });
+            showToast("「" + name + "」（副材料）を適用しました");
+          } else {
+            groupEl.querySelector(".sg-parent").value = name;
+            showToast("「" + name + "」を設定しました（データなし）");
+          }
+          return;
+        }
+
+        // ── type="mat"：製作材料名を親にセット＋その製作材料が属するレシピの副材料を適用 ──
+        if (type === "mat") {
+          // 製作材料名を sg-parent にセット
+          groupEl.querySelector(".sg-parent").value = name;
+          // その製作材料が属するレシピIDを特定
+          let targetRecipeId = recipeId || null;
+          if (!targetRecipeId) {
+            const { data: matRow } = await sb.from("recipe_mats").select("recipe_id").eq("mat_name", name).is("parent_mat_id", null).limit(1).maybeSingle();
+            if (matRow) targetRecipeId = matRow.recipe_id;
+          }
+          if (targetRecipeId) {
+            // そのレシピで "parent = name" の副材料グループを探す
+            const { data: sgList } = await sb
+              .from("recipe_subgroups")
+              .select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
+              .eq("recipe_id", targetRecipeId).eq("parent", name).order("sort_order");
+            if (sgList && sgList.length > 0) {
+              resetSteps(gid);
+              (sgList[0].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
+                addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
+                fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
+              });
+              showToast("「" + name + "」（製作材料＋副材料）を適用しました");
+              return;
+            }
+          }
+          // 副材料が見つからなければ名前だけセット
+          showToast("「" + name + "」を設定しました（副材料データなし）");
+          return;
+        }
+
+        // ── type="recipe"：レシピ名＋製作材料＋副材料すべて ──
+        let targetRecipeId = recipeId || null;
+        let targetRecipeName = name;
+        if (!targetRecipeId) {
+          const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle();
+          if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; }
         }
         if (targetRecipeId) {
           const [{ data: mats }, { data: sgList }] = await Promise.all([
@@ -890,21 +948,13 @@
               });
             }
           }
-          showToast("「" + targetRecipeName + "」を適用しました"); return;
-        }
-        const { data: byParent } = await sb.from("recipe_subgroups").select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("parent", name).limit(1).maybeSingle();
-        if (byParent) {
-          groupEl.querySelector(".sg-parent").value = byParent.parent || name;
-          resetSteps(gid);
-          (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
-            addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
-            fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
-          });
-          showToast("「" + name + "」を適用しました"); return;
+          showToast("「" + targetRecipeName + "」（レシピ全体）を適用しました");
+          return;
         }
         groupEl.querySelector(".sg-parent").value = name;
         showToast("「" + name + "」を設定しました（データなし）");
       }
+
       function resetSteps(gid) {
         const stepList = document.getElementById(`step-list-${gid}`);
         if (stepList) stepList.innerHTML = "";
@@ -917,6 +967,9 @@
         sEl.querySelector(".step-proc").value        = step.proc || "";
         sEl.querySelector(".step-result-name").value = step.result_name || "";
         sEl.querySelector(".step-result-qty").value  = step.result_qty  || "";
+        // 目標個数に結果物数量をセット
+        const tgtInput = sEl.querySelector(".step-target-qty");
+        if (tgtInput && step.result_qty) tgtInput.value = step.result_qty;
         if (hasConnector && step.connector) {
           const cb = document.getElementById(`con-${sid}`);
           if (cb) {
@@ -1049,19 +1102,18 @@
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え"; handle.textContent = "⠿";
         const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
+        // ステップ構成:
+        //   [ステップN] [× 削除]
+        //   [加工名]
+        //   入力材料 列ヘッダー: [⠿][材料名][基準量][必要量][＋代替][×]
+        //   [材料行…]
+        //   [＋ 材料を追加]
+        //   このステップの結果物:
+        //   [結果物名] [目標個数（=必要量の基準）]
         stepDiv.innerHTML = `
           <div class="step-header">
             <span class="step-label-text">ステップ ${sc}</span>
             ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ""}
-          </div>
-          <!-- 目標個数 -->
-          <div class="step-target-row">
-            <span class="step-target-label">🎯 目標個数</span>
-            <input type="number" min="1" value="1" class="step-target-qty"
-              oninput="updateStepNeeded('${sid}')"
-              title="このステップで作りたい最終個数">
-            <span class="step-target-unit">個 作りたい</span>
-            <span class="step-target-hint">→ 各材料の必要量を自動計算</span>
           </div>
           <div class="field">
             <label>加工名<span class="opt">任意</span></label>
@@ -1071,7 +1123,6 @@
             入力材料
             <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
           </div>
-          <!-- 列ヘッダー -->
           <div class="smat-col-header">
             <span></span>
             <span>材料名</span>
@@ -1084,8 +1135,14 @@
           <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
           <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
           <div class="result-row">
-            <input type="text" class="step-result-name" placeholder="例: トネリコ板">
-            <input type="text" class="step-result-qty"  placeholder="数量">
+            <input type="text" class="step-result-name" placeholder="例: トネリコ板"
+              oninput="">
+            <input type="number" min="1" class="step-result-qty step-target-qty" placeholder="個数"
+              oninput="updateStepNeeded('${sid}')"
+              title="目標個数。材料の必要量はこの値×基準量で自動計算されます">
+          </div>
+          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">
+            ← 目標個数を入力すると材料の必要量を自動計算
           </div>`;
         wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
         container.appendChild(wrapper);
@@ -1094,18 +1151,17 @@
       }
 
       // ============================================================
-      // ★ 必要量インライン更新
-      //   基準量（smat-qty）× 目標個数 で各材料の必要量バッジを更新する
+      // 必要量インライン更新
+      //   結果物の個数（目標個数）× 基準量 → 必要量バッジ
       // ============================================================
       function updateStepNeeded(sid) {
         const stepEl = document.getElementById(sid); if (!stepEl) return;
         const targetInput = stepEl.querySelector(".step-target-qty");
         const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
-
         const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
         smlEl.querySelectorAll(":scope > .mat-block").forEach(block => {
-          const qtyInput  = block.querySelector(".smat-qty");
-          const badge     = block.querySelector(".smat-needed");
+          const qtyInput = block.querySelector(".smat-qty");
+          const badge    = block.querySelector(".smat-needed");
           if (!qtyInput || !badge) return;
           const baseQty = parseFloat(qtyInput.value);
           if (!isNaN(baseQty) && baseQty > 0) {
@@ -1176,7 +1232,8 @@
       }
 
       // ============================================================
-      // ステップ材料（基準量欄 + 必要量バッジ付き）
+      // ステップ材料（基準量 + 必要量バッジ）
+      // レイアウト: [⠿][材料名][基準量][必要量]=[結果量][＋代替][×]
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
@@ -1185,20 +1242,19 @@
         const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
         const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px"; div.draggable = false;
 
-        // 初期必要量を計算
+        // 初期必要量
         const stepEl   = document.getElementById(sid);
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(matQty);
-        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededStr   = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
 
         div.innerHTML = `
           <div class="smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
-            <input type="text"   placeholder="材料名" class="smat-name" value="${escVal(matName)}"
-              oninput="">
-            <input type="text"   placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}"
+            <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
+            <input type="text" placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}"
               oninput="updateStepNeeded('${sid}')">
             <span class="${neededClass}" id="needed-${mid}">${neededStr}</span>
             <button class="alt-add-btn" onclick="addStepMatAlt('${mid}')">＋ 代替</button>
@@ -1295,7 +1351,7 @@
             const stepMats = [];
             sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
               const n = mb.querySelector(".smat-name").value.trim();
-              const q = mb.querySelector(".smat-qty").value.trim();
+              const q = mb.querySelector(".smat-qty").value.trim(); // 基準量を保存
               if (!n) return;
               const alts = [];
               mb.querySelectorAll(".alt-entry").forEach(ae => {
@@ -1341,16 +1397,21 @@
         if (d.subgroups.length) {
           html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
           d.subgroups.forEach(g => {
-            html += `<div style="margin-bottom:12px;"><div style="font-size:12px;font-weight:600;margin-bottom:6px;">▸ ${g.parent} の作り方</div>`;
+            // ▸ [どの材料] の作り方
+            html += `<div style="margin-bottom:16px;">`;
+            html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1a1a1a;">▸ ${g.parent} の作り方</div>`;
             g.steps.forEach((s, i) => {
               if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
+              // [加工名]
               if (s.proc) html += `<span class="confirm-proc">${s.proc}</span>`;
+              // [材料名] ×[材料量]
               s.mats.forEach(m => {
                 html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
                 (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
               });
-              if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? " ×" + s.result_qty : ""}</div>`;
+              // → [結果物] ×[結果物量]
+              if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? "　×" + s.result_qty : ""}</div>`;
               html += `</div>`;
             });
             html += `</div>`;
