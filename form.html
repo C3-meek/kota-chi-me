@@ -1,5 +1,5 @@
+<!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!doctype html>
-<!-- 構造：<!DOCTYPE html>〜</html> まで完全なファイル -->
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
@@ -123,6 +123,7 @@
       .login-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
       .login-wrap p { font-size: 13px; color: #888; margin-bottom: 24px; }
       .login-wrap input { width: 100%; margin-bottom: 12px; }
+      /* ── 逆算ツール ── */
       .calc-tool { margin-top: 12px; background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px; padding: 10px 12px; }
       .calc-title { font-size: 11px; font-weight: 600; color: #3a5aad; margin-bottom: 8px; }
       .calc-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
@@ -1059,7 +1060,7 @@
         const d = collectData(); let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect}</div></div>`;
+        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
           d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
@@ -1132,62 +1133,81 @@
       }
 
       // ============================================================
-      // 逆算ツール（修正版）
+      // ★ 逆算ツール（修正版）
+      //
+      // 旧GASロジックを参考に全面書き直し。
+      //   ・ステップを「前から」走査してneededマップを構築する
+      //   ・result_qty が未入力の場合は 1 とみなす（1:1前提）
+      //   ・各ステップの mats をその result_name の必要量から逆算して積算
+      //   ・最終結果物そのものは表示しない
+      //   ・ステップごとにブロック分けして表示
       // ============================================================
       function calcReverse(gid) {
         const gel = document.getElementById(gid); if (!gel) return;
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
         const resultEl  = document.getElementById("calc-result-" + gid);
         const goalLabel = document.getElementById("calc-goal-"   + gid);
-        const goalInput = parseFloat(gel.querySelector(".calc-qty").value) || 1;
+        const goalInput = Math.max(1, parseFloat(gel.querySelector(".calc-qty").value) || 1);
 
-        // ── ステップ順にデータ収集 ──────────────────────────────
+        // ── ステップ順にデータ収集 ──
         const steps = [];
         container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
           const sid = wrapper.getAttribute("data-step-id");
           const sel = document.getElementById(sid); if (!sel) return;
           const result_name = sel.querySelector(".step-result-name").value.trim();
-          const result_qty  = parseFloat(sel.querySelector(".step-result-qty").value) || 0;
+          // result_qty が空欄・0 の場合は 1 として扱う（1:1製造を前提）
+          const result_qty  = parseFloat(sel.querySelector(".step-result-qty").value) || 1;
           const mats = [];
           sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
             const n = mb.querySelector(".smat-name").value.trim();
             const q = parseFloat(mb.querySelector(".smat-qty").value) || 0;
-            if (n) mats.push({ name: n, qty: q });
+            if (n && q > 0) mats.push({ name: n, qty: q });
           });
           steps.push({ result_name, result_qty, mats });
         });
 
-        // 最終結果物 = 最後にresult_nameがあるステップ
+        // 最終結果物 = 最後に result_name が入っているステップ
         const lastStep = [...steps].reverse().find(s => s.result_name);
         goalLabel.textContent = lastStep ? lastStep.result_name : "個";
+
         if (!lastStep || steps.every(s => s.mats.length === 0)) {
           resultEl.innerHTML = '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
           return;
         }
 
-        // ── 逆算：最終ゴールから各ステップを後ろから辿る ──────────
-        // intermediates = 各ステップの result_name のセット（これらは「中間品」）
+        // ── 中間産物セット（どこかの result_name になっている名前）──
         const intermediates = new Set(steps.map(s => s.result_name).filter(Boolean));
 
-        // needed[name] = 必要数量
+        // ── needed マップを初期化 ──
+        // key: 材料名 → value: 必要数
         const needed = {};
         needed[lastStep.result_name] = goalInput;
 
-        // 後ろのステップから辿ってneedを展開
-        for (let i = steps.length - 1; i >= 0; i--) {
-          const s = steps[i];
-          if (!s.result_name || !s.result_qty || !(s.result_name in needed)) continue;
-          const times = Math.ceil(needed[s.result_name] / s.result_qty);
-          s.mats.forEach(m => {
-            if (!m.name) return;
-            needed[m.name] = (needed[m.name] || 0) + m.qty * times;
-          });
+        // ── 後ろのステップから逆算（チェーン全体を展開） ──
+        // 後ろから走査することで、まだ needed に乗っていない中間産物も
+        // 前のステップで必要数が確定してから展開される。
+        // ただし 1 パスだと前→後ろ方向の依存を解決できないので
+        // ステップ数 + 1 回ループして収束させる。
+        const maxPass = steps.length + 1;
+        for (let pass = 0; pass < maxPass; pass++) {
+          let changed = false;
+          for (let i = steps.length - 1; i >= 0; i--) {
+            const s = steps[i];
+            if (!s.result_name || !(s.result_name in needed)) continue;
+            const totalNeeded = needed[s.result_name];
+            const times = Math.ceil(totalNeeded / s.result_qty);
+            s.mats.forEach(m => {
+              const newQty = m.qty * times;
+              if ((needed[m.name] || 0) < newQty) {
+                needed[m.name] = newQty;
+                changed = true;
+              }
+            });
+          }
+          if (!changed) break;
         }
 
-        // ── 表示：ステップ順（前から）に、そのステップの材料を表示 ──
-        // 各ステップの材料のうち、表示対象（= needed に含まれる）ものを出す。
-        // ただし最終結果物そのものは除外。
-        // 同じ材料名は重複しないよう管理（既出セット）
+        // ── 表示：ステップ単位でグループ化 ──
         const displayed = new Set();
         let html = "";
         let hasAny = false;
@@ -1196,12 +1216,18 @@
           const stepLines = [];
           s.mats.forEach(m => {
             if (!m.name) return;
-            if (m.name === lastStep.result_name) return; // 最終結果物は除外
+            if (m.name === lastStep.result_name) return; // 最終産物は除外
             if (displayed.has(m.name)) return;           // 重複除外
-            if (!(m.name in needed)) return;             // neededにない材料は除外
+            if (!(m.name in needed)) return;
             displayed.add(m.name);
             const isRaw = !intermediates.has(m.name);
-            stepLines.push(`<div class="calc-row-item"><span class="ci-name">${m.name}</span><span class="ci-qty">×${needed[m.name]}</span>${isRaw ? '<span class="ci-step">（原材料）</span>' : ""}</div>`);
+            stepLines.push(
+              `<div class="calc-row-item">` +
+              `<span class="ci-name">${m.name}</span>` +
+              `<span class="ci-qty">×${needed[m.name]}</span>` +
+              (isRaw ? `<span class="ci-step">（原材料）</span>` : "") +
+              `</div>`
+            );
           });
           if (stepLines.length > 0) {
             hasAny = true;
@@ -1209,7 +1235,9 @@
           }
         });
 
-        resultEl.innerHTML = hasAny ? html : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
+        resultEl.innerHTML = hasAny
+          ? html
+          : '<div style="font-size:11px;color:#aaa;">材料と結果物を入力してください</div>';
       }
 
       // ============================================================
