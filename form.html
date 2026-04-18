@@ -102,11 +102,16 @@
         margin-bottom: 4px;
         border-bottom: 1px dashed #e0ddd5;
       }
+      /* ★修正1: ヘッダーラベルの配置を列順に合わせる
+         列1=ハンドル(空), 列2=材料名, 列3=基準量, 列4=必要量, 列5=空, 列6=空 */
+      .smat-col-header .smat-h-handle { /* 列1: ハンドル */ }
+      .smat-col-header .smat-h-name   { text-align: left; }   /* 列2: 材料名 */
+      .smat-col-header .smat-h-base   { text-align: center; } /* 列3: 基準量 */
+      .smat-col-header .smat-h-needed { text-align: center; } /* 列4: 必要量 */
       .smat-col-header span {
         font-size: 10px; color: #aaa; font-weight: 600;
-        letter-spacing: 0.04em; text-align: center; display: block;
+        letter-spacing: 0.04em; display: block;
       }
-      .smat-col-header span:nth-child(2) { text-align: left; }
       /* 材料データ行 */
       .smat-main-row input { background: #fff; margin: 0; }
 
@@ -191,6 +196,13 @@
       }
       .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
       .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
+
+      /* ★修正2: 目標個数入力欄を右寄せ（中央寄せ）に */
+      .step-target-qty {
+        text-align: right;
+        padding-right: 10px !important;
+      }
+
       .connector-block {
         display: flex; align-items: center; gap: 8px;
         margin: 8px 0; padding: 8px 12px; background: #f0ede8; border-radius: 8px;
@@ -1098,10 +1110,10 @@
             <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
           </div>
           <div class="smat-grid smat-col-header">
-            <span></span>
-            <span>材料名</span>
-            <span>基準量</span>
-            <span>必要量</span>
+            <span class="smat-h-handle"></span>
+            <span class="smat-h-name">材料名</span>
+            <span class="smat-h-base">基準量</span>
+            <span class="smat-h-needed">必要量</span>
             <span></span>
             <span></span>
           </div>
@@ -1350,7 +1362,6 @@
 
       // ============================================================
       // 確認画面
-      // ・材料量の表示: 基準量×目標個数 を計算して表示
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
@@ -1380,9 +1391,7 @@
             g.steps.forEach((s, i) => {
               if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
-              // [加工名]
               if (s.proc) html += `<div style="margin-bottom:4px;"><span class="confirm-proc">${s.proc}</span></div>`;
-              // [材料名] ×[基準量×目標個数]
               const tgt = Math.max(1, parseFloat(s.target) || 1);
               s.mats.forEach(m => {
                 const baseQ = parseFloat(m.baseQty || m.qty);
@@ -1391,7 +1400,6 @@
                 html += `<div class="confirm-mat">${m.name} <span class="qty">${qtyStr}</span></div>`;
                 (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
               });
-              // → [結果物] ×[結果物量]
               if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? "　×" + s.result_qty : ""}</div>`;
               html += `</div>`;
             });
