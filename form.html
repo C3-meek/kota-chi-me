@@ -73,6 +73,7 @@
       }
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
+
       /* ── Step2 製作材料ブロック ── */
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
@@ -83,50 +84,44 @@
         gap: 6px; align-items: center;
       }
       .mat-main-row input { background: #fff; margin: 0; }
-      /* ── ステップ材料行: [⠿][材料名][基準量][必要量]=[結果量][＋代替][×] ── */
-      /*  grid: drag | name | baseQty | needed | alt-btn | del-btn */
-      .smat-main-row {
+
+      /*
+       * ── ステップ材料行 ──
+       * 列構成: [⠿18px] [材料名 1fr] [基準量 72px] [必要量 68px] [＋代替 auto] [× 32px]
+       * ヘッダーと完全に同じ grid-template-columns を使う
+       */
+      .smat-grid {
         display: grid;
-        grid-template-columns: 18px 1fr 72px 72px auto 32px;
-        gap: 6px; align-items: center;
+        grid-template-columns: 18px 1fr 72px 68px auto 32px;
+        gap: 6px;
+        align-items: center;
       }
-      .smat-main-row input { background: #fff; margin: 0; }
-      /* 必要量バッジ */
-      .smat-needed {
-        display: flex; align-items: center; justify-content: center;
-        min-width: 56px; height: 32px; padding: 0 6px;
-        background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
-        font-size: 12px; font-weight: 700; color: #2e7d32;
-        white-space: nowrap; transition: background 0.15s;
-      }
-      .smat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
-      /* 列ヘッダー */
+      /* ヘッダー行 */
       .smat-col-header {
-        display: grid;
-        grid-template-columns: 18px 1fr 72px 72px auto 32px;
-        gap: 6px; align-items: center;
-        padding: 0 0 4px; margin-bottom: 4px;
+        padding: 0 0 4px;
+        margin-bottom: 4px;
         border-bottom: 1px dashed #e0ddd5;
       }
       .smat-col-header span {
-        font-size: 10px; color: #aaa; font-weight: 600; letter-spacing: 0.04em; text-align: center;
+        font-size: 10px; color: #aaa; font-weight: 600;
+        letter-spacing: 0.04em; text-align: center; display: block;
       }
       .smat-col-header span:nth-child(2) { text-align: left; }
-      /* 目標個数行 */
-      .step-target-row {
-        display: flex; align-items: center; gap: 8px;
-        background: #f0f4ff; border: 1px solid #c5cfe8;
-        border-radius: 8px; padding: 7px 10px; margin-bottom: 10px;
+      /* 材料データ行 */
+      .smat-main-row input { background: #fff; margin: 0; }
+
+      /* 必要量バッジ */
+      .smat-needed {
+        display: flex; align-items: center; justify-content: center;
+        height: 34px; padding: 0 4px;
+        background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
+        font-size: 12px; font-weight: 700; color: #2e7d32;
+        white-space: nowrap;
       }
-      .step-target-label { font-size: 11px; color: #3a5aad; white-space: nowrap; font-weight: 600; }
-      .step-target-qty {
-        width: 64px; padding: 4px 8px; border: 1px solid #c5cfe8;
-        border-radius: 6px; font-size: 14px; font-weight: 700; text-align: center;
-        background: #fff; color: #1a1a1a; outline: none;
+      .smat-needed.empty {
+        background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400;
       }
-      .step-target-qty:focus { border-color: #3a5aad; }
-      .step-target-unit { font-size: 11px; color: #3a5aad; white-space: nowrap; }
-      .step-target-hint { font-size: 10px; color: #9fa8da; margin-left: auto; }
+
       /* ドラッグハンドル */
       .smat-drag-handle {
         display: flex; align-items: center; justify-content: center;
@@ -135,6 +130,8 @@
       .smat-drag-handle:active { cursor: grabbing; color: #888; }
       .mat-block.smat-dragging { opacity: 0.4; }
       .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
+
+      /* ステップ drag */
       .step-drag-wrapper { position: relative; margin-bottom: 0; }
       .step-drag-wrapper.step-dragging { opacity: 0.35; }
       .step-drag-wrapper.step-drag-over-top    { border-top:    2px solid #3a5aad; }
@@ -147,6 +144,7 @@
       }
       .step-drag-handle:hover { color: #888; }
       .step-drag-handle:active { cursor: grabbing; }
+
       .alt-add-btn {
         padding: 5px 10px; border: 1px dashed #3a5aad; border-radius: 6px;
         background: #fff; color: #3a5aad; font-size: 11px; cursor: pointer;
@@ -175,6 +173,7 @@
         display: flex; align-items: center; justify-content: center; transition: all 0.15s;
       }
       .del-btn:hover { border-color: #e53935; color: #e53935; }
+
       .subgroup {
         border: 1px solid #e8e6e0; border-radius: 10px;
         padding: 14px; margin-bottom: 10px; background: #faf9f6;
@@ -191,7 +190,6 @@
         display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
       }
       .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
-      /* 結果物行: 材料名欄 + 目標個数 */
       .result-row { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
       .connector-block {
         display: flex; align-items: center; gap: 8px;
@@ -840,15 +838,9 @@
 
       // ============================================================
       // applyMasterByName
-      // ★ type別に適用範囲を制御:
-      //   "recipe" → レシピ名＋製作材料＋副材料すべて
-      //   "mat"    → 製作材料名を sg-parent にセット＋その材料に紐づく副材料のみ
-      //   "sub"    → 副材料（recipe_subgroups）のみ
       // ============================================================
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
-
-        // ── type="sub"：副材料のみ ──
         if (type === "sub") {
           const { data: byParent } = await sb
             .from("recipe_subgroups")
@@ -868,19 +860,14 @@
           }
           return;
         }
-
-        // ── type="mat"：製作材料名を親にセット＋その製作材料が属するレシピの副材料を適用 ──
         if (type === "mat") {
-          // 製作材料名を sg-parent にセット
           groupEl.querySelector(".sg-parent").value = name;
-          // その製作材料が属するレシピIDを特定
           let targetRecipeId = recipeId || null;
           if (!targetRecipeId) {
             const { data: matRow } = await sb.from("recipe_mats").select("recipe_id").eq("mat_name", name).is("parent_mat_id", null).limit(1).maybeSingle();
             if (matRow) targetRecipeId = matRow.recipe_id;
           }
           if (targetRecipeId) {
-            // そのレシピで "parent = name" の副材料グループを探す
             const { data: sgList } = await sb
               .from("recipe_subgroups")
               .select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
@@ -895,12 +882,10 @@
               return;
             }
           }
-          // 副材料が見つからなければ名前だけセット
           showToast("「" + name + "」を設定しました（副材料データなし）");
           return;
         }
-
-        // ── type="recipe"：レシピ名＋製作材料＋副材料すべて ──
+        // type === "recipe"
         let targetRecipeId = recipeId || null;
         let targetRecipeName = name;
         if (!targetRecipeId) {
@@ -967,9 +952,6 @@
         sEl.querySelector(".step-proc").value        = step.proc || "";
         sEl.querySelector(".step-result-name").value = step.result_name || "";
         sEl.querySelector(".step-result-qty").value  = step.result_qty  || "";
-        // 目標個数に結果物数量をセット
-        const tgtInput = sEl.querySelector(".step-target-qty");
-        if (tgtInput && step.result_qty) tgtInput.value = step.result_qty;
         if (hasConnector && step.connector) {
           const cb = document.getElementById(`con-${sid}`);
           if (cb) {
@@ -1102,14 +1084,6 @@
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え"; handle.textContent = "⠿";
         const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
-        // ステップ構成:
-        //   [ステップN] [× 削除]
-        //   [加工名]
-        //   入力材料 列ヘッダー: [⠿][材料名][基準量][必要量][＋代替][×]
-        //   [材料行…]
-        //   [＋ 材料を追加]
-        //   このステップの結果物:
-        //   [結果物名] [目標個数（=必要量の基準）]
         stepDiv.innerHTML = `
           <div class="step-header">
             <span class="step-label-text">ステップ ${sc}</span>
@@ -1123,7 +1097,7 @@
             入力材料
             <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
           </div>
-          <div class="smat-col-header">
+          <div class="smat-grid smat-col-header">
             <span></span>
             <span>材料名</span>
             <span>基準量</span>
@@ -1135,8 +1109,7 @@
           <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
           <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
           <div class="result-row">
-            <input type="text" class="step-result-name" placeholder="例: トネリコ板"
-              oninput="">
+            <input type="text" class="step-result-name" placeholder="例: トネリコ板">
             <input type="number" min="1" class="step-result-qty step-target-qty" placeholder="個数"
               oninput="updateStepNeeded('${sid}')"
               title="目標個数。材料の必要量はこの値×基準量で自動計算されます">
@@ -1152,7 +1125,7 @@
 
       // ============================================================
       // 必要量インライン更新
-      //   結果物の個数（目標個数）× 基準量 → 必要量バッジ
+      //   必要量 = ceil(基準量 × 目標個数)
       // ============================================================
       function updateStepNeeded(sid) {
         const stepEl = document.getElementById(sid); if (!stepEl) return;
@@ -1232,8 +1205,9 @@
       }
 
       // ============================================================
-      // ステップ材料（基準量 + 必要量バッジ）
-      // レイアウト: [⠿][材料名][基準量][必要量]=[結果量][＋代替][×]
+      // ステップ材料
+      // grid: [⠿18px][材料名 1fr][基準量 72px][必要量 68px][＋代替 auto][× 32px]
+      // ヘッダーの smat-grid と同じ列定義を使う
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
@@ -1242,7 +1216,7 @@
         const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
         const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px"; div.draggable = false;
 
-        // 初期必要量
+        // 初期必要量 = ceil(基準量 × 目標個数)
         const stepEl   = document.getElementById(sid);
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
@@ -1251,7 +1225,7 @@
         const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
 
         div.innerHTML = `
-          <div class="smat-main-row">
+          <div class="smat-grid smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
             <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
             <input type="text" placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}"
@@ -1348,10 +1322,13 @@
             const cb = document.getElementById(`con-${sid}`);
             if (cb) { const s = cb.querySelector(".preset-btn.selected"); const cu = document.getElementById(`coninput-${sid}`).value.trim(); connector = cu || (s ? s.textContent : "↓"); }
             const proc = sel.querySelector(".step-proc").value.trim();
+            // 目標個数を収集
+            const targetInput = sel.querySelector(".step-target-qty");
+            const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
             const stepMats = [];
             sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
               const n = mb.querySelector(".smat-name").value.trim();
-              const q = mb.querySelector(".smat-qty").value.trim(); // 基準量を保存
+              const q = mb.querySelector(".smat-qty").value.trim(); // 基準量
               if (!n) return;
               const alts = [];
               mb.querySelectorAll(".alt-entry").forEach(ae => {
@@ -1360,11 +1337,11 @@
                 const ac = ae.querySelector(".alt-connector-select").value;
                 if (an) alts.push({ connector: ac, name: an, qty: aq });
               });
-              stepMats.push({ name: n, qty: q, alts });
+              stepMats.push({ name: n, qty: q, baseQty: q, target: target, alts });
             });
             const result_name = sel.querySelector(".step-result-name").value.trim();
             const result_qty  = sel.querySelector(".step-result-qty").value.trim();
-            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty });
+            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty, target });
           });
           if (parent) data.subgroups.push({ parent, steps });
         });
@@ -1373,6 +1350,7 @@
 
       // ============================================================
       // 確認画面
+      // ・材料量の表示: 基準量×目標個数 を計算して表示
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
@@ -1397,17 +1375,20 @@
         if (d.subgroups.length) {
           html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
           d.subgroups.forEach(g => {
-            // ▸ [どの材料] の作り方
             html += `<div style="margin-bottom:16px;">`;
             html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1a1a1a;">▸ ${g.parent} の作り方</div>`;
             g.steps.forEach((s, i) => {
               if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
               // [加工名]
-              if (s.proc) html += `<span class="confirm-proc">${s.proc}</span>`;
-              // [材料名] ×[材料量]
+              if (s.proc) html += `<div style="margin-bottom:4px;"><span class="confirm-proc">${s.proc}</span></div>`;
+              // [材料名] ×[基準量×目標個数]
+              const tgt = Math.max(1, parseFloat(s.target) || 1);
               s.mats.forEach(m => {
-                html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
+                const baseQ = parseFloat(m.baseQty || m.qty);
+                const neededQ = (!isNaN(baseQ) && baseQ > 0) ? Math.ceil(baseQ * tgt) : null;
+                const qtyStr = neededQ !== null ? `×${neededQ}` : (m.qty ? `×${m.qty}` : "");
+                html += `<div class="confirm-mat">${m.name} <span class="qty">${qtyStr}</span></div>`;
                 (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
               });
               // → [結果物] ×[結果物量]
