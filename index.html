@@ -49,8 +49,15 @@
       .mat-qty { color: #1a1a1a; font-weight: 600; }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
-      input[type="number"] { width: 58px; padding: 5px 8px; background: #f5f4f0; border: 1px solid #ddd; border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center; outline: none; }
-      input[type="number"]:focus { border-color: #888; background: #fff; }
+      /* 作成個数入力：キーボード入力しやすいよう幅を広め・onchangeで再描画 */
+      input.qty-input {
+        width: 72px; padding: 5px 8px; background: #f5f4f0; border: 1px solid #ddd;
+        border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center;
+        outline: none; -moz-appearance: textfield;
+      }
+      input.qty-input:focus { border-color: #888; background: #fff; }
+      input.qty-input::-webkit-inner-spin-button,
+      input.qty-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
       .expand-btn { padding: 5px 11px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #888; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
       .expand-btn:hover { border-color: #888; color: #1a1a1a; }
       .expand-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
@@ -140,7 +147,6 @@
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      // 効果列は常に表示するため列数を定数化
       const COL_SPAN = 6;
 
       let SHEETS = [];
@@ -256,7 +262,6 @@
           name: r.name || "",
           category: r.category || "",
           image_url: r.image_url || "",
-          // 料理シートのみ効果を保持。他シートは空文字（列は表示するが「—」表示）
           effect: hasEffect ? r.effect || "" : "",
           tag,
           cities,
@@ -312,6 +317,27 @@
         render();
       }
 
+      /*
+       * 作成個数入力ハンドラ
+       * ─ oninput  : 値をメモリに保存するだけ（再描画しない → 入力が壊れない）
+       * ─ onchange : フォーカスアウト or Enter 時に再描画して表示を更新
+       */
+      function onQtyInput(key, el) {
+        const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
+        quantities[key] = v;
+        // 入力値が範囲外なら即補正（テキストは壊さない）
+        if (el.value !== "" && (parseInt(el.value) < 1 || parseInt(el.value) > 9999)) {
+          el.value = v;
+        }
+      }
+
+      function onQtyChange(key, el) {
+        const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
+        quantities[key] = v;
+        el.value = v;
+        render();
+      }
+
       function render() {
         const q = document.getElementById("search").value.toLowerCase();
         const rows = allData
@@ -361,12 +387,14 @@
               ).join("")
             : '<span style="color:#ddd">—</span>';
 
-          // 効果列：料理シート以外は「—」を静かに表示
           const effectCell = r.effect
             ? `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`
             : '<span style="color:#ddd;font-size:11px">—</span>';
 
+          // キーをdata属性で渡し、インラインのJS文字列エスケープ問題を回避
+          const rowIndex = rows.indexOf(r);
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+
           tr.innerHTML = `
             <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
             <td><div class="mat-list">${r.mats.map((m) => {
@@ -377,7 +405,20 @@
             }).join("")}</div></td>
             <td>${effectCell}</td>
             <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
-            <td><input type="number" min="1" max="9999" value="${qty}" oninput="quantities['${safeKey}']=Math.max(1,parseInt(this.value)||1);render()"></td>
+            <td>
+              <input
+                type="number"
+                class="qty-input"
+                min="1"
+                max="9999"
+                step="1"
+                value="${qty}"
+                data-key="${key.replace(/"/g,"&quot;")}"
+                oninput="onQtyInput(this.dataset.key,this)"
+                onchange="onQtyChange(this.dataset.key,this)"
+                onkeydown="if(event.key==='Enter'){onQtyChange(this.dataset.key,this);this.blur();}"
+              >
+            </td>
             <td>${hasSub ? `<button class="expand-btn ${isOpen?"open":""}" onclick="expanded['${safeKey}']=!expanded['${safeKey}'];render()">${isOpen?"▲ 閉じる":"▼ 材料細分化"}</button>` : '<span style="color:#ddd;font-size:11px">—</span>'}</td>`;
           tbody.appendChild(tr);
 
