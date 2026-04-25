@@ -38,7 +38,6 @@
       .si-step.active .si-label { color: #1a1a1a; font-weight: 600; }
       .si-line { flex: 1; height: 1px; background: #e0ddd5; margin-top: -18px; max-width: 32px; }
 
-      /* ── 全体カード幅を680pxに拡張 ── */
       .card {
         background: #fff; border: 1px solid #e8e6e0; border-radius: 12px;
         padding: 20px; max-width: 680px; margin: 0 auto 16px;
@@ -76,7 +75,6 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
-      /* ── Step2 製作材料ブロック ── */
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
         border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
@@ -87,10 +85,6 @@
       }
       .mat-main-row input { background: #fff; margin: 0; }
 
-      /*
-       * ── ステップ材料行 ──
-       * 列構成: [⠿18px] [材料名 1fr] [基準量 74px] [×個数 46px] [＝必要量 72px] [＋代替 auto] [× 32px]
-       */
       .smat-grid {
         display: grid;
         grid-template-columns: 18px 1fr 74px 46px 72px auto 32px;
@@ -98,7 +92,6 @@
         align-items: center;
       }
 
-      /* 必要量バッジ */
       .smat-needed {
         display: flex; align-items: center; justify-content: center;
         height: 34px; padding: 0 6px;
@@ -110,13 +103,11 @@
         background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400;
       }
 
-      /* ×個数ラベル */
       .smat-mult-label {
         display: flex; align-items: center; justify-content: center;
         height: 34px; font-size: 12px; color: #888; white-space: nowrap;
       }
 
-      /* ドラッグハンドル */
       .smat-drag-handle {
         display: flex; align-items: center; justify-content: center;
         cursor: grab; color: #bbb; font-size: 14px; user-select: none; height: 100%;
@@ -125,7 +116,6 @@
       .mat-block.smat-dragging { opacity: 0.4; }
       .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
 
-      /* ステップ drag */
       .step-drag-wrapper { position: relative; margin-bottom: 0; }
       .step-drag-wrapper.step-dragging { opacity: 0.35; }
       .step-drag-wrapper.step-drag-over-top    { border-top:    2px solid #3a5aad; }
@@ -147,11 +137,6 @@
       .alt-add-btn:hover { background: #f0f4ff; border-style: solid; }
       .alt-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 
-      /*
-       * ── 代替材料行（ステップ内）【修正】
-       * 列構成: [20px tree] [接続詞 auto] [材料名 1fr] [基準量 90px] [×個数 46px] [＝必要量 72px] [× 32px]
-       * ポイント: 接続詞セレクトにmin-widthを確保、材料名はflex成長、基準量90px
-       */
       .alt-entry {
         display: grid;
         grid-template-columns: 20px minmax(80px, auto) 1fr 90px 46px 72px 32px;
@@ -163,7 +148,8 @@
         border-radius: 8px;
       }
 
-      /* Step2（製作材料）の代替は元の列構成を維持しつつ改善 */
+      /* ── Step2 製作材料の代替行 ──
+         列: [tree 20px] [接続詞 auto] [材料名 1fr] [数量 110px] [× 32px] */
       .alt-entry.mat-alt-entry {
         grid-template-columns: 20px minmax(80px, auto) 1fr 110px 32px;
       }
@@ -187,7 +173,6 @@
       }
       .alt-entry input { background: #fff; margin: 0; }
 
-      /* 代替材料行の必要量バッジ（薄い青系） */
       .smat-needed.alt-badge {
         background: #e8eaf6; border-color: #9fa8da; color: #3949ab;
       }
@@ -594,12 +579,18 @@
       const MAX_GROUPS = 7, MAX_STEPS = 10, MAX_MATS = 10,
             MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
-      let matBlockCount = 0, altCounters = {}, subgroupCount = 0;
+      let matBlockCount = 0, subgroupCount = 0;
       let stepCounters = {}, stepMatCounters = {}, stepMatAltCounters = {};
       let cityRowCount = 0, availableCities = [];
       let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
       let masterListCache = [];
+
+      // ── グローバル単調増加ID（代替品行のID重複を防ぐ） ──
+      let _altUid = 0;
+      // bid ごとの「現在表示中の代替品数」カウンター
+      const altCounts = {};   // altCounts[bid] = 現在の代替品数
+      function nextAltUid() { return ++_altUid; }
 
       // ============================================================
       // 認証
@@ -1013,11 +1004,14 @@
 
       // ============================================================
       // 製作材料ブロック（Step2）
+      // ── 修正点: altCounts[bid] で現在数を管理、IDはグローバル単調増加
       // ============================================================
       function addMatBlock(matName, matQty, alts) {
         if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
         matBlockCount++;
-        const bid = `mb-${matBlockCount}`; altCounters[bid] = 0;
+        const bid = `mb-${matBlockCount}`;
+        altCounts[bid] = 0;  // この材料ブロックの現在の代替品数を初期化
+
         const div = document.createElement("div"); div.className = "mat-block"; div.id = bid;
         div.innerHTML = `
           <div class="mat-main-row">
@@ -1031,16 +1025,31 @@
         if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
         if (matBlockCount >= MAX_BASIC_MATS) document.getElementById("add-mat-btn").style.display = "none";
       }
+
       function delMatBlock(bid) {
-        document.getElementById(bid).remove(); matBlockCount--; delete altCounters[bid];
+        document.getElementById(bid).remove();
+        matBlockCount--;
+        delete altCounts[bid];
         document.getElementById("add-mat-btn").style.display = "";
       }
+
+      /**
+       * addAltRow — Step2 製作材料の代替品行を追加する
+       * 修正: IDにグローバル単調増加UIDを使用し、
+       *       altCounts[bid] で上限チェックと現在数の増減を管理する
+       */
       function addAltRow(bid, connector, name, qty) {
-        altCounters[bid] = altCounters[bid] || 0;
-        if (altCounters[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
-        altCounters[bid]++;
-        const aid = `alt-${bid}-${altCounters[bid]}`;
-        const div = document.createElement("div"); div.className = "alt-entry mat-alt-entry"; div.id = aid;
+        if (!altCounts[bid]) altCounts[bid] = 0;
+        if (altCounts[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
+        altCounts[bid]++;
+
+        // グローバル単調増加IDで要素IDを生成 → 削除後の再追加でも衝突しない
+        const uid = nextAltUid();
+        const aid = `alt-${bid}-uid${uid}`;
+
+        const div = document.createElement("div");
+        div.className = "alt-entry mat-alt-entry";
+        div.id = aid;
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -1049,7 +1058,13 @@
           <button class="del-btn" onclick="delAltRow('${bid}','${aid}')">×</button>`;
         document.getElementById(`alt-list-${bid}`).appendChild(div);
       }
-      function delAltRow(bid, aid) { document.getElementById(aid).remove(); altCounters[bid]--; }
+
+      function delAltRow(bid, aid) {
+        const el = document.getElementById(aid);
+        if (!el) return;
+        el.remove();
+        if (altCounts[bid] > 0) altCounts[bid]--;
+      }
 
       // ============================================================
       // 副材料グループ
@@ -1262,7 +1277,6 @@
 
       // ============================================================
       // ステップ材料
-      // grid: [⠿18px][材料名 1fr][基準量 74px][×個数 46px][＝必要量 72px][＋代替 auto][× 32px]
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
@@ -1490,7 +1504,9 @@
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        // altCounts をリセット（グローバルUIDはリセットしない）
+        for (const k in altCounts) delete altCounts[k];
         addMatBlock(); goStep(1);
       }
       async function goStep(n) {
@@ -1553,7 +1569,8 @@
         document.getElementById("area-new").style.display = "";
         document.getElementById("area-edit").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        for (const k in altCounts) delete altCounts[k];
         document.getElementById("f-sheet").value    = sheetName;
         document.getElementById("f-name").value     = data.name     || "";
         document.getElementById("f-category").value = data.category || "";
@@ -1607,7 +1624,8 @@
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; altCounters = {}; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
+        for (const k in altCounts) delete altCounts[k];
         addMatBlock(); goStep(1);
         document.getElementById("edit-list").style.display = "";
         document.getElementById("edit-search").parentElement.style.display = "";
