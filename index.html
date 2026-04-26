@@ -375,7 +375,7 @@
         if (hasMin || hasMax) {
           const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
           const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
-          html += `<div class="imperial-qty">📦 １箱の個数：${minStr}<span style="color:#aaa;margin:0 2px;">－上位：</span>${maxStr}</div>`;
+          html += `<div class="imperial-qty">📦 １箱の入個数：${minStr}<span style="color:#aaa;margin:0 2px;">－上位：</span>${maxStr}</div>`;
         }
         return html;
       }
