@@ -49,7 +49,19 @@
       .mat-qty { color: #1a1a1a; font-weight: 600; }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
-      /* 作成個数入力：キーボード入力しやすいよう幅を広め・onchangeで再描画 */
+      /* 皇室納品バッジ */
+      .imperial-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
+        background: #fff8e1; color: #e65100; border: 1px solid #ffe082;
+        margin-top: 4px; white-space: nowrap;
+      }
+      .imperial-qty {
+        font-size: 11px; color: #795548; margin-top: 3px;
+        display: flex; align-items: center; gap: 3px;
+      }
+      .imperial-qty-num { font-weight: 700; color: #e65100; }
+      /* 作成個数入力 */
       input.qty-input {
         width: 72px; padding: 5px 4px 5px 8px; background: #f5f4f0; border: 1px solid #ddd;
         border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center;
@@ -121,7 +133,7 @@
           <tr>
             <th style="width: 18%">アイテム名</th>
             <th style="width: auto">製作材料</th>
-            <th style="width: 14%">🍽 効果</th>
+            <th style="width: 14%">🍽 効果 / 👑 皇室納品</th>
             <th style="width: 18%">製作できる都市 / 製作所Lv</th>
             <th style="width: 7%">作成個数</th>
             <th style="width: 8%">材料細分化</th>
@@ -142,6 +154,7 @@
       const SUPABASE_URL = "https://qvdlqqlstohsxfdersqf.supabase.co";
       const SUPABASE_ANON = "sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6";
       const EFFECT_SHEET_NAMES = ["料理"];
+      const IMPERIAL_SHEET_NAMES = ["料理", "錬金"];
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -187,6 +200,7 @@
             .from("recipes")
             .select(`
               id, name, category, image_url, effect,
+              imperial_rank, imperial_qty_min, imperial_qty_max,
               sheets(name),
               recipe_cities(sort_order, city_name, city_level),
               recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
@@ -216,7 +230,8 @@
 
       function parseRecipe(r) {
         const tag = r.sheets ? r.sheets.name : "";
-        const hasEffect = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+        const hasEffect   = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+        const hasImperial = IMPERIAL_SHEET_NAMES.indexOf(tag) >= 0;
         const cities = (r.recipe_cities || [])
           .sort((a, b) => a.sort_order - b.sort_order)
           .map((c) => ({ name: c.city_name || "", level: c.city_level || "" }));
@@ -261,6 +276,9 @@
           category: r.category || "",
           image_url: r.image_url || "",
           effect: hasEffect ? r.effect || "" : "",
+          imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
+          imperial_qty_min: hasImperial ? (r.imperial_qty_min ?? "") : "",
+          imperial_qty_max: hasImperial ? (r.imperial_qty_max ?? "") : "",
           tag,
           cities,
           mats,
@@ -315,15 +333,9 @@
         render();
       }
 
-      /*
-       * 作成個数入力ハンドラ
-       * ─ oninput  : 値をメモリに保存するだけ（再描画しない → 入力が壊れない）
-       * ─ onchange : フォーカスアウト or Enter 時に再描画して表示を更新
-       */
       function onQtyInput(key, el) {
         const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
         quantities[key] = v;
-        // 入力値が範囲外なら即補正（テキストは壊さない）
         if (el.value !== "" && (parseInt(el.value) < 1 || parseInt(el.value) > 9999)) {
           el.value = v;
         }
@@ -334,6 +346,33 @@
         quantities[key] = v;
         el.value = v;
         render();
+      }
+
+      // 皇室納品ランクに対応したランク色クラス
+      const RANK_COLORS = {
+        "見習い": { bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+        "熟練":   { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
+        "専門家": { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+        "職人":   { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
+        "名匠":   { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
+        "道人":   { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
+      };
+
+      function buildImperialHTML(r) {
+        if (!r.imperial_rank && r.imperial_qty_min === "" && r.imperial_qty_max === "") return "";
+        let html = "";
+        if (r.imperial_rank) {
+          const rc = RANK_COLORS[r.imperial_rank] || { bg: "#fff8e1", color: "#e65100", border: "#ffe082" };
+          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${r.imperial_rank}</span>`;
+        }
+        const hasMin = r.imperial_qty_min !== "" && r.imperial_qty_min !== null;
+        const hasMax = r.imperial_qty_max !== "" && r.imperial_qty_max !== null;
+        if (hasMin || hasMax) {
+          const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
+          const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
+          html += `<div class="imperial-qty">📦 納品個数：${minStr}<span style="color:#aaa;margin:0 2px;">～</span>${maxStr}</div>`;
+        }
+        return html;
       }
 
       function render() {
@@ -351,7 +390,8 @@
               );
               const inEffect = r.effect && r.effect.toLowerCase().includes(q);
               const inCity   = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
-              if (!inName && !inMat && !inSub && !inEffect && !inCity) return false;
+              const inRank   = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
+              if (!inName && !inMat && !inSub && !inEffect && !inCity && !inRank) return false;
             }
             return true;
           })
@@ -385,12 +425,19 @@
               ).join("")
             : '<span style="color:#ddd">—</span>';
 
-          const effectCell = r.effect
-            ? `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`
-            : '<span style="color:#ddd;font-size:11px">—</span>';
+          // 効果 + 皇室納品情報をまとめてひとつのセルに表示
+          const imperialHTML = buildImperialHTML(r);
+          let effectCell = "";
+          if (r.effect) {
+            effectCell += `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
+          }
+          if (imperialHTML) {
+            effectCell += `<div style="margin-top:${r.effect ? "6px" : "0"}">${imperialHTML}</div>`;
+          }
+          if (!effectCell) {
+            effectCell = '<span style="color:#ddd;font-size:11px">—</span>';
+          }
 
-          // キーをdata属性で渡し、インラインのJS文字列エスケープ問題を回避
-          const rowIndex = rows.indexOf(r);
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
           tr.innerHTML = `
