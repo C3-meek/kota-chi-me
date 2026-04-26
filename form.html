@@ -75,6 +75,41 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
+      /* ── 皇室納品フィールド ── */
+      #imperial-section {
+        background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px;
+        padding: 14px 16px; margin-bottom: 14px;
+        transition: all 0.2s;
+      }
+      #imperial-section .imperial-title {
+        font-size: 12px; font-weight: 700; color: #e65100; margin-bottom: 12px;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .imperial-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      }
+      .imperial-qty-row {
+        display: flex; align-items: center; gap: 8px;
+      }
+      .imperial-qty-row input[type="number"] {
+        flex: 1; padding: 9px 10px; background: #fff; border: 1px solid #ddd;
+        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none;
+        transition: border-color 0.2s; text-align: center;
+        -moz-appearance: textfield;
+      }
+      .imperial-qty-row input[type="number"]::-webkit-outer-spin-button,
+      .imperial-qty-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+      .imperial-qty-row input[type="number"]:focus { border-color: #888; background: #fff; }
+      .imperial-qty-sep {
+        font-size: 16px; color: #888; font-weight: 400; white-space: nowrap; flex-shrink: 0;
+      }
+      #imperial-rank-select {
+        background-color: #fff;
+        border-color: #ffe082;
+        color: #e65100;
+        font-weight: 600;
+      }
+
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
         border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
@@ -148,8 +183,6 @@
         border-radius: 8px;
       }
 
-      /* ── Step2 製作材料の代替行 ──
-         列: [tree 20px] [接続詞 auto] [材料名 1fr] [数量 110px] [× 32px] */
       .alt-entry.mat-alt-entry {
         grid-template-columns: 20px minmax(80px, auto) 1fr 110px 32px;
       }
@@ -279,6 +312,12 @@
         margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5;
       }
       .confirm-connector { text-align: center; font-size: 12px; color: #aaa; padding: 3px 0; }
+      .confirm-imperial {
+        background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
+        padding: 10px 14px; margin-bottom: 14px;
+      }
+      .confirm-imperial-title { font-size: 11px; font-weight: 700; color: #e65100; margin-bottom: 6px; }
+      .confirm-imperial-body { font-size: 13px; color: #1a1a1a; }
       .toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
         background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
@@ -467,7 +506,7 @@
             <div class="card-title"><span class="num">1</span>基本情報</div>
             <div class="field">
               <label>カテゴリ（シート）<span class="req">*</span></label>
-              <select id="f-sheet"></select>
+              <select id="f-sheet" onchange="onSheetChange()"></select>
             </div>
             <div class="field">
               <label>アイテム名<span class="req">*</span></label>
@@ -491,6 +530,34 @@
               <label>効果<span class="opt">任意</span></label>
               <textarea id="f-effect" class="effect-input" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4"></textarea>
             </div>
+
+            <!-- 皇室納品セクション（料理・錬金のみ表示） -->
+            <div id="imperial-section" class="hidden">
+              <div class="imperial-title">👑 皇室納品情報<span style="font-size:10px;font-weight:400;color:#bf8000;margin-left:6px">料理・錬金のみ</span></div>
+              <div class="imperial-grid">
+                <div>
+                  <label style="margin-bottom:6px;">皇室納品ランク<span class="opt">任意</span></label>
+                  <select id="imperial-rank-select" style="background-color:#fff;border-color:#ffe082;color:#e65100;font-weight:600;">
+                    <option value="">未設定</option>
+                    <option value="見習い">見習い</option>
+                    <option value="熟練">熟練</option>
+                    <option value="専門家">専門家</option>
+                    <option value="職人">職人</option>
+                    <option value="名匠">名匠</option>
+                    <option value="道人">道人</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="margin-bottom:6px;">納品個数（下位 - 上位）<span class="opt">任意</span></label>
+                  <div class="imperial-qty-row">
+                    <input type="number" id="imperial-qty-min" min="1" max="9999" placeholder="例: 10" />
+                    <span class="imperial-qty-sep">－</span>
+                    <input type="number" id="imperial-qty-max" min="1" max="9999" placeholder="例: 25" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
           <div class="nav">
             <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
@@ -574,6 +641,9 @@
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+      // 皇室納品が有効なシート名
+      const IMPERIAL_SHEETS = ["料理", "錬金"];
+
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
       const MAX_GROUPS = 7, MAX_STEPS = 10, MAX_MATS = 10,
@@ -586,11 +656,40 @@
       let cityMasterPanelOpen = false;
       let masterListCache = [];
 
-      // ── グローバル単調増加ID（代替品行のID重複を防ぐ） ──
       let _altUid = 0;
-      // bid ごとの「現在表示中の代替品数」カウンター
-      const altCounts = {};   // altCounts[bid] = 現在の代替品数
+      const altCounts = {};
       function nextAltUid() { return ++_altUid; }
+
+      // ============================================================
+      // 皇室納品セクション表示制御
+      // ============================================================
+      function onSheetChange() {
+        const sheetName = document.getElementById("f-sheet").value;
+        const sec = document.getElementById("imperial-section");
+        if (IMPERIAL_SHEETS.includes(sheetName)) {
+          sec.classList.remove("hidden");
+        } else {
+          sec.classList.add("hidden");
+          // 非表示のときは値をクリア
+          document.getElementById("imperial-rank-select").value = "";
+          document.getElementById("imperial-qty-min").value = "";
+          document.getElementById("imperial-qty-max").value = "";
+        }
+        // サブカテゴリのdatalist更新（既存処理）
+        updateCatDatalist(sheetName);
+      }
+
+      async function updateCatDatalist(sheetName) {
+        if (!sheetName) return;
+        const sid = await getSheetId(sheetName);
+        if (!sid) return;
+        const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
+        const dl = document.getElementById("cat-list");
+        dl.innerHTML = "";
+        [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
+          const o = document.createElement("option"); o.value = c; dl.appendChild(o);
+        });
+      }
 
       // ============================================================
       // 認証
@@ -627,16 +726,6 @@
         await loadSheetList();
         await loadMasterList();
         await loadCityList();
-        document.getElementById("f-sheet").addEventListener("change", async function () {
-          if (!this.value) return;
-          const sid = await getSheetId(this.value);
-          const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
-          const dl = document.getElementById("cat-list");
-          dl.innerHTML = "";
-          [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
-            const o = document.createElement("option"); o.value = c; dl.appendChild(o);
-          });
-        });
         document.addEventListener("click", function (e) {
           document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
             const wrap = panel.closest(".master-input-wrap");
@@ -1004,13 +1093,12 @@
 
       // ============================================================
       // 製作材料ブロック（Step2）
-      // ── 修正点: altCounts[bid] で現在数を管理、IDはグローバル単調増加
       // ============================================================
       function addMatBlock(matName, matQty, alts) {
         if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
         matBlockCount++;
         const bid = `mb-${matBlockCount}`;
-        altCounts[bid] = 0;  // この材料ブロックの現在の代替品数を初期化
+        altCounts[bid] = 0;
 
         const div = document.createElement("div"); div.className = "mat-block"; div.id = bid;
         div.innerHTML = `
@@ -1033,17 +1121,11 @@
         document.getElementById("add-mat-btn").style.display = "";
       }
 
-      /**
-       * addAltRow — Step2 製作材料の代替品行を追加する
-       * 修正: IDにグローバル単調増加UIDを使用し、
-       *       altCounts[bid] で上限チェックと現在数の増減を管理する
-       */
       function addAltRow(bid, connector, name, qty) {
         if (!altCounts[bid]) altCounts[bid] = 0;
         if (altCounts[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         altCounts[bid]++;
 
-        // グローバル単調増加IDで要素IDを生成 → 削除後の再追加でも衝突しない
         const uid = nextAltUid();
         const aid = `alt-${bid}-uid${uid}`;
 
@@ -1359,14 +1441,11 @@
         document.getElementById(`alt-list-${mid}`).appendChild(div);
       }
 
-      function updateStepNeededFromAlt(inputEl, sid) {
-        updateStepNeeded(sid);
-      }
-
+      function updateStepNeededFromAlt(inputEl, sid) { updateStepNeeded(sid); }
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // フォームデータ収集
+      // フォームデータ収集（皇室納品フィールド追加）
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1389,14 +1468,26 @@
           });
           mats.push({ name, qty, alts });
         });
+
+        // 皇室納品情報
+        const sheetName = document.getElementById("f-sheet").value;
+        const isImperial = IMPERIAL_SHEETS.includes(sheetName);
+        const imperialRank   = isImperial ? (document.getElementById("imperial-rank-select").value || null) : null;
+        const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
+        const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
+
         const data = {
-          sheet_name: document.getElementById("f-sheet").value,
+          sheet_name: sheetName,
           name:       document.getElementById("f-name").value.trim(),
           category:   document.getElementById("f-category").value.trim(),
           image_url:  document.getElementById("f-image").value.trim(),
           effect:     document.getElementById("f-effect").value.trim(),
+          imperial_rank:    imperialRank,
+          imperial_qty_min: imperialQtyMin,
+          imperial_qty_max: imperialQtyMax,
           cities, mats, subgroups: [],
         };
+
         document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
           const parent = gel.querySelector(".sg-parent").value.trim();
           const steps  = [];
@@ -1435,7 +1526,7 @@
       }
 
       // ============================================================
-      // 確認画面
+      // 確認画面（皇室納品情報を追加）
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
@@ -1449,6 +1540,21 @@
         }
         if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
         if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
+
+        // 皇室納品確認表示
+        if (d.imperial_rank || d.imperial_qty_min || d.imperial_qty_max) {
+          html += `<div class="confirm-imperial">`;
+          html += `<div class="confirm-imperial-title">👑 皇室納品情報</div>`;
+          html += `<div class="confirm-imperial-body">`;
+          if (d.imperial_rank) html += `ランク：<strong>${d.imperial_rank}</strong>　`;
+          if (d.imperial_qty_min || d.imperial_qty_max) {
+            const minStr = d.imperial_qty_min || "—";
+            const maxStr = d.imperial_qty_max || "—";
+            html += `納品個数：<strong>${minStr} ～ ${maxStr}</strong>`;
+          }
+          html += `</div></div>`;
+        }
+
         if (d.mats.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
           d.mats.forEach(m => {
@@ -1502,10 +1608,13 @@
       function resetForm() {
         document.getElementById("f-sheet").selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("imperial-section").classList.add("hidden");
+        document.getElementById("imperial-rank-select").value = "";
+        document.getElementById("imperial-qty-min").value = "";
+        document.getElementById("imperial-qty-max").value = "";
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
-        // altCounts をリセット（グローバルUIDはリセットしない）
         for (const k in altCounts) delete altCounts[k];
         addMatBlock(); goStep(1);
       }
@@ -1558,7 +1667,7 @@
       }
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
+        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
         if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
@@ -1576,6 +1685,21 @@
         document.getElementById("f-category").value = data.category || "";
         document.getElementById("f-image").value    = data.image_url|| "";
         document.getElementById("f-effect").value   = data.effect   || "";
+
+        // 皇室納品フィールドの復元
+        const sec = document.getElementById("imperial-section");
+        if (IMPERIAL_SHEETS.includes(sheetName)) {
+          sec.classList.remove("hidden");
+          document.getElementById("imperial-rank-select").value = data.imperial_rank || "";
+          document.getElementById("imperial-qty-min").value = data.imperial_qty_min || "";
+          document.getElementById("imperial-qty-max").value = data.imperial_qty_max || "";
+        } else {
+          sec.classList.add("hidden");
+          document.getElementById("imperial-rank-select").value = "";
+          document.getElementById("imperial-qty-min").value = "";
+          document.getElementById("imperial-qty-max").value = "";
+        }
+
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
         const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
@@ -1622,6 +1746,10 @@
         currentEditId = null; currentEditSheet = null;
         const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("imperial-section").classList.add("hidden");
+        document.getElementById("imperial-rank-select").value = "";
+        document.getElementById("imperial-qty-min").value = "";
+        document.getElementById("imperial-qty-max").value = "";
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
