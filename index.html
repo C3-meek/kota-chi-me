@@ -277,8 +277,8 @@
           image_url: r.image_url || "",
           effect: hasEffect ? r.effect || "" : "",
           imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
-          imperial_qty_min: hasImperial ? (r.imperial_qty_min ?? "") : "",
-          imperial_qty_max: hasImperial ? (r.imperial_qty_max ?? "") : "",
+          imperial_qty_min: hasImperial ? (r.imperial_qty_min != null ? r.imperial_qty_min : null) : null,
+          imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
           tag,
           cities,
           mats,
@@ -362,7 +362,7 @@
       const BOX_SUFFIX = { "料理": "の料理箱", "錬金": "の薬品箱" };
 
       function buildImperialHTML(r) {
-        if (!r.imperial_rank && r.imperial_qty_min === "" && r.imperial_qty_max === "") return "";
+        if (!r.imperial_rank && r.imperial_qty_min == null && r.imperial_qty_max == null) return "";
         let html = "";
         if (r.imperial_rank) {
           const rc = RANK_COLORS[r.imperial_rank] || { bg: "#fff8e1", color: "#e65100", border: "#ffe082" };
@@ -370,8 +370,8 @@
           const label = r.imperial_rank + suffix;
           html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${label}</span>`;
         }
-        const hasMin = r.imperial_qty_min !== "" && r.imperial_qty_min !== null;
-        const hasMax = r.imperial_qty_max !== "" && r.imperial_qty_max !== null;
+        const hasMin = r.imperial_qty_min != null;
+        const hasMax = r.imperial_qty_max != null;
         if (hasMin || hasMax) {
           const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
           const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
