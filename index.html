@@ -171,7 +171,7 @@
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
         const num = parseFloat(s);
-        if (!isNaN(num)) return `×${num * multiplier}${tilde ? "-" : ""}`;
+        if (!isNaN(num)) return `×${num * multiplier}${tilde ? "～" : ""}`;
         return s;
       }
 
@@ -350,27 +350,32 @@
 
       // 皇室納品ランクに対応したランク色クラス
       const RANK_COLORS = {
-        "見習いの料理箱": { bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
-        "熟練の料理箱":   { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
-        "専門家の料理箱": { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
-        "職人の料理箱":   { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
-        "名匠の料理箱":   { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
-        "道人の料理箱":   { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
+        "見習い": { bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+        "熟練":   { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
+        "専門家": { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+        "職人":   { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
+        "名匠":   { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
+        "道人":   { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
+
+      // シートに応じた箱の名称サフィックスを返す
+      const BOX_SUFFIX = { "料理": "の料理箱", "錬金": "の薬品箱" };
 
       function buildImperialHTML(r) {
         if (!r.imperial_rank && r.imperial_qty_min === "" && r.imperial_qty_max === "") return "";
         let html = "";
         if (r.imperial_rank) {
           const rc = RANK_COLORS[r.imperial_rank] || { bg: "#fff8e1", color: "#e65100", border: "#ffe082" };
-          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${r.imperial_rank}</span>`;
+          const suffix = BOX_SUFFIX[r.tag] || "";
+          const label = r.imperial_rank + suffix;
+          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${label}</span>`;
         }
         const hasMin = r.imperial_qty_min !== "" && r.imperial_qty_min !== null;
         const hasMax = r.imperial_qty_max !== "" && r.imperial_qty_max !== null;
         if (hasMin || hasMax) {
           const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
           const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
-          html += `<div class="imperial-qty">📦 納品個数：${minStr}<span style="color:#aaa;margin:0 2px;">-</span>${maxStr}</div>`;
+          html += `<div class="imperial-qty">📦 納品個数：${minStr}<span style="color:#aaa;margin:0 2px;">－</span>${maxStr}</div>`;
         }
         return html;
       }
