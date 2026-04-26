@@ -548,7 +548,7 @@
                   </select>
                 </div>
                 <div>
-                  <label style="margin-bottom:6px;">１箱の個数（下位 - 上位）<span class="opt">任意</span></label>
+                  <label style="margin-bottom:6px;">１箱の入個数（下位 - 上位）<span class="opt">任意</span></label>
                   <div class="imperial-qty-row">
                     <input type="number" id="imperial-qty-min" min="1" max="9999" placeholder="例: 10" />
                     <span class="imperial-qty-sep">－</span>
@@ -1550,7 +1550,7 @@
           if (d.imperial_qty_min || d.imperial_qty_max) {
             const minStr = d.imperial_qty_min || "—";
             const maxStr = d.imperial_qty_max || "—";
-            html += `１箱の個数：<strong>${minStr}－上位：${maxStr}</strong>`;
+            html += `１箱の入個数：<strong>${minStr}－上位：${maxStr}</strong>`;
           }
           html += `</div></div>`;
         }
