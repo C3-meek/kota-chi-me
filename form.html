@@ -75,10 +75,28 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
-      /* ── スキルレベルセレクト ── */
-      #skill-level-select {
-        background-color: #f5f4f0;
+      /* ── スキルレベル（セレクト＋数値） ── */
+      .skill-level-row {
+        display: flex; align-items: center; gap: 8px;
       }
+      .skill-level-row select {
+        flex: 1;
+      }
+      .skill-level-lv-wrap {
+        display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+      }
+      .skill-level-lv-wrap span {
+        font-size: 13px; color: #666; white-space: nowrap; font-weight: 600;
+      }
+      .skill-level-lv-input {
+        width: 64px; padding: 9px 8px; background: #f5f4f0; border: 1px solid #ddd;
+        border-radius: 8px; color: #1a1a1a; font-size: 14px; text-align: center;
+        outline: none; transition: border-color 0.2s;
+        -moz-appearance: textfield;
+      }
+      .skill-level-lv-input::-webkit-outer-spin-button,
+      .skill-level-lv-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+      .skill-level-lv-input:focus { border-color: #888; background: #fff; }
 
       /* ── 皇室納品フィールド ── */
       #imperial-section {
@@ -529,16 +547,23 @@
             <!-- ★ 必要スキルレベル（画像URLの直後） -->
             <div class="field">
               <label>必要スキルレベル<span class="opt">任意</span></label>
-              <select id="skill-level-select">
-                <option value="">未設定</option>
-                <option value="初級">初級</option>
-                <option value="見習い">見習い</option>
-                <option value="熟練">熟練</option>
-                <option value="専門">専門</option>
-                <option value="職人">職人</option>
-                <option value="名匠">名匠</option>
-                <option value="道人">道人</option>
-              </select>
+              <div class="skill-level-row">
+                <select id="skill-level-select">
+                  <option value="">未設定</option>
+                  <option value="初級">初級</option>
+                  <option value="見習い">見習い</option>
+                  <option value="熟練">熟練</option>
+                  <option value="専門">専門</option>
+                  <option value="職人">職人</option>
+                  <option value="名匠">名匠</option>
+                  <option value="道人">道人</option>
+                </select>
+                <div class="skill-level-lv-wrap">
+                  <span>Lv.</span>
+                  <input type="number" id="skill-level-num" class="skill-level-lv-input"
+                    min="1" max="99" placeholder="—" />
+                </div>
+              </div>
             </div>
             <div class="field">
               <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
@@ -1501,8 +1526,9 @@
         const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
 
-        // ★ skill_level 収集
-        const skillLevel = document.getElementById("skill-level-select").value || null;
+        // ★ skill_level / skill_level_num 収集
+        const skillLevel    = document.getElementById("skill-level-select").value || null;
+        const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
 
         const data = {
           sheet_name: sheetName,
@@ -1510,7 +1536,8 @@
           category:   document.getElementById("f-category").value.trim(),
           image_url:  document.getElementById("f-image").value.trim(),
           effect:     document.getElementById("f-effect").value.trim(),
-          skill_level: skillLevel,
+          skill_level:     skillLevel,
+          skill_level_num: skillLevelNum,
           imperial_rank:    imperialRank,
           imperial_qty_min: imperialQtyMin,
           imperial_qty_max: imperialQtyMax,
@@ -1565,8 +1592,9 @@
         // ★ 必要スキルレベル確認表示
         if (d.skill_level) {
           const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
+          const lvStr = d.skill_level_num ? ` Lv.${d.skill_level_num}` : "";
           html += `<div class="confirm-section"><div class="confirm-label">必要スキルレベル</div>
-            <span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}</span>
+            <span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}${lvStr}</span>
           </div>`;
         }
 
@@ -1646,6 +1674,7 @@
         document.getElementById("f-sheet").selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
         document.getElementById("skill-level-select").value = "";
+        document.getElementById("skill-level-num").value = "";
         document.getElementById("imperial-section").classList.add("hidden");
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
@@ -1705,7 +1734,7 @@
       }
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,skill_level,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
+        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,skill_level,skill_level_num,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
         if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
@@ -1724,8 +1753,9 @@
         document.getElementById("f-image").value    = data.image_url|| "";
         document.getElementById("f-effect").value   = data.effect   || "";
 
-        // ★ skill_level 復元
+        // ★ skill_level / skill_level_num 復元
         document.getElementById("skill-level-select").value = data.skill_level || "";
+        document.getElementById("skill-level-num").value = data.skill_level_num != null ? data.skill_level_num : "";
 
         const sec = document.getElementById("imperial-section");
         if (IMPERIAL_SHEETS.includes(sheetName)) {
@@ -1787,6 +1817,7 @@
         const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
         document.getElementById("skill-level-select").value = "";
+        document.getElementById("skill-level-num").value = "";
         document.getElementById("imperial-section").classList.add("hidden");
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
