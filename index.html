@@ -61,6 +61,12 @@
         display: flex; align-items: center; gap: 3px;
       }
       .imperial-qty-num { font-weight: 700; color: #e65100; }
+      /* ★ 必要スキルレベルバッジ */
+      .skill-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;
+        margin-top: 4px; white-space: nowrap; border: 1px solid;
+      }
       /* 作成個数入力 */
       input.qty-input {
         width: 72px; padding: 5px 4px 5px 8px; background: #f5f4f0; border: 1px solid #ddd;
@@ -167,6 +173,17 @@
       const quantities = {};
       const expanded = {};
 
+      // ★ スキルレベルの色定義
+      const SKILL_LEVEL_COLORS = {
+        "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
+        "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+        "熟練":  { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
+        "専門":  { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+        "職人":  { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
+        "名匠":  { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
+        "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
+      };
+
       function fmtQty(raw, multiplier, tilde) {
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
@@ -201,6 +218,7 @@
             .select(`
               id, name, category, image_url, effect,
               imperial_rank, imperial_qty_min, imperial_qty_max,
+              skill_level, skill_level_num,
               sheets(name),
               recipe_cities(sort_order, city_name, city_level),
               recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
@@ -279,6 +297,9 @@
           imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
           imperial_qty_min: hasImperial ? (r.imperial_qty_min != null ? r.imperial_qty_min : null) : null,
           imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
+          // ★ スキルレベル
+          skill_level:     r.skill_level     || "",
+          skill_level_num: r.skill_level_num != null ? r.skill_level_num : null,
           tag,
           cities,
           mats,
@@ -348,7 +369,6 @@
         render();
       }
 
-      // 皇室納品ランクに対応したランク色クラス
       const RANK_COLORS = {
         "見習い": { bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
         "熟練":   { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
@@ -358,7 +378,6 @@
         "道人":   { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
 
-      // シートに応じた箱の名称サフィックスを返す
       const BOX_SUFFIX = { "料理": "の料理箱", "錬金": "の薬品箱" };
 
       function buildImperialHTML(r) {
@@ -380,6 +399,14 @@
         return html;
       }
 
+      // ★ スキルレベルバッジHTML生成
+      function buildSkillBadgeHTML(r) {
+        if (!r.skill_level) return "";
+        const sc = SKILL_LEVEL_COLORS[r.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
+        const lvStr = r.skill_level_num != null ? ` Lv.${r.skill_level_num}` : "";
+        return `<span class="skill-badge" style="background:${sc.bg};color:${sc.color};border-color:${sc.border};">🎖 ${r.skill_level}${lvStr}</span>`;
+      }
+
       function render() {
         const q = document.getElementById("search").value.toLowerCase();
         const rows = allData
@@ -396,7 +423,8 @@
               const inEffect = r.effect && r.effect.toLowerCase().includes(q);
               const inCity   = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
               const inRank   = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
-              if (!inName && !inMat && !inSub && !inEffect && !inCity && !inRank) return false;
+              const inSkill  = r.skill_level && r.skill_level.toLowerCase().includes(q);
+              if (!inName && !inMat && !inSub && !inEffect && !inCity && !inRank && !inSkill) return false;
             }
             return true;
           })
@@ -430,7 +458,9 @@
               ).join("")
             : '<span style="color:#ddd">—</span>';
 
-          // 効果 + 皇室納品情報をまとめてひとつのセルに表示
+          // ★ アイテム名セルにスキルバッジも追加
+          const skillBadgeHTML = buildSkillBadgeHTML(r);
+
           const imperialHTML = buildImperialHTML(r);
           let effectCell = "";
           if (r.effect) {
@@ -446,7 +476,11 @@
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
           tr.innerHTML = `
-            <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div><div class="item-name">${r.name}</div><span class="cat-badge">${r.category}</span></div></div></td>
+            <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div>
+              <div class="item-name">${r.name}</div>
+              <span class="cat-badge">${r.category}</span>
+              ${skillBadgeHTML ? `<div style="margin-top:4px;">${skillBadgeHTML}</div>` : ""}
+            </div></div></td>
             <td><div class="mat-list">${r.mats.map((m) => {
               const altHTML = (m.alts || []).map((a) =>
                 `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty,qty,false)}</span></div>`
