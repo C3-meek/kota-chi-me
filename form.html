@@ -75,6 +75,11 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
+      /* ── スキルレベルセレクト ── */
+      #skill-level-select {
+        background-color: #f5f4f0;
+      }
+
       /* ── 皇室納品フィールド ── */
       #imperial-section {
         background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px;
@@ -521,6 +526,20 @@
               <label>画像URL<span class="opt">任意</span></label>
               <input type="text" id="f-image" placeholder="https://i.imgur.com/..." />
             </div>
+            <!-- ★ 必要スキルレベル（画像URLの直後） -->
+            <div class="field">
+              <label>必要スキルレベル<span class="opt">任意</span></label>
+              <select id="skill-level-select">
+                <option value="">未設定</option>
+                <option value="初級">初級</option>
+                <option value="見習い">見習い</option>
+                <option value="熟練">熟練</option>
+                <option value="専門">専門</option>
+                <option value="職人">職人</option>
+                <option value="名匠">名匠</option>
+                <option value="道人">道人</option>
+              </select>
+            </div>
             <div class="field">
               <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
               <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
@@ -641,8 +660,18 @@
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      // 皇室納品が有効なシート名
       const IMPERIAL_SHEETS = ["料理", "錬金"];
+
+      // スキルレベルの色定義
+      const SKILL_LEVEL_COLORS = {
+        "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
+        "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+        "熟練":  { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
+        "専門":  { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+        "職人":  { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
+        "名匠":  { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
+        "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
+      };
 
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
@@ -670,12 +699,10 @@
           sec.classList.remove("hidden");
         } else {
           sec.classList.add("hidden");
-          // 非表示のときは値をクリア
           document.getElementById("imperial-rank-select").value = "";
           document.getElementById("imperial-qty-min").value = "";
           document.getElementById("imperial-qty-max").value = "";
         }
-        // サブカテゴリのdatalist更新（既存処理）
         updateCatDatalist(sheetName);
       }
 
@@ -1000,7 +1027,6 @@
           showToast("「" + name + "」を設定しました（副材料データなし）");
           return;
         }
-        // type === "recipe"
         let targetRecipeId = recipeId || null;
         let targetRecipeName = name;
         if (!targetRecipeId) {
@@ -1445,7 +1471,7 @@
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // フォームデータ収集（皇室納品フィールド追加）
+      // フォームデータ収集（skill_level を追加）
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1469,12 +1495,14 @@
           mats.push({ name, qty, alts });
         });
 
-        // 皇室納品情報
         const sheetName = document.getElementById("f-sheet").value;
         const isImperial = IMPERIAL_SHEETS.includes(sheetName);
         const imperialRank   = isImperial ? (document.getElementById("imperial-rank-select").value || null) : null;
         const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
+
+        // ★ skill_level 収集
+        const skillLevel = document.getElementById("skill-level-select").value || null;
 
         const data = {
           sheet_name: sheetName,
@@ -1482,6 +1510,7 @@
           category:   document.getElementById("f-category").value.trim(),
           image_url:  document.getElementById("f-image").value.trim(),
           effect:     document.getElementById("f-effect").value.trim(),
+          skill_level: skillLevel,
           imperial_rank:    imperialRank,
           imperial_qty_min: imperialQtyMin,
           imperial_qty_max: imperialQtyMax,
@@ -1526,12 +1555,21 @@
       }
 
       // ============================================================
-      // 確認画面（皇室納品情報を追加）
+      // 確認画面（skill_level 表示を追加）
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
+
+        // ★ 必要スキルレベル確認表示
+        if (d.skill_level) {
+          const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
+          html += `<div class="confirm-section"><div class="confirm-label">必要スキルレベル</div>
+            <span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}</span>
+          </div>`;
+        }
+
         if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
@@ -1541,7 +1579,6 @@
         if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
         if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
 
-        // 皇室納品確認表示
         if (d.imperial_rank || d.imperial_qty_min || d.imperial_qty_max) {
           html += `<div class="confirm-imperial">`;
           html += `<div class="confirm-imperial-title">👑 皇室納品情報</div>`;
@@ -1608,6 +1645,7 @@
       function resetForm() {
         document.getElementById("f-sheet").selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("skill-level-select").value = "";
         document.getElementById("imperial-section").classList.add("hidden");
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
@@ -1667,7 +1705,7 @@
       }
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
+        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,skill_level,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
         if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
@@ -1686,7 +1724,9 @@
         document.getElementById("f-image").value    = data.image_url|| "";
         document.getElementById("f-effect").value   = data.effect   || "";
 
-        // 皇室納品フィールドの復元
+        // ★ skill_level 復元
+        document.getElementById("skill-level-select").value = data.skill_level || "";
+
         const sec = document.getElementById("imperial-section");
         if (IMPERIAL_SHEETS.includes(sheetName)) {
           sec.classList.remove("hidden");
@@ -1746,6 +1786,7 @@
         currentEditId = null; currentEditSheet = null;
         const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
+        document.getElementById("skill-level-select").value = "";
         document.getElementById("imperial-section").classList.add("hidden");
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
