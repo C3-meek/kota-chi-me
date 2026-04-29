@@ -88,6 +88,9 @@
       .step-mats { display: flex; flex-direction: column; gap: 2px; }
       .step-mat { font-size: 12px; color: #555; display: flex; gap: 5px; align-items: center; }
       .step-mat-qty { color: #1a1a1a; font-weight: 600; }
+      /* ★ ステップ材料の代替品 */
+      .step-mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 14px; }
+      .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
       .step-connector { text-align: center; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
       .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
@@ -225,7 +228,7 @@
               recipe_subgroups(
                 id, sort_order, parent,
                 recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
-                  recipe_step_mats(sort_order, mat_name, mat_qty)
+                  recipe_step_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id)
                 )
               )
             `)
@@ -275,9 +278,24 @@
             const steps = (sg.recipe_steps || [])
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((step, si) => {
-                const stepMats = (step.recipe_step_mats || [])
-                  .sort((a, b) => a.sort_order - b.sort_order)
-                  .map((sm) => ({ name: sm.mat_name || "", qty: sm.mat_qty || "", tilde: false }));
+                // ★ step_mats を親・子（alt）に分けて構築
+                const allRawStepMats = (step.recipe_step_mats || [])
+                  .sort((a, b) => a.sort_order - b.sort_order);
+                const stepMats = allRawStepMats
+                  .filter((sm) => !sm.parent_mat_id)
+                  .map((sm) => ({
+                    name: sm.mat_name || "",
+                    qty: sm.mat_qty || "",
+                    tilde: false,
+                    alts: allRawStepMats
+                      .filter((a) => a.parent_mat_id === sm.id)
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((a) => ({
+                        connector: a.alt_connector || "あるいは",
+                        name: a.mat_name || "",
+                        qty: a.mat_qty || "",
+                      })),
+                  }));
                 return {
                   connector: si > 0 ? step.connector || "" : "",
                   proc: step.proc || "",
@@ -297,7 +315,6 @@
           imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
           imperial_qty_min: hasImperial ? (r.imperial_qty_min != null ? r.imperial_qty_min : null) : null,
           imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
-          // ★ スキルレベル
           skill_level:     r.skill_level     || "",
           skill_level_num: r.skill_level_num != null ? r.skill_level_num : null,
           tag,
@@ -399,7 +416,6 @@
         return html;
       }
 
-      // ★ スキルレベルバッジHTML生成
       function buildSkillBadgeHTML(r) {
         if (!r.skill_level) return "";
         const sc = SKILL_LEVEL_COLORS[r.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
@@ -458,9 +474,7 @@
               ).join("")
             : '<span style="color:#ddd">—</span>';
 
-          // ★ アイテム名セルにスキルバッジも追加
           const skillBadgeHTML = buildSkillBadgeHTML(r);
-
           const imperialHTML = buildImperialHTML(r);
           let effectCell = "";
           if (r.effect) {
@@ -513,9 +527,17 @@
               const stepsHTML = g.steps.map((s, si) => {
                 const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
                 const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
-                const matsHTML = s.mats.map((m) =>
-                  `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>`
-                ).join("");
+                // ★ step mats に alt 表示を追加
+                const matsHTML = s.mats.map((m) => {
+                  const altHTML = (m.alts || []).map((a) =>
+                    `<div class="step-mat-alt">
+                      <span class="step-mat-alt-connector">└ ${a.connector}</span>
+                      <span>${a.name}</span>
+                      <span class="step-mat-qty">${fmtQty(a.qty,qty,false)}</span>
+                    </div>`
+                  ).join("");
+                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>${altHTML}`;
+                }).join("");
                 const resultHTML = s.result_name
                   ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? " " + fmtQty(s.result_qty,qty,s.result_tilde) : ""}</div>`
                   : "";
