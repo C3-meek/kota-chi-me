@@ -75,7 +75,6 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
-      /* ── スキルレベル（セレクト＋数値） ── */
       .skill-level-row {
         display: flex; align-items: center; gap: 8px;
       }
@@ -98,7 +97,6 @@
       .skill-level-lv-input::-webkit-inner-spin-button { -webkit-appearance: none; }
       .skill-level-lv-input:focus { border-color: #888; background: #fff; }
 
-      /* ── 皇室納品フィールド ── */
       #imperial-section {
         background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px;
         padding: 14px 16px; margin-bottom: 14px;
@@ -544,7 +542,6 @@
               <label>画像URL<span class="opt">任意</span></label>
               <input type="text" id="f-image" placeholder="https://i.imgur.com/..." />
             </div>
-            <!-- ★ 必要スキルレベル（画像URLの直後） -->
             <div class="field">
               <label>必要スキルレベル<span class="opt">任意</span></label>
               <div class="skill-level-row">
@@ -575,7 +572,6 @@
               <textarea id="f-effect" class="effect-input" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4"></textarea>
             </div>
 
-            <!-- 皇室納品セクション（料理・錬金のみ表示） -->
             <div id="imperial-section" class="hidden">
               <div class="imperial-title">👑 皇室納品情報<span style="font-size:10px;font-weight:400;color:#bf8000;margin-left:6px">料理・錬金のみ</span></div>
               <div class="imperial-grid">
@@ -631,7 +627,8 @@
           <div class="card">
             <div class="card-title">
               <span class="num">3</span>副材料（材料の作り方）
-              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大7グループ</span>
+              <!-- ★ 上限表示を15に変更 -->
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大15グループ</span>
             </div>
             <p style="font-size:12px;color:#888;margin-bottom:14px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
             <div id="subgroup-list"></div>
@@ -687,7 +684,6 @@
 
       const IMPERIAL_SHEETS = ["料理", "錬金"];
 
-      // スキルレベルの色定義
       const SKILL_LEVEL_COLORS = {
         "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
         "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
@@ -700,7 +696,8 @@
 
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
-      const MAX_GROUPS = 7, MAX_STEPS = 10, MAX_MATS = 10,
+      // ★ MAX_GROUPS を 7 → 15 に変更
+      const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
             MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
       let matBlockCount = 0, subgroupCount = 0;
@@ -1203,7 +1200,8 @@
       // 副材料グループ
       // ============================================================
       function addSubgroup() {
-        if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大7つまでです"); return; }
+        // ★ MAX_GROUPS = 15 で判定
+        if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大15つまでです"); return; }
         subgroupCount++;
         const gid = `sg-${subgroupCount}`, panelId = `ref-panel-${gid}`;
         const div = document.createElement("div"); div.className = "subgroup"; div.id = gid;
@@ -1496,7 +1494,7 @@
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // フォームデータ収集（skill_level を追加）
+      // フォームデータ収集
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1526,7 +1524,6 @@
         const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
 
-        // ★ skill_level / skill_level_num 収集
         const skillLevel    = document.getElementById("skill-level-select").value || null;
         const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
 
@@ -1582,14 +1579,13 @@
       }
 
       // ============================================================
-      // 確認画面（skill_level 表示を追加）
+      // 確認画面
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
 
-        // ★ 必要スキルレベル確認表示
         if (d.skill_level) {
           const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
           const lvStr = d.skill_level_num ? ` Lv.${d.skill_level_num}` : "";
@@ -1753,7 +1749,6 @@
         document.getElementById("f-image").value    = data.image_url|| "";
         document.getElementById("f-effect").value   = data.effect   || "";
 
-        // ★ skill_level / skill_level_num 復元
         document.getElementById("skill-level-select").value = data.skill_level || "";
         document.getElementById("skill-level-num").value = data.skill_level_num != null ? data.skill_level_num : "";
 
