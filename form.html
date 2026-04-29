@@ -1,4 +1,6 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
+<!-- 修正内容: initCrossGroupDragSort の cloneNode/replaceWith を廃止し、
+     data属性フラグ方式に変更。Step3のnavボタンが押せなくなる問題を解消。 -->
 <!doctype html>
 <html lang="ja">
   <head>
@@ -158,7 +160,6 @@
       }
       .step-drag-handle:hover { color: #888; }
       .step-drag-handle:active { cursor: grabbing; }
-      /* グループ全体のドロップゾーン（空のとき or 末尾） */
       .step-list-wrap { position: relative; padding-left: 24px; min-height: 44px; }
       .step-list-wrap.group-drag-over { outline: 2px dashed #3a5aad; border-radius: 8px; background: #f0f4ff; }
       /* ===== /グループ間ドラッグ ===== */
@@ -586,7 +587,7 @@
             <div id="subgroup-list"></div>
             <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
           </div>
-          <div class="nav">
+          <div class="nav" id="nav-step3">
             <button class="btn-back" onclick="goStep(2)">← 戻る</button>
             <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
             <button class="btn-next" onclick="goStep(4)">次へ：確認 →</button>
@@ -674,23 +675,28 @@
         });
       }
 
+      // ============================================================
+      // [修正] initCrossGroupDragSort
+      // cloneNode/replaceWith を廃止し、data-drag-init フラグで
+      // 二重登録を防ぎながらイベントを追加する方式に変更。
+      // これにより Step3 の nav ボタン等の DOM が壊れなくなる。
+      // ============================================================
       function initCrossGroupDragSort() {
+        // wrapper ごとにフラグで二重登録を防ぐ
         document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
-          const fresh = wrapper.cloneNode(true);
-          wrapper.replaceWith(fresh);
-        });
+          if (wrapper.dataset.dragInit === '1') return;
+          wrapper.dataset.dragInit = '1';
 
-        document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
           const handle = wrapper.querySelector('.step-drag-handle');
           if (!handle) return;
           const stepId = wrapper.getAttribute('data-step-id');
-          const gid    = wrapper.getAttribute('data-gid');
+          const getGid = () => wrapper.getAttribute('data-gid');
 
           handle.addEventListener('mousedown', () => { wrapper.draggable = true; });
           handle.addEventListener('mouseup',   () => { wrapper.draggable = false; });
 
           wrapper.addEventListener('dragstart', e => {
-            _stepDrag = { wrapperEl: wrapper, stepId, fromGid: gid };
+            _stepDrag = { wrapperEl: wrapper, stepId, fromGid: getGid() };
             wrapper.classList.add('step-dragging');
             e.dataTransfer.effectAllowed = 'move';
           });
@@ -727,14 +733,16 @@
             if (!_stepDrag || _stepDrag.stepId === stepId) return;
             const above = wrapper.classList.contains('step-drop-top');
             _clearStepDropIndicators();
-            _moveStepAcrossGroups(_stepDrag, gid, stepId, above ? 'before' : 'after');
+            _moveStepAcrossGroups(_stepDrag, getGid(), stepId, above ? 'before' : 'after');
           });
         });
 
+        // step-list-wrap ごとにフラグで二重登録を防ぐ
         document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
-          const gid = listWrap.id.replace('step-list-', '');
           if (listWrap.dataset.crossDragInit === '1') return;
           listWrap.dataset.crossDragInit = '1';
+
+          const gid = listWrap.id.replace('step-list-', '');
 
           listWrap.addEventListener('dragover', e => {
             if (!_stepDrag) return;
@@ -1197,7 +1205,7 @@
       }
 
       // ============================================================
-      // [修正] fillStep: step mats の代替品(alts)も復元する
+      // fillStep: step mats の代替品(alts)も復元する
       // ============================================================
       function fillStep(gid, sid, step, hasConnector) {
         const sEl = document.getElementById(sid); if (!sEl) return;
@@ -1214,8 +1222,6 @@
         }
         const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
         const allSM = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
-
-        // [修正] parent_mat_id で親・子を分けてaltを構築してから addStepMat に渡す
         allSM.filter(m => !m.parent_mat_id).forEach(m => {
           const stepAlts = allSM
             .filter(a => a.parent_mat_id === m.id)
@@ -1353,6 +1359,7 @@
         wrapper.id = `wrapper-${sid}`;
         wrapper.setAttribute("data-step-id", sid);
         wrapper.setAttribute("data-gid", gid);
+        // [修正] drag-init フラグなし（新規なのでフラグ不要、initCrossGroupDragSort で付与される）
 
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
@@ -1761,7 +1768,15 @@
       async function goStep(n) {
         if (n === 2 && !validate1()) return;
         if (n === 3) await loadMasterList();
-        if (n === 4) buildConfirm();
+        if (n === 4) {
+          try {
+            buildConfirm();
+          } catch(e) {
+            console.error("buildConfirm error:", e);
+            showToast("確認画面の生成に失敗しました: " + e.message);
+            return;
+          }
+        }
         [1,2,3,4].forEach(i => {
           document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
           const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
@@ -1773,6 +1788,7 @@
           else { submitBtn.style.display = ""; updateBtn.style.display = "none"; }
         }
         if (n === 3) { setTimeout(initCrossGroupDragSort, 100); }
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
       function validate1() {
@@ -1814,9 +1830,6 @@
         el.innerHTML = list.map(r => `<div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')"><span class="edit-item-name">${r.name}</span><span class="edit-item-sheet">${r.sheet}</span></div>`).join("");
       }
 
-      // ============================================================
-      // [修正] loadEditRecipe: recipe_step_mats に parent_mat_id を追加
-      // ============================================================
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
         const { data } = await sb.from("recipes").select(`
