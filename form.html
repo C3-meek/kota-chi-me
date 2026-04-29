@@ -75,18 +75,10 @@
       textarea.effect-input:focus { border-color: #888; background: #fff; }
       textarea.effect-input::placeholder { color: #bbb; }
 
-      .skill-level-row {
-        display: flex; align-items: center; gap: 8px;
-      }
-      .skill-level-row select {
-        flex: 1;
-      }
-      .skill-level-lv-wrap {
-        display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-      }
-      .skill-level-lv-wrap span {
-        font-size: 13px; color: #666; white-space: nowrap; font-weight: 600;
-      }
+      .skill-level-row { display: flex; align-items: center; gap: 8px; }
+      .skill-level-row select { flex: 1; }
+      .skill-level-lv-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+      .skill-level-lv-wrap span { font-size: 13px; color: #666; white-space: nowrap; font-weight: 600; }
       .skill-level-lv-input {
         width: 64px; padding: 9px 8px; background: #f5f4f0; border: 1px solid #ddd;
         border-radius: 8px; color: #1a1a1a; font-size: 14px; text-align: center;
@@ -99,19 +91,14 @@
 
       #imperial-section {
         background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px;
-        padding: 14px 16px; margin-bottom: 14px;
-        transition: all 0.2s;
+        padding: 14px 16px; margin-bottom: 14px; transition: all 0.2s;
       }
       #imperial-section .imperial-title {
         font-size: 12px; font-weight: 700; color: #e65100; margin-bottom: 12px;
         display: flex; align-items: center; gap: 6px;
       }
-      .imperial-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-      }
-      .imperial-qty-row {
-        display: flex; align-items: center; gap: 8px;
-      }
+      .imperial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .imperial-qty-row { display: flex; align-items: center; gap: 8px; }
       .imperial-qty-row input[type="number"] {
         flex: 1; padding: 9px 10px; background: #fff; border: 1px solid #ddd;
         border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none;
@@ -121,15 +108,8 @@
       .imperial-qty-row input[type="number"]::-webkit-outer-spin-button,
       .imperial-qty-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
       .imperial-qty-row input[type="number"]:focus { border-color: #888; background: #fff; }
-      .imperial-qty-sep {
-        font-size: 16px; color: #888; font-weight: 400; white-space: nowrap; flex-shrink: 0;
-      }
-      #imperial-rank-select {
-        background-color: #fff;
-        border-color: #ffe082;
-        color: #e65100;
-        font-weight: 600;
-      }
+      .imperial-qty-sep { font-size: 16px; color: #888; font-weight: 400; white-space: nowrap; flex-shrink: 0; }
+      #imperial-rank-select { background-color: #fff; border-color: #ffe082; color: #e65100; font-weight: 600; }
 
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
@@ -144,38 +124,32 @@
       .smat-grid {
         display: grid;
         grid-template-columns: 18px 1fr 74px 46px 72px auto 32px;
-        gap: 6px;
-        align-items: center;
+        gap: 6px; align-items: center;
       }
-
       .smat-needed {
         display: flex; align-items: center; justify-content: center;
         height: 34px; padding: 0 6px;
         background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
-        font-size: 12px; font-weight: 700; color: #2e7d32;
-        white-space: nowrap;
+        font-size: 12px; font-weight: 700; color: #2e7d32; white-space: nowrap;
       }
-      .smat-needed.empty {
-        background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400;
-      }
-
+      .smat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
       .smat-mult-label {
         display: flex; align-items: center; justify-content: center;
         height: 34px; font-size: 12px; color: #888; white-space: nowrap;
       }
-
       .smat-drag-handle {
         display: flex; align-items: center; justify-content: center;
         cursor: grab; color: #bbb; font-size: 14px; user-select: none; height: 100%;
       }
-      .smat-drag-handle:active { cursor: grabbing; color: #888; }
+      .smat-drag-handle:active { cursor: grabbing; }
       .mat-block.smat-dragging { opacity: 0.4; }
       .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
 
+      /* ===== グループ間ドラッグ ===== */
       .step-drag-wrapper { position: relative; margin-bottom: 0; }
       .step-drag-wrapper.step-dragging { opacity: 0.35; }
-      .step-drag-wrapper.step-drag-over-top    { border-top:    2px solid #3a5aad; }
-      .step-drag-wrapper.step-drag-over-bottom { border-bottom: 2px solid #3a5aad; }
+      .step-drag-wrapper.step-drop-top    { border-top:    3px solid #3a5aad; }
+      .step-drag-wrapper.step-drop-bottom { border-bottom: 3px solid #3a5aad; }
       .step-drag-handle {
         position: absolute; left: -22px; top: 12px;
         display: flex; align-items: center; justify-content: center;
@@ -184,6 +158,10 @@
       }
       .step-drag-handle:hover { color: #888; }
       .step-drag-handle:active { cursor: grabbing; }
+      /* グループ全体のドロップゾーン（空のとき or 末尾） */
+      .step-list-wrap { position: relative; padding-left: 24px; min-height: 44px; }
+      .step-list-wrap.group-drag-over { outline: 2px dashed #3a5aad; border-radius: 8px; background: #f0f4ff; }
+      /* ===== /グループ間ドラッグ ===== */
 
       .alt-add-btn {
         padding: 5px 12px; border: 1px dashed #3a5aad; border-radius: 6px;
@@ -196,49 +174,30 @@
       .alt-entry {
         display: grid;
         grid-template-columns: 20px minmax(80px, auto) 1fr 90px 46px 72px 32px;
-        gap: 6px;
-        align-items: center;
+        gap: 6px; align-items: center;
         padding: 8px 12px 8px 10px;
-        background: #f0f4ff;
-        border: 1px solid #c5cfe8;
-        border-radius: 8px;
+        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
       }
-
       .alt-entry.mat-alt-entry {
         grid-template-columns: 20px minmax(80px, auto) 1fr 110px 32px;
       }
-
       .alt-tree-icon { color: #9fa8da; font-size: 14px; text-align: center; line-height: 1; }
       .alt-connector-select {
-        width: 100%;
-        min-width: 76px;
-        padding: 6px 26px 6px 8px;
-        font-size: 12px;
-        background: #fff;
-        border: 1px solid #c5cfe8;
-        border-radius: 6px;
-        color: #3a5aad;
-        font-weight: 600;
+        width: 100%; min-width: 76px; padding: 6px 26px 6px 8px; font-size: 12px;
+        background: #fff; border: 1px solid #c5cfe8; border-radius: 6px;
+        color: #3a5aad; font-weight: 600;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239fa8da' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 6px center;
-        appearance: none;
-        white-space: nowrap;
+        background-repeat: no-repeat; background-position: right 6px center;
+        appearance: none; white-space: nowrap;
       }
       .alt-entry input { background: #fff; margin: 0; }
-
-      .smat-needed.alt-badge {
-        background: #e8eaf6; border-color: #9fa8da; color: #3949ab;
-      }
-      .smat-needed.alt-badge.empty {
-        background: #f5f4f0; border-color: #e0ddd5; color: #bbb;
-      }
+      .smat-needed.alt-badge { background: #e8eaf6; border-color: #9fa8da; color: #3949ab; }
+      .smat-needed.alt-badge.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; }
 
       .del-btn {
         width: 32px; height: 32px; border-radius: 6px; border: 1px solid #eee;
         background: #fff; color: #ccc; font-size: 16px; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; transition: all 0.15s;
-        flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
       }
       .del-btn:hover { border-color: #e53935; color: #e53935; }
 
@@ -250,7 +209,6 @@
         display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
       }
       .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
-      .step-list-wrap { position: relative; padding-left: 24px; }
       .step-block {
         border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff;
       }
@@ -259,11 +217,7 @@
       }
       .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
       .result-row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
-
-      .step-target-qty {
-        text-align: right;
-        padding-right: 10px !important;
-      }
+      .step-target-qty { text-align: right; padding-right: 10px !important; }
 
       .connector-block {
         display: flex; align-items: center; gap: 8px;
@@ -557,8 +511,7 @@
                 </select>
                 <div class="skill-level-lv-wrap">
                   <span>Lv.</span>
-                  <input type="number" id="skill-level-num" class="skill-level-lv-input"
-                    min="1" max="99" placeholder="—" />
+                  <input type="number" id="skill-level-num" class="skill-level-lv-input" min="1" max="99" placeholder="—" />
                 </div>
               </div>
             </div>
@@ -597,7 +550,6 @@
                 </div>
               </div>
             </div>
-
           </div>
           <div class="nav">
             <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
@@ -629,7 +581,8 @@
               <span class="num">3</span>副材料（材料の作り方）
               <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大15グループ</span>
             </div>
-            <p style="font-size:12px;color:#888;margin-bottom:14px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
+            <p style="font-size:12px;color:#888;margin-bottom:6px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
+            <p style="font-size:11px;color:#9fa8da;margin-bottom:14px">💡 ステップの ⠿ ハンドルをドラッグすると、グループをまたいで移動できます</p>
             <div id="subgroup-list"></div>
             <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
           </div>
@@ -683,7 +636,6 @@
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
       const IMPERIAL_SHEETS = ["料理", "錬金"];
-
       const SKILL_LEVEL_COLORS = {
         "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
         "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
@@ -693,7 +645,6 @@
         "名匠":  { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
-
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
       const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
@@ -705,10 +656,173 @@
       let editRecipes = [], currentEditId = null, currentEditSheet = null;
       let cityMasterPanelOpen = false;
       let masterListCache = [];
-
       let _altUid = 0;
       const altCounts = {};
       function nextAltUid() { return ++_altUid; }
+
+      // ============================================================
+      // グローバルドラッグ状態（グループ間ステップ移動用）
+      // ============================================================
+      let _stepDrag = null; // { wrapperEl, stepId, fromGid }
+
+      function _clearStepDropIndicators() {
+        document.querySelectorAll('.step-drop-top, .step-drop-bottom').forEach(el => {
+          el.classList.remove('step-drop-top', 'step-drop-bottom');
+        });
+        document.querySelectorAll('.group-drag-over').forEach(el => {
+          el.classList.remove('group-drag-over');
+        });
+      }
+
+      /**
+       * グループ間ドラッグ＆ドロップの初期化
+       * addStep / delStep / addSubgroup / delSubgroup のたびに呼ぶ
+       */
+      function initCrossGroupDragSort() {
+        // すべてのステップwrapperにドラッグイベントを再バインド
+        document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
+          // cloneNode で古いリスナーをクリア
+          const fresh = wrapper.cloneNode(true);
+          wrapper.replaceWith(fresh);
+        });
+
+        document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
+          const handle = wrapper.querySelector('.step-drag-handle');
+          if (!handle) return;
+          const stepId = wrapper.getAttribute('data-step-id');
+          const gid    = wrapper.getAttribute('data-gid');
+
+          handle.addEventListener('mousedown', () => { wrapper.draggable = true; });
+          handle.addEventListener('mouseup',   () => { wrapper.draggable = false; });
+
+          wrapper.addEventListener('dragstart', e => {
+            _stepDrag = { wrapperEl: wrapper, stepId, fromGid: gid };
+            wrapper.classList.add('step-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+          });
+
+          wrapper.addEventListener('dragend', () => {
+            wrapper.classList.remove('step-dragging');
+            wrapper.draggable = false;
+            _clearStepDropIndicators();
+            _stepDrag = null;
+          });
+
+          wrapper.addEventListener('dragover', e => {
+            if (!_stepDrag || _stepDrag.stepId === stepId) return;
+            e.preventDefault();
+            e.stopPropagation();
+            _clearStepDropIndicators();
+            const rect = wrapper.getBoundingClientRect();
+            if (e.clientY < rect.top + rect.height / 2) {
+              wrapper.classList.add('step-drop-top');
+            } else {
+              wrapper.classList.add('step-drop-bottom');
+            }
+          });
+
+          wrapper.addEventListener('dragleave', e => {
+            if (!wrapper.contains(e.relatedTarget)) {
+              wrapper.classList.remove('step-drop-top', 'step-drop-bottom');
+            }
+          });
+
+          wrapper.addEventListener('drop', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!_stepDrag || _stepDrag.stepId === stepId) return;
+            const above = wrapper.classList.contains('step-drop-top');
+            _clearStepDropIndicators();
+            _moveStepAcrossGroups(_stepDrag, gid, stepId, above ? 'before' : 'after');
+          });
+        });
+
+        // 各グループの step-list-wrap にもドロップゾーンを設定
+        document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
+          const gid = listWrap.id.replace('step-list-', '');
+
+          // 既存リスナーをクリアするため cloneNode は使えない（子要素が消える）
+          // data属性でフラグを立てて二重登録を防ぐ
+          if (listWrap.dataset.crossDragInit === '1') return;
+          listWrap.dataset.crossDragInit = '1';
+
+          listWrap.addEventListener('dragover', e => {
+            if (!_stepDrag) return;
+            // wrapper上のdragoverで処理済みなら何もしない
+            if (e.target.closest('.step-drag-wrapper')) return;
+            e.preventDefault();
+            _clearStepDropIndicators();
+            listWrap.classList.add('group-drag-over');
+          });
+
+          listWrap.addEventListener('dragleave', e => {
+            if (!listWrap.contains(e.relatedTarget)) {
+              listWrap.classList.remove('group-drag-over');
+            }
+          });
+
+          listWrap.addEventListener('drop', e => {
+            if (!_stepDrag) return;
+            if (e.target.closest('.step-drag-wrapper')) return;
+            e.preventDefault();
+            _clearStepDropIndicators();
+            _moveStepAcrossGroups(_stepDrag, gid, null, 'end');
+          });
+        });
+      }
+
+      /**
+       * ステップのDOM移動（グループ間）
+       * @param {object} drag  - _stepDrag状態
+       * @param {string} toGid - ドロップ先グループID
+       * @param {string|null} relativeStepId - 相対ステップID（nullなら末尾）
+       * @param {string} position - 'before' | 'after' | 'end'
+       */
+      function _moveStepAcrossGroups(drag, toGid, relativeStepId, position) {
+        const { wrapperEl, stepId, fromGid } = drag;
+        const fromList = document.getElementById('step-list-' + fromGid);
+        const toList   = document.getElementById('step-list-' + toGid);
+        if (!fromList || !toList) return;
+
+        // 元グループのコネクタを除去
+        const fromConEl = document.getElementById('con-' + stepId);
+        if (fromConEl) fromConEl.remove();
+
+        // wrapperを元リストから切り離す
+        wrapperEl.remove();
+
+        // data-gid を更新
+        wrapperEl.setAttribute('data-gid', toGid);
+
+        // ドロップ先へ挿入
+        if (position === 'end' || !relativeStepId) {
+          toList.appendChild(wrapperEl);
+        } else {
+          const relWrapper = toList.querySelector(`.step-drag-wrapper[data-step-id="${relativeStepId}"]`);
+          if (!relWrapper) {
+            toList.appendChild(wrapperEl);
+          } else {
+            const relCon = document.getElementById('con-' + relativeStepId);
+            if (position === 'before') {
+              // relWrapperの前（コネクタがあればその前）に挿入
+              if (relCon) relCon.before(wrapperEl);
+              else relWrapper.before(wrapperEl);
+            } else {
+              // relWrapperの後に挿入
+              relWrapper.after(wrapperEl);
+            }
+          }
+        }
+
+        // 両グループのコネクタを再構築
+        reorderConnectors(fromGid);
+        reorderConnectors(toGid);
+        renumberSteps(fromGid);
+        renumberSteps(toGid);
+
+        // ドラッグイベントを再バインド
+        initCrossGroupDragSort();
+      }
 
       // ============================================================
       // 皇室納品セクション表示制御
@@ -1146,7 +1260,6 @@
         matBlockCount++;
         const bid = `mb-${matBlockCount}`;
         altCounts[bid] = 0;
-
         const div = document.createElement("div"); div.className = "mat-block"; div.id = bid;
         div.innerHTML = `
           <div class="mat-main-row">
@@ -1160,25 +1273,19 @@
         if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
         if (matBlockCount >= MAX_BASIC_MATS) document.getElementById("add-mat-btn").style.display = "none";
       }
-
       function delMatBlock(bid) {
-        document.getElementById(bid).remove();
-        matBlockCount--;
+        document.getElementById(bid).remove(); matBlockCount--;
         delete altCounts[bid];
         document.getElementById("add-mat-btn").style.display = "";
       }
-
       function addAltRow(bid, connector, name, qty) {
         if (!altCounts[bid]) altCounts[bid] = 0;
         if (altCounts[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         altCounts[bid]++;
-
         const uid = nextAltUid();
         const aid = `alt-${bid}-uid${uid}`;
-
         const div = document.createElement("div");
-        div.className = "alt-entry mat-alt-entry";
-        div.id = aid;
+        div.className = "alt-entry mat-alt-entry"; div.id = aid;
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -1187,12 +1294,9 @@
           <button class="del-btn" onclick="delAltRow('${bid}','${aid}')">×</button>`;
         document.getElementById(`alt-list-${bid}`).appendChild(div);
       }
-
       function delAltRow(bid, aid) {
-        const el = document.getElementById(aid);
-        if (!el) return;
-        el.remove();
-        if (altCounts[bid] > 0) altCounts[bid]--;
+        const el = document.getElementById(aid); if (!el) return;
+        el.remove(); if (altCounts[bid] > 0) altCounts[bid]--;
       }
 
       // ============================================================
@@ -1224,6 +1328,8 @@
         document.getElementById("subgroup-list").appendChild(div);
         addStep(gid);
         if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
+        // グループ追加後にドロップゾーンを初期化
+        initCrossGroupDragSort();
       }
       function delSubgroup(gid) {
         document.getElementById(gid).remove(); subgroupCount--;
@@ -1259,9 +1365,14 @@
           selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
         }
         const wrapper = document.createElement("div");
-        wrapper.className = "step-drag-wrapper"; wrapper.id = `wrapper-${sid}`; wrapper.setAttribute("data-step-id", sid);
+        wrapper.className = "step-drag-wrapper";
+        wrapper.id = `wrapper-${sid}`;
+        wrapper.setAttribute("data-step-id", sid);
+        wrapper.setAttribute("data-gid", gid); // ← グループ間移動のためgidを持つ
+
         const handle = document.createElement("div");
-        handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え"; handle.textContent = "⠿";
+        handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
+
         const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
         stepDiv.innerHTML = `
           <div class="step-header">
@@ -1303,7 +1414,9 @@
         wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
         container.appendChild(wrapper);
         addStepMat(sid);
-        initStepDragSort(gid);
+
+        // グループ間ドラッグを再バインド
+        initCrossGroupDragSort();
       }
 
       // ============================================================
@@ -1314,20 +1427,13 @@
         const targetInput = stepEl.querySelector(".step-target-qty");
         const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
         const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
-
         smlEl.querySelectorAll(":scope > .mat-block").forEach(block => {
           const qtyInput = block.querySelector(".smat-qty");
           const badge    = block.querySelector(".smat-needed");
           if (!qtyInput || !badge) return;
           const baseQty = parseFloat(qtyInput.value);
-          if (!isNaN(baseQty) && baseQty > 0) {
-            badge.textContent = `×${Math.ceil(baseQty * target)}`;
-            badge.classList.remove("empty");
-          } else {
-            badge.textContent = "—";
-            badge.classList.add("empty");
-          }
-
+          if (!isNaN(baseQty) && baseQty > 0) { badge.textContent = `×${Math.ceil(baseQty * target)}`; badge.classList.remove("empty"); }
+          else { badge.textContent = "—"; badge.classList.add("empty"); }
           const mid = block.id;
           block.querySelectorAll(`#alt-list-${mid} .alt-entry`).forEach(ae => {
             const altQtyInput = ae.querySelector(".smat-alt-qty");
@@ -1336,13 +1442,8 @@
             if (altMultEl) altMultEl.textContent = `×${target}`;
             if (altQtyInput && altBadge) {
               const altBase = parseFloat(altQtyInput.value);
-              if (!isNaN(altBase) && altBase > 0) {
-                altBadge.textContent = `×${Math.ceil(altBase * target)}`;
-                altBadge.classList.remove("empty");
-              } else {
-                altBadge.textContent = "—";
-                altBadge.classList.add("empty");
-              }
+              if (!isNaN(altBase) && altBase > 0) { altBadge.textContent = `×${Math.ceil(altBase * target)}`; altBadge.classList.remove("empty"); }
+              else { altBadge.textContent = "—"; altBadge.classList.add("empty"); }
             }
           });
         });
@@ -1354,12 +1455,15 @@
         document.getElementById(`coninput-${sid}`).value = "";
       }
       function clearPresets(sid) { const block = document.getElementById(`con-${sid}`); if (block) block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); }
+
       function delStep(sid, gid) {
         const c = document.getElementById(`con-${sid}`); if (c) c.remove();
         const w = document.getElementById(`wrapper-${sid}`); if (w) w.remove();
         if (stepCounters[gid] > 0) stepCounters[gid]--;
         renumberSteps(gid);
+        initCrossGroupDragSort();
       }
+
       function renumberSteps(gid) {
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
         [...container.querySelectorAll(":scope > .step-drag-wrapper")].forEach((w, i) => {
@@ -1367,30 +1471,18 @@
           const labelEl = stepBlock.querySelector(".step-label-text"); if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
         });
       }
-      function initStepDragSort(gid) {
-        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
-        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
-        wrappers.forEach(w => { const fresh = w.cloneNode(true); w.replaceWith(fresh); });
-        let dragSrc = null;
-        container.querySelectorAll(":scope > .step-drag-wrapper").forEach(wrapper => {
-          const handle = wrapper.querySelector(".step-drag-handle"); if (!handle) return;
-          handle.addEventListener("mousedown", () => { wrapper.draggable = true; });
-          handle.addEventListener("mouseup",   () => { wrapper.draggable = false; });
-          wrapper.addEventListener("dragstart", e => { dragSrc = wrapper; wrapper.classList.add("step-dragging"); e.dataTransfer.effectAllowed = "move"; });
-          wrapper.addEventListener("dragend",   () => { wrapper.classList.remove("step-dragging"); container.querySelectorAll(".step-drag-wrapper").forEach(w => { w.classList.remove("step-drag-over-top","step-drag-over-bottom"); w.draggable = false; }); reorderConnectors(gid); renumberSteps(gid); dragSrc = null; });
-          wrapper.addEventListener("dragover",  e => { e.preventDefault(); if (!dragSrc || dragSrc === wrapper) return; const rect = wrapper.getBoundingClientRect(); const mid = rect.top + rect.height / 2; container.querySelectorAll(".step-drag-wrapper").forEach(w => w.classList.remove("step-drag-over-top","step-drag-over-bottom")); if (e.clientY < mid) wrapper.classList.add("step-drag-over-top"); else wrapper.classList.add("step-drag-over-bottom"); });
-          wrapper.addEventListener("dragleave", () => { wrapper.classList.remove("step-drag-over-top","step-drag-over-bottom"); });
-          wrapper.addEventListener("drop",      e => { e.preventDefault(); if (!dragSrc || dragSrc === wrapper) return; wrapper.classList.remove("step-drag-over-top","step-drag-over-bottom"); const rect = wrapper.getBoundingClientRect(); const mid = rect.top + rect.height / 2; if (e.clientY < mid) wrapper.before(dragSrc); else wrapper.after(dragSrc); });
-        });
-      }
+
       function reorderConnectors(gid) {
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+        // 既存のコネクタを全削除
         [...container.querySelectorAll(":scope > .connector-block")].forEach(c => c.remove());
         const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
         wrappers.forEach((wrapper, i) => {
           const sid = wrapper.getAttribute("data-step-id");
-          if (i === 0) { const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "none"; }
-          else {
+          if (i === 0) {
+            const delBtn = wrapper.querySelector(".del-text-btn");
+            if (delBtn) delBtn.style.display = "none";
+          } else {
             let conEl = document.getElementById(`con-${sid}`);
             if (!conEl) {
               conEl = document.createElement("div"); conEl.className = "connector-block"; conEl.id = `con-${sid}`; conEl.setAttribute("data-step-id", sid);
@@ -1401,7 +1493,11 @@
             const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "";
           }
         });
-        if (wrappers.length > 0) { const firstSid = wrappers[0].getAttribute("data-step-id"); const firstCon = document.getElementById(`con-${firstSid}`); if (firstCon) firstCon.remove(); }
+        if (wrappers.length > 0) {
+          const firstSid = wrappers[0].getAttribute("data-step-id");
+          const firstCon = document.getElementById(`con-${firstSid}`);
+          if (firstCon) firstCon.remove();
+        }
       }
 
       // ============================================================
@@ -1413,14 +1509,12 @@
         stepMatCounters[sid]++;
         const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
         const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px"; div.draggable = false;
-
         const stepEl   = document.getElementById(sid);
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(matQty);
         const neededStr   = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
-
         div.innerHTML = `
           <div class="smat-grid smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
@@ -1466,14 +1560,12 @@
         if (stepMatAltCounters[mid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         stepMatAltCounters[mid]++;
         const aid = `salt-${mid}-${stepMatAltCounters[mid]}`;
-
         const stepEl   = sid ? document.getElementById(sid) : null;
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(qty);
         const neededStr   = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed alt-badge empty" : "smat-needed alt-badge";
-
         const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
         if (sid) div.setAttribute("data-sid", sid);
         div.innerHTML = `
@@ -1487,7 +1579,6 @@
           <button class="del-btn" onclick="delStepMatAlt('${mid}','${aid}')">×</button>`;
         document.getElementById(`alt-list-${mid}`).appendChild(div);
       }
-
       function updateStepNeededFromAlt(inputEl, sid) { updateStepNeeded(sid); }
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
@@ -1515,30 +1606,23 @@
           });
           mats.push({ name, qty, alts });
         });
-
         const sheetName = document.getElementById("f-sheet").value;
         const isImperial = IMPERIAL_SHEETS.includes(sheetName);
         const imperialRank   = isImperial ? (document.getElementById("imperial-rank-select").value || null) : null;
         const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
-
         const skillLevel    = document.getElementById("skill-level-select").value || null;
         const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
-
         const data = {
           sheet_name: sheetName,
           name:       document.getElementById("f-name").value.trim(),
           category:   document.getElementById("f-category").value.trim(),
           image_url:  document.getElementById("f-image").value.trim(),
           effect:     document.getElementById("f-effect").value.trim(),
-          skill_level:     skillLevel,
-          skill_level_num: skillLevelNum,
-          imperial_rank:    imperialRank,
-          imperial_qty_min: imperialQtyMin,
-          imperial_qty_max: imperialQtyMax,
+          skill_level: skillLevel, skill_level_num: skillLevelNum,
+          imperial_rank: imperialRank, imperial_qty_min: imperialQtyMin, imperial_qty_max: imperialQtyMax,
           cities, mats, subgroups: [],
         };
-
         document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
           const parent = gel.querySelector(".sg-parent").value.trim();
           const steps  = [];
@@ -1565,7 +1649,7 @@
                 const ac = ae.querySelector(".alt-connector-select").value;
                 if (an) alts.push({ connector: ac, name: an, qty: aq });
               });
-              stepMats.push({ name: n, qty: q, baseQty: q, target: target, alts });
+              stepMats.push({ name: n, qty: q, baseQty: q, target, alts });
             });
             const result_name = sel.querySelector(".step-result-name").value.trim();
             const result_qty  = sel.querySelector(".step-result-qty").value.trim();
@@ -1583,7 +1667,6 @@
         const d = collectData(); let html = "";
         html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
         html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-
         if (d.skill_level) {
           const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
           const lvStr = d.skill_level_num ? ` Lv.${d.skill_level_num}` : "";
@@ -1591,7 +1674,6 @@
             <span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}${lvStr}</span>
           </div>`;
         }
-
         if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
         if (d.cities && d.cities.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
@@ -1600,20 +1682,15 @@
         }
         if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
         if (d.image_url) html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
-
         if (d.imperial_rank || d.imperial_qty_min || d.imperial_qty_max) {
-          html += `<div class="confirm-imperial">`;
-          html += `<div class="confirm-imperial-title">👑 皇室納品情報</div>`;
-          html += `<div class="confirm-imperial-body">`;
+          html += `<div class="confirm-imperial"><div class="confirm-imperial-title">👑 皇室納品情報</div><div class="confirm-imperial-body">`;
           if (d.imperial_rank) html += `ランク：<strong>${d.imperial_rank}</strong>　`;
           if (d.imperial_qty_min || d.imperial_qty_max) {
-            const minStr = d.imperial_qty_min || "—";
-            const maxStr = d.imperial_qty_max || "—";
+            const minStr = d.imperial_qty_min || "—"; const maxStr = d.imperial_qty_max || "—";
             html += `１箱の入個数：<strong>${minStr}－上位：${maxStr}</strong>`;
           }
           html += `</div></div>`;
         }
-
         if (d.mats.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
           d.mats.forEach(m => {
@@ -1665,33 +1742,19 @@
         else { showToast("✓ 保存しました！"); setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = "✓ 保存する"; }, 1500); }
       }
 
-      // ★ 修正: updateCurrentRecipe — currentEditId チェックを強化し、ボタン状態管理を統一
       async function updateCurrentRecipe() {
-        if (!currentEditId) {
-          showToast("編集対象が選択されていません");
-          return;
-        }
+        if (!currentEditId) { showToast("編集対象が選択されていません"); return; }
         const data = collectData();
         if (!data.name) { showToast("アイテム名がありません"); return; }
-
-        // すべての更新ボタンを無効化
         const allUpdateBtns = document.querySelectorAll(".edit-only-btn");
         allUpdateBtns.forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
-
         try {
           const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
-          if (error) {
-            showToast("エラー: " + error.message);
-          } else {
-            showToast("✓ 更新しました");
-            editRecipes = [];
-            await loadMasterList();
-            clearEditForm();
-          }
+          if (error) { showToast("エラー: " + error.message); }
+          else { showToast("✓ 更新しました"); editRecipes = []; await loadMasterList(); clearEditForm(); }
         } catch (e) {
           showToast("エラー: " + e.message);
         } finally {
-          // ボタンを元に戻す（clearEditForm で非表示になるが念のため）
           allUpdateBtns.forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
         }
       }
@@ -1709,6 +1772,7 @@
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
         for (const k in altCounts) delete altCounts[k];
+        _stepDrag = null;
         addMatBlock(); goStep(1);
       }
 
@@ -1720,19 +1784,14 @@
           document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
           const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
         });
-
-        // ★ ステップ4では submit-btn と step4-update-btn の表示を currentEditId に応じて切り替え
         if (n === 4) {
           const submitBtn = document.getElementById("submit-btn");
           const updateBtn = document.getElementById("step4-update-btn");
-          if (currentEditId) {
-            submitBtn.style.display = "none";
-            updateBtn.style.display = "";
-          } else {
-            submitBtn.style.display = "";
-            updateBtn.style.display = "none";
-          }
+          if (currentEditId) { submitBtn.style.display = "none"; updateBtn.style.display = ""; }
+          else { submitBtn.style.display = ""; updateBtn.style.display = "none"; }
         }
+        // Step3に移動したときドラッグを再バインド
+        if (n === 3) { setTimeout(initCrossGroupDragSort, 100); }
       }
 
       function validate1() {
@@ -1780,7 +1839,6 @@
         fillEditForm(data, sheetName);
       }
 
-      // ★ 修正: fillEditForm — ステップ4ボタン操作を削除し、edit-only-btn の表示のみ管理
       function fillEditForm(data, sheetName) {
         document.getElementById("edit-form-area").style.display = "";
         document.getElementById("edit-list").style.display = "none";
@@ -1790,15 +1848,14 @@
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
         for (const k in altCounts) delete altCounts[k];
+        _stepDrag = null;
         document.getElementById("f-sheet").value    = sheetName;
         document.getElementById("f-name").value     = data.name     || "";
         document.getElementById("f-category").value = data.category || "";
         document.getElementById("f-image").value    = data.image_url|| "";
         document.getElementById("f-effect").value   = data.effect   || "";
-
         document.getElementById("skill-level-select").value = data.skill_level || "";
         document.getElementById("skill-level-num").value = data.skill_level_num != null ? data.skill_level_num : "";
-
         const sec = document.getElementById("imperial-section");
         if (IMPERIAL_SHEETS.includes(sheetName)) {
           sec.classList.remove("hidden");
@@ -1811,7 +1868,6 @@
           document.getElementById("imperial-qty-min").value = "";
           document.getElementById("imperial-qty-max").value = "";
         }
-
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
         const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
@@ -1831,11 +1887,8 @@
             fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
           });
         });
-
-        // ★ edit-only-btn を表示、submit-btn を非表示にする
         document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = ""; b.disabled = false; b.textContent = "✏ 更新する"; });
         document.getElementById("submit-btn").style.display = "none";
-
         goStep(1);
         showToast(`「${data.name}」を読み込みました`);
       }
@@ -1850,7 +1903,7 @@
       }
 
       function clearEditForm() {
-        currentEditId = null; currentEditSheet = null;
+        currentEditId = null; currentEditSheet = null; _stepDrag = null;
         const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
         document.getElementById("skill-level-select").value = "";
@@ -1868,13 +1921,10 @@
         document.getElementById("edit-search").parentElement.style.display = "";
         document.getElementById("edit-form-area").style.display = "none";
         document.getElementById("area-new").style.display = "none";
-
-        // ★ edit-only-btn を非表示、submit-btn を表示に戻す
         document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = "none"; b.disabled = false; b.textContent = "✏ 更新する"; });
         document.getElementById("submit-btn").style.display = "";
         document.getElementById("submit-btn").disabled = false;
         document.getElementById("submit-btn").textContent = "✓ 保存する";
-
         document.getElementById("edit-search").value = ""; document.getElementById("edit-sheet-filter").value = "";
         if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
       }
