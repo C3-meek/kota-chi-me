@@ -627,7 +627,6 @@
           <div class="card">
             <div class="card-title">
               <span class="num">3</span>副材料（材料の作り方）
-              <!-- ★ 上限表示を15に変更 -->
               <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大15グループ</span>
             </div>
             <p style="font-size:12px;color:#888;margin-bottom:14px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
@@ -649,6 +648,7 @@
           </div>
           <div class="nav">
             <button class="btn-back" onclick="goStep(3)">← 戻る</button>
+            <button class="btn-submit edit-only-btn" id="step4-update-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
             <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">✓ 保存する</button>
           </div>
         </div>
@@ -696,7 +696,6 @@
 
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
-      // ★ MAX_GROUPS を 7 → 15 に変更
       const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
             MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
@@ -1200,7 +1199,6 @@
       // 副材料グループ
       // ============================================================
       function addSubgroup() {
-        // ★ MAX_GROUPS = 15 で判定
         if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大15つまでです"); return; }
         subgroupCount++;
         const gid = `sg-${subgroupCount}`, panelId = `ref-panel-${gid}`;
@@ -1666,6 +1664,38 @@
         if (error) { showToast("エラー: " + error.message); btn.disabled = false; btn.textContent = "✓ 保存する"; }
         else { showToast("✓ 保存しました！"); setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = "✓ 保存する"; }, 1500); }
       }
+
+      // ★ 修正: updateCurrentRecipe — currentEditId チェックを強化し、ボタン状態管理を統一
+      async function updateCurrentRecipe() {
+        if (!currentEditId) {
+          showToast("編集対象が選択されていません");
+          return;
+        }
+        const data = collectData();
+        if (!data.name) { showToast("アイテム名がありません"); return; }
+
+        // すべての更新ボタンを無効化
+        const allUpdateBtns = document.querySelectorAll(".edit-only-btn");
+        allUpdateBtns.forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
+
+        try {
+          const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
+          if (error) {
+            showToast("エラー: " + error.message);
+          } else {
+            showToast("✓ 更新しました");
+            editRecipes = [];
+            await loadMasterList();
+            clearEditForm();
+          }
+        } catch (e) {
+          showToast("エラー: " + e.message);
+        } finally {
+          // ボタンを元に戻す（clearEditForm で非表示になるが念のため）
+          allUpdateBtns.forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
+        }
+      }
+
       function resetForm() {
         document.getElementById("f-sheet").selectedIndex = 0;
         ["f-name","f-category","f-image","f-effect"].forEach(id => (document.getElementById(id).value = ""));
@@ -1681,6 +1711,7 @@
         for (const k in altCounts) delete altCounts[k];
         addMatBlock(); goStep(1);
       }
+
       async function goStep(n) {
         if (n === 2 && !validate1()) return;
         if (n === 3) await loadMasterList();
@@ -1689,7 +1720,21 @@
           document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
           const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
         });
+
+        // ★ ステップ4では submit-btn と step4-update-btn の表示を currentEditId に応じて切り替え
+        if (n === 4) {
+          const submitBtn = document.getElementById("submit-btn");
+          const updateBtn = document.getElementById("step4-update-btn");
+          if (currentEditId) {
+            submitBtn.style.display = "none";
+            updateBtn.style.display = "";
+          } else {
+            submitBtn.style.display = "";
+            updateBtn.style.display = "none";
+          }
+        }
       }
+
       function validate1() {
         if (!document.getElementById("f-sheet").value) { showToast("カテゴリ（シート）を選択してください"); return false; }
         if (!document.getElementById("f-name").value.trim()) { showToast("アイテム名を入力してください"); return false; }
@@ -1734,6 +1779,8 @@
         if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
+
+      // ★ 修正: fillEditForm — ステップ4ボタン操作を削除し、edit-only-btn の表示のみ管理
       function fillEditForm(data, sheetName) {
         document.getElementById("edit-form-area").style.display = "";
         document.getElementById("edit-list").style.display = "none";
@@ -1784,21 +1831,15 @@
             fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
           });
         });
+
+        // ★ edit-only-btn を表示、submit-btn を非表示にする
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = ""; b.disabled = false; b.textContent = "✏ 更新する"; });
+        document.getElementById("submit-btn").style.display = "none";
+
         goStep(1);
-        const sb4 = document.querySelector("#page-4 .btn-submit");
-        if (sb4) { sb4.textContent = "✏ 更新する"; sb4.onclick = updateCurrentRecipe; }
-        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = ""));
         showToast(`「${data.name}」を読み込みました`);
       }
-      async function updateCurrentRecipe() {
-        if (!currentEditId) return;
-        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
-        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
-        const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
-        document.querySelectorAll(".edit-only-btn").forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
-        if (error) { showToast("エラー: " + error.message); }
-        else { showToast("更新しました"); editRecipes = []; await loadMasterList(); clearEditForm(); }
-      }
+
       async function deleteCurrentRecipe() {
         if (!currentEditId) return;
         const name = document.getElementById("f-name").value;
@@ -1807,6 +1848,7 @@
         if (error) { showToast("エラー: " + error.message); }
         else { showToast("削除しました"); editRecipes = []; clearEditForm(); switchTab("edit"); await loadEditList(); }
       }
+
       function clearEditForm() {
         currentEditId = null; currentEditSheet = null;
         const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
@@ -1826,9 +1868,13 @@
         document.getElementById("edit-search").parentElement.style.display = "";
         document.getElementById("edit-form-area").style.display = "none";
         document.getElementById("area-new").style.display = "none";
-        const sb4 = document.querySelector("#page-4 .btn-submit");
-        if (sb4) { sb4.textContent = "✓ 保存する"; sb4.onclick = submitRecipe; }
-        document.querySelectorAll(".edit-only-btn").forEach(b => (b.style.display = "none"));
+
+        // ★ edit-only-btn を非表示、submit-btn を表示に戻す
+        document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = "none"; b.disabled = false; b.textContent = "✏ 更新する"; });
+        document.getElementById("submit-btn").style.display = "";
+        document.getElementById("submit-btn").disabled = false;
+        document.getElementById("submit-btn").textContent = "✓ 保存する";
+
         document.getElementById("edit-search").value = ""; document.getElementById("edit-sheet-filter").value = "";
         if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
       }
