@@ -663,7 +663,7 @@
       // ============================================================
       // グローバルドラッグ状態（グループ間ステップ移動用）
       // ============================================================
-      let _stepDrag = null; // { wrapperEl, stepId, fromGid }
+      let _stepDrag = null;
 
       function _clearStepDropIndicators() {
         document.querySelectorAll('.step-drop-top, .step-drop-bottom').forEach(el => {
@@ -674,14 +674,8 @@
         });
       }
 
-      /**
-       * グループ間ドラッグ＆ドロップの初期化
-       * addStep / delStep / addSubgroup / delSubgroup のたびに呼ぶ
-       */
       function initCrossGroupDragSort() {
-        // すべてのステップwrapperにドラッグイベントを再バインド
         document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
-          // cloneNode で古いリスナーをクリア
           const fresh = wrapper.cloneNode(true);
           wrapper.replaceWith(fresh);
         });
@@ -737,18 +731,13 @@
           });
         });
 
-        // 各グループの step-list-wrap にもドロップゾーンを設定
         document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
           const gid = listWrap.id.replace('step-list-', '');
-
-          // 既存リスナーをクリアするため cloneNode は使えない（子要素が消える）
-          // data属性でフラグを立てて二重登録を防ぐ
           if (listWrap.dataset.crossDragInit === '1') return;
           listWrap.dataset.crossDragInit = '1';
 
           listWrap.addEventListener('dragover', e => {
             if (!_stepDrag) return;
-            // wrapper上のdragoverで処理済みなら何もしない
             if (e.target.closest('.step-drag-wrapper')) return;
             e.preventDefault();
             _clearStepDropIndicators();
@@ -771,30 +760,18 @@
         });
       }
 
-      /**
-       * ステップのDOM移動（グループ間）
-       * @param {object} drag  - _stepDrag状態
-       * @param {string} toGid - ドロップ先グループID
-       * @param {string|null} relativeStepId - 相対ステップID（nullなら末尾）
-       * @param {string} position - 'before' | 'after' | 'end'
-       */
       function _moveStepAcrossGroups(drag, toGid, relativeStepId, position) {
         const { wrapperEl, stepId, fromGid } = drag;
         const fromList = document.getElementById('step-list-' + fromGid);
         const toList   = document.getElementById('step-list-' + toGid);
         if (!fromList || !toList) return;
 
-        // 元グループのコネクタを除去
         const fromConEl = document.getElementById('con-' + stepId);
         if (fromConEl) fromConEl.remove();
 
-        // wrapperを元リストから切り離す
         wrapperEl.remove();
-
-        // data-gid を更新
         wrapperEl.setAttribute('data-gid', toGid);
 
-        // ドロップ先へ挿入
         if (position === 'end' || !relativeStepId) {
           toList.appendChild(wrapperEl);
         } else {
@@ -804,23 +781,18 @@
           } else {
             const relCon = document.getElementById('con-' + relativeStepId);
             if (position === 'before') {
-              // relWrapperの前（コネクタがあればその前）に挿入
               if (relCon) relCon.before(wrapperEl);
               else relWrapper.before(wrapperEl);
             } else {
-              // relWrapperの後に挿入
               relWrapper.after(wrapperEl);
             }
           }
         }
 
-        // 両グループのコネクタを再構築
         reorderConnectors(fromGid);
         reorderConnectors(toGid);
         renumberSteps(fromGid);
         renumberSteps(toGid);
-
-        // ドラッグイベントを再バインド
         initCrossGroupDragSort();
       }
 
@@ -1223,6 +1195,10 @@
         Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
         Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
       }
+
+      // ============================================================
+      // [修正] fillStep: step mats の代替品(alts)も復元する
+      // ============================================================
       function fillStep(gid, sid, step, hasConnector) {
         const sEl = document.getElementById(sid); if (!sEl) return;
         sEl.querySelector(".step-proc").value        = step.proc || "";
@@ -1238,8 +1214,17 @@
         }
         const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
         const allSM = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+
+        // [修正] parent_mat_id で親・子を分けてaltを構築してから addStepMat に渡す
         allSM.filter(m => !m.parent_mat_id).forEach(m => {
-          const stepAlts = allSM.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
+          const stepAlts = allSM
+            .filter(a => a.parent_mat_id === m.id)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map(a => ({
+              connector: a.alt_connector || "あるいは",
+              name: a.mat_name || "",
+              qty: a.mat_qty || ""
+            }));
           addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
         });
       }
@@ -1328,7 +1313,6 @@
         document.getElementById("subgroup-list").appendChild(div);
         addStep(gid);
         if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
-        // グループ追加後にドロップゾーンを初期化
         initCrossGroupDragSort();
       }
       function delSubgroup(gid) {
@@ -1368,7 +1352,7 @@
         wrapper.className = "step-drag-wrapper";
         wrapper.id = `wrapper-${sid}`;
         wrapper.setAttribute("data-step-id", sid);
-        wrapper.setAttribute("data-gid", gid); // ← グループ間移動のためgidを持つ
+        wrapper.setAttribute("data-gid", gid);
 
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
@@ -1415,7 +1399,6 @@
         container.appendChild(wrapper);
         addStepMat(sid);
 
-        // グループ間ドラッグを再バインド
         initCrossGroupDragSort();
       }
 
@@ -1474,7 +1457,6 @@
 
       function reorderConnectors(gid) {
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
-        // 既存のコネクタを全削除
         [...container.querySelectorAll(":scope > .connector-block")].forEach(c => c.remove());
         const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
         wrappers.forEach((wrapper, i) => {
@@ -1790,7 +1772,6 @@
           if (currentEditId) { submitBtn.style.display = "none"; updateBtn.style.display = ""; }
           else { submitBtn.style.display = ""; updateBtn.style.display = "none"; }
         }
-        // Step3に移動したときドラッグを再バインド
         if (n === 3) { setTimeout(initCrossGroupDragSort, 100); }
       }
 
@@ -1832,9 +1813,26 @@
         if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>'; return; }
         el.innerHTML = list.map(r => `<div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')"><span class="edit-item-name">${r.name}</span><span class="edit-item-sheet">${r.sheet}</span></div>`).join("");
       }
+
+      // ============================================================
+      // [修正] loadEditRecipe: recipe_step_mats に parent_mat_id を追加
+      // ============================================================
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        const { data } = await sb.from("recipes").select(`id,name,category,image_url,effect,skill_level,skill_level_num,imperial_rank,imperial_qty_min,imperial_qty_max,sheets(name),recipe_cities(sort_order,city_name,city_level),recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),recipe_subgroups(id,sort_order,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)))`).eq("id", id).single();
+        const { data } = await sb.from("recipes").select(`
+          id,name,category,image_url,effect,skill_level,skill_level_num,
+          imperial_rank,imperial_qty_min,imperial_qty_max,
+          sheets(name),
+          recipe_cities(sort_order,city_name,city_level),
+          recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),
+          recipe_subgroups(
+            id,sort_order,parent,
+            recipe_steps(
+              id,sort_order,connector,proc,result_name,result_qty,
+              recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)
+            )
+          )
+        `).eq("id", id).single();
         if (!data) { showToast("データが見つかりません"); return; }
         fillEditForm(data, sheetName);
       }
