@@ -1,4 +1,10 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
+<!-- 修正内容:
+  index.html:
+  ステップ材料の数量表示を「基準量 × result_qty × ユーザー作成個数」に修正。
+  DBには基準量のみ保存されており、result_qty（ステップ目標個数）を掛けて
+  正しい必要量を計算して表示する。
+-->
 <!doctype html>
 <html lang="ja">
   <head>
@@ -49,7 +55,6 @@
       .mat-qty { color: #1a1a1a; font-weight: 600; }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
-      /* 皇室納品バッジ */
       .imperial-badge {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600;
@@ -61,13 +66,11 @@
         display: flex; align-items: center; gap: 3px;
       }
       .imperial-qty-num { font-weight: 700; color: #e65100; }
-      /* ★ 必要スキルレベルバッジ */
       .skill-badge {
         display: inline-flex; align-items: center; gap: 4px;
         padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700;
         margin-top: 4px; white-space: nowrap; border: 1px solid;
       }
-      /* 作成個数入力 */
       input.qty-input {
         width: 72px; padding: 5px 4px 5px 8px; background: #f5f4f0; border: 1px solid #ddd;
         border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center;
@@ -88,7 +91,6 @@
       .step-mats { display: flex; flex-direction: column; gap: 2px; }
       .step-mat { font-size: 12px; color: #555; display: flex; gap: 5px; align-items: center; }
       .step-mat-qty { color: #1a1a1a; font-weight: 600; }
-      /* ★ ステップ材料の代替品 */
       .step-mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 14px; }
       .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
@@ -176,7 +178,6 @@
       const quantities = {};
       const expanded = {};
 
-      // ★ スキルレベルの色定義
       const SKILL_LEVEL_COLORS = {
         "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
         "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
@@ -187,11 +188,18 @@
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
 
-      function fmtQty(raw, multiplier, tilde) {
+      // ============================================================
+      // [修正] fmtQty
+      // 表示側のステップ材料数量計算:
+      //   基準量(raw) × stepTarget(ステップのresult_qty) × userQty(作成個数)
+      // stepTarget は parseRecipe 時に step.result_qty から取得して渡す。
+      // ユーザー作成個数(multiplier)はそのまま外から渡される。
+      // ============================================================
+      function fmtQty(raw, multiplier) {
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
         const num = parseFloat(s);
-        if (!isNaN(num)) return `×${num * multiplier}${tilde ? "～" : ""}`;
+        if (!isNaN(num) && num > 0) return `×${Math.ceil(num * multiplier)}`;
         return s;
       }
 
@@ -262,7 +270,6 @@
           .map((m) => ({
             name: m.mat_name || "",
             qty: m.mat_qty || "",
-            tilde: false,
             alts: allRawMats
               .filter((a) => a.parent_mat_id === m.id)
               .sort((a, b) => a.sort_order - b.sort_order)
@@ -278,22 +285,26 @@
             const steps = (sg.recipe_steps || [])
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((step, si) => {
-                // ★ step_mats を親・子（alt）に分けて構築
+                // [修正] result_qty をステップの目標個数として保持
+                // DBには基準量のみ保存。表示時に基準量 × result_qty × ユーザー作成個数 で計算する。
+                const stepTarget = Math.max(1, parseFloat(step.result_qty) || 1);
+
                 const allRawStepMats = (step.recipe_step_mats || [])
                   .sort((a, b) => a.sort_order - b.sort_order);
                 const stepMats = allRawStepMats
                   .filter((sm) => !sm.parent_mat_id)
                   .map((sm) => ({
                     name: sm.mat_name || "",
-                    qty: sm.mat_qty || "",
-                    tilde: false,
+                    baseQty: sm.mat_qty || "",   // 基準量（そのまま保存）
+                    stepTarget,                   // ステップの目標個数
                     alts: allRawStepMats
                       .filter((a) => a.parent_mat_id === sm.id)
                       .sort((a, b) => a.sort_order - b.sort_order)
                       .map((a) => ({
                         connector: a.alt_connector || "あるいは",
                         name: a.mat_name || "",
-                        qty: a.mat_qty || "",
+                        baseQty: a.mat_qty || "",
+                        stepTarget,
                       })),
                   }));
                 return {
@@ -302,7 +313,7 @@
                   mats: stepMats,
                   result_name: step.result_name || "",
                   result_qty: step.result_qty || "",
-                  result_tilde: false,
+                  stepTarget,
                 };
               });
             return { parent: sg.parent || "", steps };
@@ -489,18 +500,21 @@
 
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
+          // 製作材料（レシピ直の材料）: 基準量 × ユーザー作成個数
+          const matsHTML = r.mats.map((m) => {
+            const altHTML = (m.alts || []).map((a) =>
+              `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty)}</span></div>`
+            ).join("");
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>${altHTML}`;
+          }).join("");
+
           tr.innerHTML = `
             <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div>
               <div class="item-name">${r.name}</div>
               <span class="cat-badge">${r.category}</span>
               ${skillBadgeHTML ? `<div style="margin-top:4px;">${skillBadgeHTML}</div>` : ""}
             </div></div></td>
-            <td><div class="mat-list">${r.mats.map((m) => {
-              const altHTML = (m.alts || []).map((a) =>
-                `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty,qty,false)}</span></div>`
-              ).join("");
-              return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>${altHTML}`;
-            }).join("")}</div></td>
+            <td><div class="mat-list">${matsHTML}</div></td>
             <td>${effectCell}</td>
             <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
             <td>
@@ -527,19 +541,33 @@
               const stepsHTML = g.steps.map((s, si) => {
                 const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
                 const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
-                // ★ step mats に alt 表示を追加
+
+                // [修正] ステップ材料の数量計算:
+                //   DBに保存されているのは「基準量」のみ。
+                //   表示に必要な量 = 基準量 × stepTarget(result_qty) × ユーザー作成個数(qty)
+                const stepMultiplier = s.stepTarget * qty;
+
                 const matsHTML = s.mats.map((m) => {
                   const altHTML = (m.alts || []).map((a) =>
                     `<div class="step-mat-alt">
                       <span class="step-mat-alt-connector">└ ${a.connector}</span>
                       <span>${a.name}</span>
-                      <span class="step-mat-qty">${fmtQty(a.qty,qty,false)}</span>
+                      <span class="step-mat-qty">${fmtQty(a.baseQty, stepMultiplier)}</span>
                     </div>`
                   ).join("");
-                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.qty,qty,m.tilde)}</span></div>${altHTML}`;
+                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.baseQty, stepMultiplier)}</span></div>${altHTML}`;
                 }).join("");
+
+                // result_qty の表示: ユーザー作成個数分を掛けた結果個数
+                const resultQtyDisplay = s.result_qty
+                  ? (() => {
+                      const rq = parseFloat(s.result_qty);
+                      return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`;
+                    })()
+                  : "";
+
                 const resultHTML = s.result_name
-                  ? `<div class="step-result">→ ${s.result_name}${s.result_qty ? " " + fmtQty(s.result_qty,qty,s.result_tilde) : ""}</div>`
+                  ? `<div class="step-result">→ ${s.result_name}${resultQtyDisplay}</div>`
                   : "";
                 return `${connectorHTML}<div class="sub-step">${procHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
               }).join("");
