@@ -1,10 +1,12 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - recipe_mats に mat_proc（製作方法）フィールドを追加
-  - Step2の各材料ブロックに「製作方法」入力欄を追加（プリセット選択＋自由入力）
-  - collectData で mat_proc を収集
-  - buildConfirm で mat_proc を表示
-  - fillEditForm / loadEditRecipe で mat_proc を復元
+  - recipe_mats の mat_proc を廃止
+  - recipes に recipe_proc（レシピ全体の製作方法）を追加
+  - Step1 の基本情報カードに「製作方法」入力欄を追加（プリセット選択＋自由入力）
+  - Step2 の各材料ブロックから「製作方法」欄を削除
+  - collectData で recipe_proc を収集（mats の proc は削除）
+  - buildConfirm で recipe_proc を表示
+  - fillEditForm / loadEditRecipe で recipe_proc を復元
   ※ その他は既存のまま維持
 -->
 <!doctype html>
@@ -120,16 +122,16 @@
       #imperial-rank-select { background-color: #fff; border-color: #ffe082; color: #e65100; font-weight: 600; }
 
       /* ============================================================
-         製作方法プリセット行
+         製作方法プリセット行（レシピ全体用）
          ============================================================ */
-      .mat-proc-row {
+      .recipe-proc-row {
         display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
-        margin-top: 7px; padding: 8px 10px;
+        padding: 10px 12px;
         background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
       }
-      .mat-proc-label {
-        font-size: 10px; font-weight: 700; color: #3a5aad;
-        white-space: nowrap; margin-right: 2px;
+      .recipe-proc-label {
+        font-size: 11px; font-weight: 700; color: #3a5aad;
+        white-space: nowrap; margin-right: 4px; width: 100%; margin-bottom: 4px;
       }
       .proc-preset-btn {
         padding: 3px 9px; border: 1px solid #c5cfe8; border-radius: 14px;
@@ -139,7 +141,7 @@
       .proc-preset-btn:hover { border-color: #3a5aad; background: #e8eaf6; }
       .proc-preset-btn.selected { background: #3a5aad; color: #fff; border-color: #3a5aad; }
       .proc-custom-input {
-        flex: 1; min-width: 100px; padding: 4px 8px;
+        flex: 1; min-width: 120px; padding: 4px 8px;
         border: 1px solid #c5cfe8; border-radius: 6px;
         background: #fff; color: #1a1a1a; font-size: 12px; outline: none;
         transition: border-color 0.2s;
@@ -317,9 +319,12 @@
       }
       .confirm-mat-alt .alt-connector { font-size: 10px; color: #9fa8da; }
       .confirm-step { background: #f5f4f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; }
-      .confirm-proc {
-        font-size: 10px; display: inline-block; padding: 1px 6px; border-radius: 4px;
-        background: #e8e6e0; color: #666; margin-bottom: 4px;
+      /* ★ 確認画面の製作方法バッジ（レシピ全体） */
+      .confirm-recipe-proc {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
+        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
+        white-space: nowrap; vertical-align: middle;
       }
       .confirm-result {
         font-size: 12px; color: #2e7d32; font-weight: 600;
@@ -332,12 +337,6 @@
       }
       .confirm-imperial-title { font-size: 11px; font-weight: 700; color: #e65100; margin-bottom: 6px; }
       .confirm-imperial-body { font-size: 13px; color: #1a1a1a; }
-      /* 確認画面の製作方法バッジ */
-      .confirm-mat-proc {
-        display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px;
-        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
-        margin-left: 5px; white-space: nowrap; vertical-align: middle;
-      }
       .toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
         background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
@@ -560,6 +559,27 @@
                 </div>
               </div>
             </div>
+
+            <!-- ★ 製作方法（レシピ全体） -->
+            <div class="field">
+              <label>製作方法<span class="opt">任意・このレシピ全体の加工方法</span></label>
+              <div class="recipe-proc-row" id="recipe-proc-row">
+                <span class="recipe-proc-label">⚙ プリセットから選択、または自由入力：</span>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶粉砕',this)">L:加工▶粉砕</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶乾燥',this)">L:加工▶乾燥</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶加熱',this)">L:加工▶加熱</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶ろ過',this)">L:加工▶ろ過</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶錬金',this)">L:加工▶錬金</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶切断',this)">L:加工▶切断</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('料理道具',this)">料理道具</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('錬金道具',this)">錬金道具</button>
+                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('製作所',this)">製作所</button>
+                <input type="text" id="recipe-proc-custom" class="proc-custom-input"
+                  placeholder="自由入力..." oninput="clearRecipeProcPresets()">
+                <button type="button" class="proc-clear-btn" onclick="clearRecipeProc()">✕ クリア</button>
+              </div>
+            </div>
+
             <div class="field">
               <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
               <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
@@ -607,7 +627,7 @@
           <div class="card">
             <div class="card-title">
               <span class="num">2</span>製作材料
-              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に製作方法・代替品を追加可</span>
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に代替品を追加可</span>
             </div>
             <div id="mat-block-list"></div>
             <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">＋ 材料を追加</button>
@@ -692,11 +712,7 @@
       };
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
-      // ★ 製作方法プリセット
-      const MAT_PROC_PRESETS = [
-        "L:加工▶粉砕", "L:加工▶乾燥", "L:加工▶加熱", "L:加工▶ろ過",
-        "L:加工▶錬金", "L:加工▶切断", "料理道具", "錬金道具", "製作所",
-      ];
+
       const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
             MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
@@ -837,6 +853,40 @@
         [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
           const o = document.createElement("option"); o.value = c; dl.appendChild(o);
         });
+      }
+
+      // ============================================================
+      // ★ 製作方法（レシピ全体）操作
+      // ============================================================
+      function selectRecipeProc(val, btn) {
+        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        document.getElementById("recipe-proc-custom").value = "";
+      }
+      function clearRecipeProcPresets() {
+        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
+      }
+      function clearRecipeProc() {
+        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
+        document.getElementById("recipe-proc-custom").value = "";
+      }
+      function getRecipeProc() {
+        const sel = document.querySelector("#recipe-proc-row .proc-preset-btn.selected");
+        if (sel) return sel.textContent;
+        const custom = document.getElementById("recipe-proc-custom");
+        return custom ? custom.value.trim() : "";
+      }
+      function setRecipeProc(val) {
+        if (!val) { clearRecipeProc(); return; }
+        // プリセットに一致するか確認
+        let matched = false;
+        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => {
+          if (b.textContent === val) { b.classList.add("selected"); matched = true; }
+          else b.classList.remove("selected");
+        });
+        if (!matched) {
+          document.getElementById("recipe-proc-custom").value = val;
+        }
       }
 
       // ============================================================
@@ -1191,53 +1241,9 @@
       }
 
       // ============================================================
-      // ★ 製作方法プリセット行 HTML ビルダー
+      // 製作材料ブロック（Step2）★ mat_proc 欄を削除
       // ============================================================
-      function buildMatProcRow(bid, currentProc) {
-        const presetBtns = MAT_PROC_PRESETS.map(p => {
-          const sel = (p === currentProc) ? " selected" : "";
-          return `<button type="button" class="proc-preset-btn${sel}" onclick="selectMatProc('${bid}','${p}',this)">${p}</button>`;
-        }).join("");
-        return `<div class="mat-proc-row" id="proc-row-${bid}">
-          <span class="mat-proc-label">⚙ 製作方法：</span>
-          ${presetBtns}
-          <input type="text" class="proc-custom-input mat-proc-input" id="proc-input-${bid}"
-            placeholder="自由入力..." value="${escVal(currentProc && !MAT_PROC_PRESETS.includes(currentProc) ? currentProc : '')}"
-            oninput="clearMatProcPresets('${bid}')">
-          <button type="button" class="proc-clear-btn" onclick="clearMatProc('${bid}')">✕ クリア</button>
-        </div>`;
-      }
-
-      function selectMatProc(bid, val, btn) {
-        const row = document.getElementById(`proc-row-${bid}`);
-        row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        const inp = document.getElementById(`proc-input-${bid}`);
-        if (inp) inp.value = "";
-      }
-      function clearMatProcPresets(bid) {
-        const row = document.getElementById(`proc-row-${bid}`);
-        if (row) row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
-      }
-      function clearMatProc(bid) {
-        const row = document.getElementById(`proc-row-${bid}`);
-        if (row) row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
-        const inp = document.getElementById(`proc-input-${bid}`);
-        if (inp) inp.value = "";
-      }
-      function getMatProc(bid) {
-        const row = document.getElementById(`proc-row-${bid}`);
-        if (!row) return "";
-        const sel = row.querySelector(".proc-preset-btn.selected");
-        if (sel) return sel.textContent;
-        const inp = document.getElementById(`proc-input-${bid}`);
-        return inp ? inp.value.trim() : "";
-      }
-
-      // ============================================================
-      // 製作材料ブロック（Step2）
-      // ============================================================
-      function addMatBlock(matName, matQty, alts, matProc) {
+      function addMatBlock(matName, matQty, alts) {
         if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
         matBlockCount++;
         const bid = `mb-${matBlockCount}`;
@@ -1250,7 +1256,6 @@
             <button class="alt-add-btn" onclick="addAltRow('${bid}')">＋ 代替</button>
             <button class="del-btn"     onclick="delMatBlock('${bid}')">×</button>
           </div>
-          ${buildMatProcRow(bid, matProc || "")}
           <div class="alt-list" id="alt-list-${bid}"></div>`;
         document.getElementById("mat-block-list").appendChild(div);
         if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
@@ -1528,7 +1533,7 @@
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // ★ collectData（mat_proc を追加収集）
+      // ★ collectData（recipe_proc をレシピ全体から収集、mats の proc を削除）
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1547,9 +1552,6 @@
           const name = nameEl ? nameEl.value.trim() : "";
           const qty  = qtyEl  ? qtyEl.value.trim()  : "";
           if (!name) return;
-          // ★ 製作方法を取得
-          const bid  = block.id;
-          const proc = getMatProc(bid) || null;
           const alts = [];
           block.querySelectorAll(".alt-entry").forEach(ae => {
             const an = ae.querySelector(".alt-name")  ? ae.querySelector(".alt-name").value.trim()  : "";
@@ -1558,7 +1560,7 @@
             const ac = acEl ? acEl.value : "あるいは";
             if (an) alts.push({ connector: ac, name: an, qty: aq });
           });
-          mats.push({ name, qty, proc, alts });
+          mats.push({ name, qty, alts });
         });
 
         const sheetName   = document.getElementById("f-sheet").value;
@@ -1568,6 +1570,9 @@
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
         const skillLevel    = document.getElementById("skill-level-select").value || null;
         const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
+
+        // ★ レシピ全体の製作方法
+        const recipeProc = getRecipeProc() || null;
 
         const data = {
           sheet_name:      sheetName,
@@ -1580,6 +1585,7 @@
           imperial_rank:    imperialRank,
           imperial_qty_min: imperialQtyMin,
           imperial_qty_max: imperialQtyMax,
+          recipe_proc:     recipeProc,
           cities,
           mats,
           subgroups: [],
@@ -1635,7 +1641,7 @@
       }
 
       // ============================================================
-      // 確認画面
+      // 確認画面 ★ recipe_proc を材料欄の上部に表示
       // ============================================================
       function buildConfirm() {
         const d = collectData(); let html = "";
@@ -1662,10 +1668,12 @@
         }
         if (d.mats.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
+          // ★ 製作方法バッジを材料一覧の上部に表示
+          if (d.recipe_proc) {
+            html += `<div style="margin-bottom:8px;"><span class="confirm-recipe-proc">⚙ ${d.recipe_proc}</span></div>`;
+          }
           d.mats.forEach(m => {
-            // ★ 製作方法バッジを追加
-            const procBadge = m.proc ? `<span class="confirm-mat-proc">⚙ ${m.proc}</span>` : "";
-            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span>${procBadge}</div>`;
+            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
             (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
           });
           html += `</div>`;
@@ -1677,7 +1685,7 @@
             g.steps.forEach((s, i) => {
               if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
-              if (s.proc) html += `<div style="margin-bottom:4px;"><span class="confirm-proc">${s.proc}</span></div>`;
+              if (s.proc) html += `<div style="margin-bottom:4px;"><span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;background:#e8eaf6;color:#1a237e;border:1px solid #9fa8da;">${s.proc}</span></div>`;
               const tgt = Math.max(1, parseFloat(s.target) || 1);
               s.mats.forEach(m => {
                 const baseQ = parseFloat(m.baseQty || m.qty);
@@ -1701,9 +1709,7 @@
       }
 
       // ============================================================
-      // ★ 保存（insert_recipe_full は mat_proc を payload に含める）
-      // ★ insert_recipe_full の SQL 側で mat_proc を受け取れるよう
-      //    SQL も別途更新が必要（下記 SQL パッチを参照）
+      // 保存
       // ============================================================
       async function submitRecipe() {
         const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
@@ -1735,6 +1741,7 @@
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
         document.getElementById("imperial-qty-max").value = "";
+        clearRecipeProc();
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
@@ -1800,13 +1807,13 @@
 
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        // ★ mat_proc を追加取得
+        // ★ recipe_proc を追加取得
         const { data } = await sb.from("recipes").select(`
           id,name,category,image_url,effect,skill_level,skill_level_num,
-          imperial_rank,imperial_qty_min,imperial_qty_max,
+          imperial_rank,imperial_qty_min,imperial_qty_max,recipe_proc,
           sheets(name),
           recipe_cities(sort_order,city_name,city_level),
-          recipe_mats(id,sort_order,mat_name,mat_qty,mat_proc,alt_connector,parent_mat_id),
+          recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),
           recipe_subgroups(
             id,sort_order,parent,
             recipe_steps(
@@ -1836,6 +1843,8 @@
         document.getElementById("f-effect").value   = data.effect   || "";
         document.getElementById("skill-level-select").value = data.skill_level || "";
         document.getElementById("skill-level-num").value = data.skill_level_num != null ? data.skill_level_num : "";
+        // ★ recipe_proc を復元
+        setRecipeProc(data.recipe_proc || "");
         const sec = document.getElementById("imperial-section");
         if (IMPERIAL_SHEETS.includes(sheetName)) {
           sec.classList.remove("hidden");
@@ -1851,10 +1860,9 @@
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
         const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
-        // ★ mat_proc を復元
         allMats.filter(m => !m.parent_mat_id).forEach(m => {
           const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a,b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-          addMatBlock(m.mat_name, m.mat_qty, alts, m.mat_proc || "");
+          addMatBlock(m.mat_name, m.mat_qty, alts);
         });
         if (matBlockCount === 0) addMatBlock();
         (data.recipe_subgroups || []).sort((a,b) => a.sort_order - b.sort_order).forEach(sg => {
@@ -1893,6 +1901,7 @@
         document.getElementById("imperial-rank-select").value = "";
         document.getElementById("imperial-qty-min").value = "";
         document.getElementById("imperial-qty-max").value = "";
+        clearRecipeProc();
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
         matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
