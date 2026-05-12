@@ -1,9 +1,8 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
-<!-- 修正内容:
-  index.html:
-  ステップ材料の数量表示を「基準量 × result_qty × ユーザー作成個数」に修正。
-  DBには基準量のみ保存されており、result_qty（ステップ目標個数）を掛けて
-  正しい必要量を計算して表示する。
+<!-- 変更点:
+  - recipe_mats の mat_proc（製作方法）を取得・表示
+  - 製作材料一覧に製作方法バッジ（例: ⚙ L:加工▶粉砕）を表示
+  ※ その他は既存のまま維持
 -->
 <!doctype html>
 <html lang="ja">
@@ -51,8 +50,15 @@
       .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
       .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
       .mat-list { display: flex; flex-direction: column; gap: 3px; }
-      .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; }
+      .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .mat-qty { color: #1a1a1a; font-weight: 600; }
+      /* ★ 製作方法バッジ */
+      .mat-proc-badge {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 1px 7px; border-radius: 10px; font-size: 10px;
+        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
+        white-space: nowrap; font-weight: 600;
+      }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .imperial-badge {
@@ -61,10 +67,7 @@
         background: #fff8e1; color: #e65100; border: 1px solid #ffe082;
         margin-top: 4px; white-space: nowrap;
       }
-      .imperial-qty {
-        font-size: 11px; color: #795548; margin-top: 3px;
-        display: flex; align-items: center; gap: 3px;
-      }
+      .imperial-qty { font-size: 11px; color: #795548; margin-top: 3px; display: flex; align-items: center; gap: 3px; }
       .imperial-qty-num { font-weight: 700; color: #e65100; }
       .skill-badge {
         display: inline-flex; align-items: center; gap: 4px;
@@ -73,8 +76,7 @@
       }
       input.qty-input {
         width: 72px; padding: 5px 4px 5px 8px; background: #f5f4f0; border: 1px solid #ddd;
-        border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center;
-        outline: none;
+        border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center; outline: none;
       }
       input.qty-input:focus { border-color: #888; background: #fff; }
       .expand-btn { padding: 5px 11px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #888; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
@@ -188,13 +190,6 @@
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
 
-      // ============================================================
-      // [修正] fmtQty
-      // 表示側のステップ材料数量計算:
-      //   基準量(raw) × stepTarget(ステップのresult_qty) × userQty(作成個数)
-      // stepTarget は parseRecipe 時に step.result_qty から取得して渡す。
-      // ユーザー作成個数(multiplier)はそのまま外から渡される。
-      // ============================================================
       function fmtQty(raw, multiplier) {
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
@@ -232,7 +227,7 @@
               skill_level, skill_level_num,
               sheets(name),
               recipe_cities(sort_order, city_name, city_level),
-              recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
+              recipe_mats(id, sort_order, mat_name, mat_qty, mat_proc, alt_connector, parent_mat_id),
               recipe_subgroups(
                 id, sort_order, parent,
                 recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
@@ -270,6 +265,7 @@
           .map((m) => ({
             name: m.mat_name || "",
             qty: m.mat_qty || "",
+            proc: m.mat_proc || "",   // ★ 製作方法
             alts: allRawMats
               .filter((a) => a.parent_mat_id === m.id)
               .sort((a, b) => a.sort_order - b.sort_order)
@@ -285,18 +281,14 @@
             const steps = (sg.recipe_steps || [])
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((step, si) => {
-                // [修正] result_qty をステップの目標個数として保持
-                // DBには基準量のみ保存。表示時に基準量 × result_qty × ユーザー作成個数 で計算する。
                 const stepTarget = Math.max(1, parseFloat(step.result_qty) || 1);
-
-                const allRawStepMats = (step.recipe_step_mats || [])
-                  .sort((a, b) => a.sort_order - b.sort_order);
+                const allRawStepMats = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
                 const stepMats = allRawStepMats
                   .filter((sm) => !sm.parent_mat_id)
                   .map((sm) => ({
                     name: sm.mat_name || "",
-                    baseQty: sm.mat_qty || "",   // 基準量（そのまま保存）
-                    stepTarget,                   // ステップの目標個数
+                    baseQty: sm.mat_qty || "",
+                    stepTarget,
                     alts: allRawStepMats
                       .filter((a) => a.parent_mat_id === sm.id)
                       .sort((a, b) => a.sort_order - b.sort_order)
@@ -367,34 +359,27 @@
       }
 
       function setTag(tag, el) {
-        currentTag = tag;
-        currentCat = "all";
+        currentTag = tag; currentCat = "all";
         document.querySelectorAll("#tag-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
         el.classList.add("active");
-        buildCatButtons(tag);
-        render();
+        buildCatButtons(tag); render();
       }
 
       function setCat(cat, el) {
         currentCat = cat;
         document.querySelectorAll("#cat-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
-        el.classList.add("active");
-        render();
+        el.classList.add("active"); render();
       }
 
       function onQtyInput(key, el) {
         const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
         quantities[key] = v;
-        if (el.value !== "" && (parseInt(el.value) < 1 || parseInt(el.value) > 9999)) {
-          el.value = v;
-        }
+        if (el.value !== "" && (parseInt(el.value) < 1 || parseInt(el.value) > 9999)) el.value = v;
       }
 
       function onQtyChange(key, el) {
         const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
-        quantities[key] = v;
-        el.value = v;
-        render();
+        quantities[key] = v; el.value = v; render();
       }
 
       const RANK_COLORS = {
@@ -414,11 +399,9 @@
         if (r.imperial_rank) {
           const rc = RANK_COLORS[r.imperial_rank] || { bg: "#fff8e1", color: "#e65100", border: "#ffe082" };
           const suffix = BOX_SUFFIX[r.tag] || "";
-          const label = r.imperial_rank + suffix;
-          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${label}</span>`;
+          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${r.imperial_rank + suffix}</span>`;
         }
-        const hasMin = r.imperial_qty_min != null;
-        const hasMax = r.imperial_qty_max != null;
+        const hasMin = r.imperial_qty_min != null, hasMax = r.imperial_qty_max != null;
         if (hasMin || hasMax) {
           const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
           const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
@@ -442,11 +425,8 @@
             if (currentCat !== "all" && r.category !== currentCat) return false;
             if (q) {
               const inName   = r.name.toLowerCase().includes(q);
-              const inMat    = r.mats.some((m) => m.name.toLowerCase().includes(q));
-              const inSub    = r.subgroups.some((g) =>
-                g.parent.toLowerCase().includes(q) ||
-                g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q)))
-              );
+              const inMat    = r.mats.some((m) => m.name.toLowerCase().includes(q) || (m.proc || "").toLowerCase().includes(q));
+              const inSub    = r.subgroups.some((g) => g.parent.toLowerCase().includes(q) || g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q))));
               const inEffect = r.effect && r.effect.toLowerCase().includes(q);
               const inCity   = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
               const inRank   = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
@@ -457,8 +437,7 @@
           })
           .sort((a, b) => a.name.localeCompare(b.name, "ja"));
 
-        document.getElementById("result-info").textContent =
-          rows.length ? `${rows.length}件のレシピを表示中` : "";
+        document.getElementById("result-info").textContent = rows.length ? `${rows.length}件のレシピを表示中` : "";
         const tbody = document.getElementById("tbody");
         tbody.innerHTML = "";
 
@@ -488,24 +467,21 @@
           const skillBadgeHTML = buildSkillBadgeHTML(r);
           const imperialHTML = buildImperialHTML(r);
           let effectCell = "";
-          if (r.effect) {
-            effectCell += `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
-          }
-          if (imperialHTML) {
-            effectCell += `<div style="margin-top:${r.effect ? "6px" : "0"}">${imperialHTML}</div>`;
-          }
-          if (!effectCell) {
-            effectCell = '<span style="color:#ddd;font-size:11px">—</span>';
-          }
+          if (r.effect) effectCell += `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
+          if (imperialHTML) effectCell += `<div style="margin-top:${r.effect ? "6px" : "0"}">${imperialHTML}</div>`;
+          if (!effectCell) effectCell = '<span style="color:#ddd;font-size:11px">—</span>';
 
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
-          // 製作材料（レシピ直の材料）: 基準量 × ユーザー作成個数
+          // ★ 製作材料：製作方法バッジを mat_item 内に表示
           const matsHTML = r.mats.map((m) => {
+            const procBadge = m.proc
+              ? `<span class="mat-proc-badge">⚙ ${m.proc}</span>`
+              : "";
             const altHTML = (m.alts || []).map((a) =>
               `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty)}</span></div>`
             ).join("");
-            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>${altHTML}`;
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span>${procBadge}</div>${altHTML}`;
           }).join("");
 
           tr.innerHTML = `
@@ -541,34 +517,17 @@
               const stepsHTML = g.steps.map((s, si) => {
                 const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
                 const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
-
-                // [修正] ステップ材料の数量計算:
-                //   DBに保存されているのは「基準量」のみ。
-                //   表示に必要な量 = 基準量 × stepTarget(result_qty) × ユーザー作成個数(qty)
                 const stepMultiplier = s.stepTarget * qty;
-
                 const matsHTML = s.mats.map((m) => {
                   const altHTML = (m.alts || []).map((a) =>
-                    `<div class="step-mat-alt">
-                      <span class="step-mat-alt-connector">└ ${a.connector}</span>
-                      <span>${a.name}</span>
-                      <span class="step-mat-qty">${fmtQty(a.baseQty, stepMultiplier)}</span>
-                    </div>`
+                    `<div class="step-mat-alt"><span class="step-mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="step-mat-qty">${fmtQty(a.baseQty, stepMultiplier)}</span></div>`
                   ).join("");
                   return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.baseQty, stepMultiplier)}</span></div>${altHTML}`;
                 }).join("");
-
-                // result_qty の表示: ユーザー作成個数分を掛けた結果個数
                 const resultQtyDisplay = s.result_qty
-                  ? (() => {
-                      const rq = parseFloat(s.result_qty);
-                      return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`;
-                    })()
+                  ? (() => { const rq = parseFloat(s.result_qty); return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`; })()
                   : "";
-
-                const resultHTML = s.result_name
-                  ? `<div class="step-result">→ ${s.result_name}${resultQtyDisplay}</div>`
-                  : "";
+                const resultHTML = s.result_name ? `<div class="step-result">→ ${s.result_name}${resultQtyDisplay}</div>` : "";
                 return `${connectorHTML}<div class="sub-step">${procHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
               }).join("");
               return `<div class="sub-group"><div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div><div class="sub-steps">${stepsHTML}</div></div>`;
@@ -579,13 +538,8 @@
         });
       }
 
-      function openLightbox(src) {
-        document.getElementById("lightbox-img").src = src;
-        document.getElementById("lightbox").classList.add("active");
-      }
-      function closeLightbox() {
-        document.getElementById("lightbox").classList.remove("active");
-      }
+      function openLightbox(src) { document.getElementById("lightbox-img").src = src; document.getElementById("lightbox").classList.add("active"); }
+      function closeLightbox() { document.getElementById("lightbox").classList.remove("active"); }
       document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
 
       const searchInput = document.getElementById("search");
