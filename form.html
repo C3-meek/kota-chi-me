@@ -1,8 +1,11 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 修正内容:
-  1. initCrossGroupDragSort の step-list-wrap も data-cross-drag-init フラグ方式に統一し
-     cloneNode/replaceWith を完全廃止 → Step3 nav ボタンが押せなくなる問題を解消
-  2. その他は既存のまま維持
+  collectData 内で step-target-qty / step-result-qty の querySelector が
+  null を返す場合に .value アクセスでクラッシュする問題を修正。
+  - stepEl が null の場合のガード追加
+  - targetInput が null の場合のガード追加
+  - result_name / result_qty の querySelector も null ガード追加
+  その他は既存のまま維持。
 -->
 <!doctype html>
 <html lang="ja">
@@ -150,7 +153,6 @@
       .mat-block.smat-dragging { opacity: 0.4; }
       .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
 
-      /* ===== グループ間ドラッグ ===== */
       .step-drag-wrapper { position: relative; margin-bottom: 0; }
       .step-drag-wrapper.step-dragging { opacity: 0.35; }
       .step-drag-wrapper.step-drop-top    { border-top:    3px solid #3a5aad; }
@@ -165,7 +167,6 @@
       .step-drag-handle:active { cursor: grabbing; }
       .step-list-wrap { position: relative; padding-left: 24px; min-height: 44px; }
       .step-list-wrap.group-drag-over { outline: 2px dashed #3a5aad; border-radius: 8px; background: #f0f4ff; }
-      /* ===== /グループ間ドラッグ ===== */
 
       .alt-add-btn {
         padding: 5px 12px; border: 1px dashed #3a5aad; border-radius: 6px;
@@ -665,7 +666,7 @@
       function nextAltUid() { return ++_altUid; }
 
       // ============================================================
-      // グローバルドラッグ状態（グループ間ステップ移動用）
+      // グローバルドラッグ状態
       // ============================================================
       let _stepDrag = null;
 
@@ -678,15 +679,7 @@
         });
       }
 
-      // ============================================================
-      // [修正] initCrossGroupDragSort
-      // cloneNode/replaceWith を完全廃止。
-      // step-drag-wrapper と step-list-wrap の両方を
-      // data-drag-init / data-cross-drag-init フラグで二重登録防止する。
-      // これにより Step3 の nav ボタン等の DOM が壊れなくなる。
-      // ============================================================
       function initCrossGroupDragSort() {
-        // wrapper ごとにフラグで二重登録を防ぐ
         document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
           if (wrapper.dataset.dragInit === '1') return;
           wrapper.dataset.dragInit = '1';
@@ -741,7 +734,6 @@
           });
         });
 
-        // [修正] step-list-wrap も cloneNode/replaceWith を廃止し data フラグ方式に統一
         document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
           if (listWrap.dataset.crossDragInit === '1') return;
           listWrap.dataset.crossDragInit = '1';
@@ -1209,7 +1201,7 @@
       }
 
       // ============================================================
-      // fillStep: step mats の代替品(alts)も復元する
+      // fillStep
       // ============================================================
       function fillStep(gid, sid, step, hasConnector) {
         const sEl = document.getElementById(sid); if (!sEl) return;
@@ -1575,80 +1567,130 @@
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // フォームデータ収集
+      // [修正] collectData - null ガードを追加
       // ============================================================
       function collectData() {
         const cities = [];
         document.querySelectorAll("#city-level-list .city-row").forEach(row => {
-          const name = row.querySelector(".city-name-input").value.trim();
-          const level = row.querySelector(".city-level-select").value;
+          const nameEl  = row.querySelector(".city-name-input");
+          const levelEl = row.querySelector(".city-level-select");
+          const name  = nameEl  ? nameEl.value.trim()  : "";
+          const level = levelEl ? levelEl.value         : "";
           if (name) cities.push({ name, level });
         });
+
         const mats = [];
         document.querySelectorAll("#mat-block-list .mat-block").forEach(block => {
-          const name = block.querySelector(".mat-name").value.trim();
-          const qty  = block.querySelector(".mat-qty").value.trim();
+          const nameEl = block.querySelector(".mat-name");
+          const qtyEl  = block.querySelector(".mat-qty");
+          const name = nameEl ? nameEl.value.trim() : "";
+          const qty  = qtyEl  ? qtyEl.value.trim()  : "";
           if (!name) return;
           const alts = [];
           block.querySelectorAll(".alt-entry").forEach(ae => {
-            const an = ae.querySelector(".alt-name").value.trim();
-            const aq = ae.querySelector(".alt-qty").value.trim();
-            const ac = ae.querySelector(".alt-connector-select").value;
+            const an = ae.querySelector(".alt-name")  ? ae.querySelector(".alt-name").value.trim()  : "";
+            const aq = ae.querySelector(".alt-qty")   ? ae.querySelector(".alt-qty").value.trim()   : "";
+            const acEl = ae.querySelector(".alt-connector-select");
+            const ac = acEl ? acEl.value : "あるいは";
             if (an) alts.push({ connector: ac, name: an, qty: aq });
           });
           mats.push({ name, qty, alts });
         });
-        const sheetName = document.getElementById("f-sheet").value;
-        const isImperial = IMPERIAL_SHEETS.includes(sheetName);
+
+        const sheetName   = document.getElementById("f-sheet").value;
+        const isImperial  = IMPERIAL_SHEETS.includes(sheetName);
         const imperialRank   = isImperial ? (document.getElementById("imperial-rank-select").value || null) : null;
         const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
         const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
         const skillLevel    = document.getElementById("skill-level-select").value || null;
         const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
+
         const data = {
-          sheet_name: sheetName,
-          name:       document.getElementById("f-name").value.trim(),
-          category:   document.getElementById("f-category").value.trim(),
-          image_url:  document.getElementById("f-image").value.trim(),
-          effect:     document.getElementById("f-effect").value.trim(),
-          skill_level: skillLevel, skill_level_num: skillLevelNum,
-          imperial_rank: imperialRank, imperial_qty_min: imperialQtyMin, imperial_qty_max: imperialQtyMax,
-          cities, mats, subgroups: [],
+          sheet_name:      sheetName,
+          name:            document.getElementById("f-name").value.trim(),
+          category:        document.getElementById("f-category").value.trim(),
+          image_url:       document.getElementById("f-image").value.trim(),
+          effect:          document.getElementById("f-effect").value.trim(),
+          skill_level:     skillLevel,
+          skill_level_num: skillLevelNum,
+          imperial_rank:    imperialRank,
+          imperial_qty_min: imperialQtyMin,
+          imperial_qty_max: imperialQtyMax,
+          cities,
+          mats,
+          subgroups: [],
         };
+
         document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
-          const parent = gel.querySelector(".sg-parent").value.trim();
-          const steps  = [];
-          const gid    = gel.id;
-          const container = document.getElementById(`step-list-${gid}`); if (!container) return;
+          const parentEl = gel.querySelector(".sg-parent");
+          const parent   = parentEl ? parentEl.value.trim() : "";
+          const steps    = [];
+          const gid      = gel.id;
+          const container = document.getElementById(`step-list-${gid}`);
+          if (!container) return;
+
           container.querySelectorAll(":scope > .step-drag-wrapper").forEach((wrapper, wi) => {
             const sid = wrapper.getAttribute("data-step-id");
-            const sel = document.getElementById(sid); if (!sel) return;
+            const sel = sid ? document.getElementById(sid) : null;
+            if (!sel) return; // ★ null ガード
+
             let connector = "";
             const cb = document.getElementById(`con-${sid}`);
-            if (cb) { const s = cb.querySelector(".preset-btn.selected"); const cu = document.getElementById(`coninput-${sid}`).value.trim(); connector = cu || (s ? s.textContent : "↓"); }
-            const proc = sel.querySelector(".step-proc").value.trim();
-            const targetInput = sel.querySelector(".step-target-qty");
-            const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
+            if (cb) {
+              const s  = cb.querySelector(".preset-btn.selected");
+              const cu = document.getElementById(`coninput-${sid}`);
+              connector = (cu ? cu.value.trim() : "") || (s ? s.textContent : "↓");
+            }
+
+            const procEl       = sel.querySelector(".step-proc");
+            const proc         = procEl ? procEl.value.trim() : "";
+
+            const targetInput  = sel.querySelector(".step-target-qty"); // ★ null ガード
+            const target       = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
+
+            const resultNameEl = sel.querySelector(".step-result-name"); // ★ null ガード
+            const resultQtyEl  = sel.querySelector(".step-result-qty");  // ★ null ガード
+            const result_name  = resultNameEl ? resultNameEl.value.trim() : "";
+            const result_qty   = resultQtyEl  ? resultQtyEl.value.trim()  : "";
+
             const stepMats = [];
-            sel.querySelectorAll(`#sml-${sid} > .mat-block`).forEach(mb => {
-              const n = mb.querySelector(".smat-name").value.trim();
-              const q = mb.querySelector(".smat-qty").value.trim();
-              if (!n) return;
-              const alts = [];
-              mb.querySelectorAll(".alt-entry").forEach(ae => {
-                const an = ae.querySelector(".smat-alt-name").value.trim();
-                const aq = ae.querySelector(".smat-alt-qty").value.trim();
-                const ac = ae.querySelector(".alt-connector-select").value;
-                if (an) alts.push({ connector: ac, name: an, qty: aq });
+            const smlEl = document.getElementById(`sml-${sid}`);
+            if (smlEl) {
+              smlEl.querySelectorAll(":scope > .mat-block").forEach(mb => {
+                const nEl = mb.querySelector(".smat-name");
+                const qEl = mb.querySelector(".smat-qty");
+                const n   = nEl ? nEl.value.trim() : "";
+                const q   = qEl ? qEl.value.trim() : "";
+                if (!n) return;
+                const alts = [];
+                mb.querySelectorAll(".alt-entry").forEach(ae => {
+                  const anEl = ae.querySelector(".smat-alt-name");
+                  const aqEl = ae.querySelector(".smat-alt-qty");
+                  const acEl = ae.querySelector(".alt-connector-select");
+                  const an   = anEl ? anEl.value.trim() : "";
+                  const aq   = aqEl ? aqEl.value.trim() : "";
+                  const ac   = acEl ? acEl.value : "あるいは";
+                  if (an) alts.push({ connector: ac, name: an, qty: aq });
+                });
+                stepMats.push({ name: n, qty: q, baseQty: q, target, alts });
               });
-              stepMats.push({ name: n, qty: q, baseQty: q, target, alts });
-            });
-            const result_name = sel.querySelector(".step-result-name").value.trim();
-            const result_qty  = sel.querySelector(".step-result-qty").value.trim();
-            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty, target });
+            }
+
+            if (proc || stepMats.length) {
+              steps.push({
+                connector: wi === 0 ? "" : connector,
+                proc,
+                mats: stepMats,
+                result_name,
+                result_qty,
+                target,
+              });
+            }
           });
+
           if (parent) data.subgroups.push({ parent, steps });
         });
+
         return data;
       }
 
