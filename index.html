@@ -1,7 +1,8 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - recipe_mats の mat_proc（製作方法）を取得・表示
-  - 製作材料一覧に製作方法バッジ（例: ⚙ L:加工▶粉砕）を表示
+  - recipes から recipe_proc（レシピ全体の製作方法）を取得
+  - 製作材料列の上部（材料一覧の前）に製作方法バッジを表示
+  - 各材料行の mat_proc バッジを削除
   ※ その他は既存のまま維持
 -->
 <!doctype html>
@@ -50,15 +51,15 @@
       .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
       .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
       .mat-list { display: flex; flex-direction: column; gap: 3px; }
+      /* ★ 製作方法バッジ（レシピ全体・材料列上部） */
+      .recipe-proc-badge {
+        display: inline-flex; align-items: center; gap: 3px;
+        padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700;
+        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
+        white-space: nowrap; margin-bottom: 6px;
+      }
       .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .mat-qty { color: #1a1a1a; font-weight: 600; }
-      /* ★ 製作方法バッジ */
-      .mat-proc-badge {
-        display: inline-flex; align-items: center; gap: 3px;
-        padding: 1px 7px; border-radius: 10px; font-size: 10px;
-        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
-        white-space: nowrap; font-weight: 600;
-      }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .imperial-badge {
@@ -225,9 +226,10 @@
               id, name, category, image_url, effect,
               imperial_rank, imperial_qty_min, imperial_qty_max,
               skill_level, skill_level_num,
+              recipe_proc,
               sheets(name),
               recipe_cities(sort_order, city_name, city_level),
-              recipe_mats(id, sort_order, mat_name, mat_qty, mat_proc, alt_connector, parent_mat_id),
+              recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
               recipe_subgroups(
                 id, sort_order, parent,
                 recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
@@ -265,7 +267,6 @@
           .map((m) => ({
             name: m.mat_name || "",
             qty: m.mat_qty || "",
-            proc: m.mat_proc || "",   // ★ 製作方法
             alts: allRawMats
               .filter((a) => a.parent_mat_id === m.id)
               .sort((a, b) => a.sort_order - b.sort_order)
@@ -320,6 +321,7 @@
           imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
           skill_level:     r.skill_level     || "",
           skill_level_num: r.skill_level_num != null ? r.skill_level_num : null,
+          recipe_proc:     r.recipe_proc     || "",   // ★ レシピ全体の製作方法
           tag,
           cities,
           mats,
@@ -424,14 +426,15 @@
             if (currentTag !== "all" && r.tag !== currentTag) return false;
             if (currentCat !== "all" && r.category !== currentCat) return false;
             if (q) {
-              const inName   = r.name.toLowerCase().includes(q);
-              const inMat    = r.mats.some((m) => m.name.toLowerCase().includes(q) || (m.proc || "").toLowerCase().includes(q));
-              const inSub    = r.subgroups.some((g) => g.parent.toLowerCase().includes(q) || g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q))));
-              const inEffect = r.effect && r.effect.toLowerCase().includes(q);
-              const inCity   = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
-              const inRank   = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
-              const inSkill  = r.skill_level && r.skill_level.toLowerCase().includes(q);
-              if (!inName && !inMat && !inSub && !inEffect && !inCity && !inRank && !inSkill) return false;
+              const inName    = r.name.toLowerCase().includes(q);
+              const inMat     = r.mats.some((m) => m.name.toLowerCase().includes(q));
+              const inProc    = r.recipe_proc && r.recipe_proc.toLowerCase().includes(q);
+              const inSub     = r.subgroups.some((g) => g.parent.toLowerCase().includes(q) || g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q))));
+              const inEffect  = r.effect && r.effect.toLowerCase().includes(q);
+              const inCity    = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
+              const inRank    = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
+              const inSkill   = r.skill_level && r.skill_level.toLowerCase().includes(q);
+              if (!inName && !inMat && !inProc && !inSub && !inEffect && !inCity && !inRank && !inSkill) return false;
             }
             return true;
           })
@@ -473,15 +476,16 @@
 
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
-          // ★ 製作材料：製作方法バッジを mat_item 内に表示
+          // ★ 製作材料列：製作方法バッジを材料一覧の上部に表示
+          const procBadgeHTML = r.recipe_proc
+            ? `<div><span class="recipe-proc-badge">⚙ ${r.recipe_proc}</span></div>`
+            : "";
+
           const matsHTML = r.mats.map((m) => {
-            const procBadge = m.proc
-              ? `<span class="mat-proc-badge">⚙ ${m.proc}</span>`
-              : "";
             const altHTML = (m.alts || []).map((a) =>
               `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty)}</span></div>`
             ).join("");
-            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span>${procBadge}</div>${altHTML}`;
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>${altHTML}`;
           }).join("");
 
           tr.innerHTML = `
@@ -490,7 +494,7 @@
               <span class="cat-badge">${r.category}</span>
               ${skillBadgeHTML ? `<div style="margin-top:4px;">${skillBadgeHTML}</div>` : ""}
             </div></div></td>
-            <td><div class="mat-list">${matsHTML}</div></td>
+            <td><div class="mat-list">${procBadgeHTML}${matsHTML}</div></td>
             <td>${effectCell}</td>
             <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
             <td>
