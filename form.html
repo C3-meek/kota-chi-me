@@ -1,11 +1,11 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
-<!-- 修正内容:
-  collectData 内で step-target-qty / step-result-qty の querySelector が
-  null を返す場合に .value アクセスでクラッシュする問題を修正。
-  - stepEl が null の場合のガード追加
-  - targetInput が null の場合のガード追加
-  - result_name / result_qty の querySelector も null ガード追加
-  その他は既存のまま維持。
+<!-- 変更点:
+  - recipe_mats に mat_proc（製作方法）フィールドを追加
+  - Step2の各材料ブロックに「製作方法」入力欄を追加（プリセット選択＋自由入力）
+  - collectData で mat_proc を収集
+  - buildConfirm で mat_proc を表示
+  - fillEditForm / loadEditRecipe で mat_proc を復元
+  ※ その他は既存のまま維持
 -->
 <!doctype html>
 <html lang="ja">
@@ -118,6 +118,40 @@
       .imperial-qty-row input[type="number"]:focus { border-color: #888; background: #fff; }
       .imperial-qty-sep { font-size: 16px; color: #888; font-weight: 400; white-space: nowrap; flex-shrink: 0; }
       #imperial-rank-select { background-color: #fff; border-color: #ffe082; color: #e65100; font-weight: 600; }
+
+      /* ============================================================
+         製作方法プリセット行
+         ============================================================ */
+      .mat-proc-row {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
+        margin-top: 7px; padding: 8px 10px;
+        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
+      }
+      .mat-proc-label {
+        font-size: 10px; font-weight: 700; color: #3a5aad;
+        white-space: nowrap; margin-right: 2px;
+      }
+      .proc-preset-btn {
+        padding: 3px 9px; border: 1px solid #c5cfe8; border-radius: 14px;
+        background: #fff; color: #3a5aad; font-size: 11px; cursor: pointer;
+        transition: all 0.15s; white-space: nowrap;
+      }
+      .proc-preset-btn:hover { border-color: #3a5aad; background: #e8eaf6; }
+      .proc-preset-btn.selected { background: #3a5aad; color: #fff; border-color: #3a5aad; }
+      .proc-custom-input {
+        flex: 1; min-width: 100px; padding: 4px 8px;
+        border: 1px solid #c5cfe8; border-radius: 6px;
+        background: #fff; color: #1a1a1a; font-size: 12px; outline: none;
+        transition: border-color 0.2s;
+      }
+      .proc-custom-input:focus { border-color: #3a5aad; }
+      .proc-custom-input::placeholder { color: #bbb; }
+      .proc-clear-btn {
+        padding: 3px 8px; border: 1px solid #e0ddd5; border-radius: 6px;
+        background: #fff; color: #aaa; font-size: 11px; cursor: pointer;
+        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
+      }
+      .proc-clear-btn:hover { border-color: #e53935; color: #e53935; }
 
       .mat-block {
         background: #faf9f6; border: 1px solid #e8e6e0;
@@ -298,6 +332,12 @@
       }
       .confirm-imperial-title { font-size: 11px; font-weight: 700; color: #e65100; margin-bottom: 6px; }
       .confirm-imperial-body { font-size: 13px; color: #1a1a1a; }
+      /* 確認画面の製作方法バッジ */
+      .confirm-mat-proc {
+        display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 10px;
+        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
+        margin-left: 5px; white-space: nowrap; vertical-align: middle;
+      }
       .toast {
         position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
         background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
@@ -567,7 +607,7 @@
           <div class="card">
             <div class="card-title">
               <span class="num">2</span>製作材料
-              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に代替品を追加可</span>
+              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に製作方法・代替品を追加可</span>
             </div>
             <div id="mat-block-list"></div>
             <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">＋ 材料を追加</button>
@@ -652,6 +692,11 @@
       };
       const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
       const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
+      // ★ 製作方法プリセット
+      const MAT_PROC_PRESETS = [
+        "L:加工▶粉砕", "L:加工▶乾燥", "L:加工▶加熱", "L:加工▶ろ過",
+        "L:加工▶錬金", "L:加工▶切断", "料理道具", "錬金道具", "製作所",
+      ];
       const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
             MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
 
@@ -683,82 +728,59 @@
         document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
           if (wrapper.dataset.dragInit === '1') return;
           wrapper.dataset.dragInit = '1';
-
           const handle = wrapper.querySelector('.step-drag-handle');
           if (!handle) return;
           const stepId = wrapper.getAttribute('data-step-id');
           const getGid = () => wrapper.getAttribute('data-gid');
-
           handle.addEventListener('mousedown', () => { wrapper.draggable = true; });
           handle.addEventListener('mouseup',   () => { wrapper.draggable = false; });
-
           wrapper.addEventListener('dragstart', e => {
             _stepDrag = { wrapperEl: wrapper, stepId, fromGid: getGid() };
             wrapper.classList.add('step-dragging');
             e.dataTransfer.effectAllowed = 'move';
           });
-
           wrapper.addEventListener('dragend', () => {
             wrapper.classList.remove('step-dragging');
             wrapper.draggable = false;
             _clearStepDropIndicators();
             _stepDrag = null;
           });
-
           wrapper.addEventListener('dragover', e => {
             if (!_stepDrag || _stepDrag.stepId === stepId) return;
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             _clearStepDropIndicators();
             const rect = wrapper.getBoundingClientRect();
-            if (e.clientY < rect.top + rect.height / 2) {
-              wrapper.classList.add('step-drop-top');
-            } else {
-              wrapper.classList.add('step-drop-bottom');
-            }
+            if (e.clientY < rect.top + rect.height / 2) wrapper.classList.add('step-drop-top');
+            else wrapper.classList.add('step-drop-bottom');
           });
-
           wrapper.addEventListener('dragleave', e => {
-            if (!wrapper.contains(e.relatedTarget)) {
-              wrapper.classList.remove('step-drop-top', 'step-drop-bottom');
-            }
+            if (!wrapper.contains(e.relatedTarget)) wrapper.classList.remove('step-drop-top', 'step-drop-bottom');
           });
-
           wrapper.addEventListener('drop', e => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             if (!_stepDrag || _stepDrag.stepId === stepId) return;
             const above = wrapper.classList.contains('step-drop-top');
             _clearStepDropIndicators();
             _moveStepAcrossGroups(_stepDrag, getGid(), stepId, above ? 'before' : 'after');
           });
         });
-
         document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
           if (listWrap.dataset.crossDragInit === '1') return;
           listWrap.dataset.crossDragInit = '1';
-
           const gid = listWrap.id.replace('step-list-', '');
-
           listWrap.addEventListener('dragover', e => {
             if (!_stepDrag) return;
             if (e.target.closest('.step-drag-wrapper')) return;
-            e.preventDefault();
-            _clearStepDropIndicators();
+            e.preventDefault(); _clearStepDropIndicators();
             listWrap.classList.add('group-drag-over');
           });
-
           listWrap.addEventListener('dragleave', e => {
-            if (!listWrap.contains(e.relatedTarget)) {
-              listWrap.classList.remove('group-drag-over');
-            }
+            if (!listWrap.contains(e.relatedTarget)) listWrap.classList.remove('group-drag-over');
           });
-
           listWrap.addEventListener('drop', e => {
             if (!_stepDrag) return;
             if (e.target.closest('.step-drag-wrapper')) return;
-            e.preventDefault();
-            _clearStepDropIndicators();
+            e.preventDefault(); _clearStepDropIndicators();
             _moveStepAcrossGroups(_stepDrag, gid, null, 'end');
           });
         });
@@ -769,34 +791,23 @@
         const fromList = document.getElementById('step-list-' + fromGid);
         const toList   = document.getElementById('step-list-' + toGid);
         if (!fromList || !toList) return;
-
         const fromConEl = document.getElementById('con-' + stepId);
         if (fromConEl) fromConEl.remove();
-
         wrapperEl.remove();
         wrapperEl.setAttribute('data-gid', toGid);
-
         if (position === 'end' || !relativeStepId) {
           toList.appendChild(wrapperEl);
         } else {
           const relWrapper = toList.querySelector(`.step-drag-wrapper[data-step-id="${relativeStepId}"]`);
-          if (!relWrapper) {
-            toList.appendChild(wrapperEl);
-          } else {
+          if (!relWrapper) { toList.appendChild(wrapperEl); }
+          else {
             const relCon = document.getElementById('con-' + relativeStepId);
-            if (position === 'before') {
-              if (relCon) relCon.before(wrapperEl);
-              else relWrapper.before(wrapperEl);
-            } else {
-              relWrapper.after(wrapperEl);
-            }
+            if (position === 'before') { if (relCon) relCon.before(wrapperEl); else relWrapper.before(wrapperEl); }
+            else { relWrapper.after(wrapperEl); }
           }
         }
-
-        reorderConnectors(fromGid);
-        reorderConnectors(toGid);
-        renumberSteps(fromGid);
-        renumberSteps(toGid);
+        reorderConnectors(fromGid); reorderConnectors(toGid);
+        renumberSteps(fromGid); renumberSteps(toGid);
         initCrossGroupDragSort();
       }
 
@@ -806,9 +817,8 @@
       function onSheetChange() {
         const sheetName = document.getElementById("f-sheet").value;
         const sec = document.getElementById("imperial-section");
-        if (IMPERIAL_SHEETS.includes(sheetName)) {
-          sec.classList.remove("hidden");
-        } else {
+        if (IMPERIAL_SHEETS.includes(sheetName)) sec.classList.remove("hidden");
+        else {
           sec.classList.add("hidden");
           document.getElementById("imperial-rank-select").value = "";
           document.getElementById("imperial-qty-min").value = "";
@@ -841,12 +851,8 @@
         const email    = document.getElementById("login-email").value.trim();
         const password = document.getElementById("login-password").value;
         const { error } = await sb.auth.signInWithPassword({ email, password });
-        if (error) {
-          document.getElementById("login-error").textContent = "ログイン失敗: " + error.message;
-        } else {
-          const { data: { session } } = await sb.auth.getSession();
-          showMain(session.user.email);
-        }
+        if (error) { document.getElementById("login-error").textContent = "ログイン失敗: " + error.message; }
+        else { const { data: { session } } = await sb.auth.getSession(); showMain(session.user.email); }
       }
       async function doLogout() { await sb.auth.signOut(); location.reload(); }
       function showMain(email) {
@@ -882,14 +888,10 @@
         const { data } = await sb.from("sheets").select("id,name").order("sort_order");
         const sel = document.getElementById("f-sheet");
         sel.innerHTML = '<option value="">選択してください</option>';
-        (data || []).forEach(s => {
-          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; sel.appendChild(o);
-        });
+        (data || []).forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; sel.appendChild(o); });
         const ef = document.getElementById("edit-sheet-filter");
         ef.innerHTML = '<option value="">全シート</option>';
-        (data || []).forEach(s => {
-          const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ef.appendChild(o);
-        });
+        (data || []).forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ef.appendChild(o); });
       }
       async function getSheetId(name) {
         const { data } = await sb.from("sheets").select("id").eq("name", name).single();
@@ -1004,20 +1006,11 @@
         const { data: subData }    = await sb.from("recipe_subgroups").select("parent, recipes(id, name, sheets(name))").order("parent");
         const { data: matData }    = await sb.from("recipe_mats").select("mat_name, recipe_id, recipes(name, sheets(name))").is("parent_mat_id", null).order("mat_name");
         const cache = [];
-        (recipeData || []).forEach(row => {
-          const name = (row.name || "").trim(); if (!name) return;
-          cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" });
-        });
+        (recipeData || []).forEach(row => { const name = (row.name || "").trim(); if (!name) return; cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" }); });
         const subSeen = new Set();
-        (subData || []).forEach(row => {
-          const name = (row.parent || "").trim(); if (!name || subSeen.has(name)) return; subSeen.add(name);
-          cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
-        });
+        (subData || []).forEach(row => { const name = (row.parent || "").trim(); if (!name || subSeen.has(name)) return; subSeen.add(name); cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" }); });
         const matSeen = new Set();
-        (matData || []).forEach(row => {
-          const name = (row.mat_name || "").trim(); if (!name || matSeen.has(name)) return; matSeen.add(name);
-          cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" });
-        });
+        (matData || []).forEach(row => { const name = (row.mat_name || "").trim(); if (!name || matSeen.has(name)) return; matSeen.add(name); cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" }); });
         cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
         masterListCache = cache;
       }
@@ -1095,55 +1088,31 @@
       async function applyMasterByName(groupEl, name, type, recipeId) {
         const gid = groupEl.id;
         if (type === "sub") {
-          const { data: byParent } = await sb
-            .from("recipe_subgroups")
-            .select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-            .eq("parent", name).limit(1).maybeSingle();
+          const { data: byParent } = await sb.from("recipe_subgroups").select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("parent", name).limit(1).maybeSingle();
           if (byParent) {
             groupEl.querySelector(".sg-parent").value = byParent.parent || name;
             resetSteps(gid);
-            (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
-              addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
-              fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
-            });
+            (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
             showToast("「" + name + "」（副材料）を適用しました");
-          } else {
-            groupEl.querySelector(".sg-parent").value = name;
-            showToast("「" + name + "」を設定しました（データなし）");
-          }
+          } else { groupEl.querySelector(".sg-parent").value = name; showToast("「" + name + "」を設定しました（データなし）"); }
           return;
         }
         if (type === "mat") {
           groupEl.querySelector(".sg-parent").value = name;
           let targetRecipeId = recipeId || null;
-          if (!targetRecipeId) {
-            const { data: matRow } = await sb.from("recipe_mats").select("recipe_id").eq("mat_name", name).is("parent_mat_id", null).limit(1).maybeSingle();
-            if (matRow) targetRecipeId = matRow.recipe_id;
-          }
+          if (!targetRecipeId) { const { data: matRow } = await sb.from("recipe_mats").select("recipe_id").eq("mat_name", name).is("parent_mat_id", null).limit(1).maybeSingle(); if (matRow) targetRecipeId = matRow.recipe_id; }
           if (targetRecipeId) {
-            const { data: sgList } = await sb
-              .from("recipe_subgroups")
-              .select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))")
-              .eq("recipe_id", targetRecipeId).eq("parent", name).order("sort_order");
+            const { data: sgList } = await sb.from("recipe_subgroups").select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("recipe_id", targetRecipeId).eq("parent", name).order("sort_order");
             if (sgList && sgList.length > 0) {
               resetSteps(gid);
-              (sgList[0].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
-                addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
-                fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
-              });
-              showToast("「" + name + "」（製作材料＋副材料）を適用しました");
-              return;
+              (sgList[0].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
+              showToast("「" + name + "」（製作材料＋副材料）を適用しました"); return;
             }
           }
-          showToast("「" + name + "」を設定しました（副材料データなし）");
-          return;
+          showToast("「" + name + "」を設定しました（副材料データなし）"); return;
         }
-        let targetRecipeId = recipeId || null;
-        let targetRecipeName = name;
-        if (!targetRecipeId) {
-          const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle();
-          if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; }
-        }
+        let targetRecipeId = recipeId || null, targetRecipeName = name;
+        if (!targetRecipeId) { const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle(); if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; } }
         if (targetRecipeId) {
           const [{ data: mats }, { data: sgList }] = await Promise.all([
             sb.from("recipe_mats").select("id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id").eq("recipe_id", targetRecipeId).order("sort_order"),
@@ -1153,8 +1122,7 @@
           resetSteps(gid);
           if (mats && mats.length > 0) {
             addStep(gid);
-            const s1id = `${gid}-s1`;
-            const s1el = document.getElementById(s1id);
+            const s1id = `${gid}-s1`, s1el = document.getElementById(s1id);
             if (s1el) {
               s1el.querySelector(".step-proc").value = ""; s1el.querySelector(".step-result-name").value = targetRecipeName; s1el.querySelector(".step-result-qty").value = "";
               const sml = document.getElementById(`sml-${s1id}`); sml.innerHTML = ""; stepMatCounters[s1id] = 0;
@@ -1168,10 +1136,7 @@
           }
           if (sgList && sgList.length > 0) {
             const sg0 = sgList[0];
-            (sg0.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
-              addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
-              fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
-            });
+            (sg0.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
             for (let gi = 1; gi < sgList.length; gi++) {
               if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
               addSubgroup();
@@ -1179,14 +1144,10 @@
               const newGid = newGEl.id;
               newGEl.querySelector(".sg-parent").value = sgList[gi].parent || targetRecipeName;
               resetSteps(newGid);
-              (sgList[gi].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => {
-                addStep(newGid); const sc = stepCounters[newGid]; const sid = `${newGid}-s${sc}`;
-                fillStep(newGid, sid, step, sc > 1); updateStepNeeded(sid);
-              });
+              (sgList[gi].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(newGid); const sc = stepCounters[newGid]; const sid = `${newGid}-s${sc}`; fillStep(newGid, sid, step, sc > 1); updateStepNeeded(sid); });
             }
           }
-          showToast("「" + targetRecipeName + "」（レシピ全体）を適用しました");
-          return;
+          showToast("「" + targetRecipeName + "」（レシピ全体）を適用しました"); return;
         }
         groupEl.querySelector(".sg-parent").value = name;
         showToast("「" + name + "」を設定しました（データなし）");
@@ -1200,9 +1161,6 @@
         Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
       }
 
-      // ============================================================
-      // fillStep
-      // ============================================================
       function fillStep(gid, sid, step, hasConnector) {
         const sEl = document.getElementById(sid); if (!sEl) return;
         sEl.querySelector(".step-proc").value        = step.proc || "";
@@ -1219,14 +1177,7 @@
         const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
         const allSM = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
         allSM.filter(m => !m.parent_mat_id).forEach(m => {
-          const stepAlts = allSM
-            .filter(a => a.parent_mat_id === m.id)
-            .sort((a, b) => a.sort_order - b.sort_order)
-            .map(a => ({
-              connector: a.alt_connector || "あるいは",
-              name: a.mat_name || "",
-              qty: a.mat_qty || ""
-            }));
+          const stepAlts = allSM.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
           addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
         });
       }
@@ -1240,9 +1191,53 @@
       }
 
       // ============================================================
+      // ★ 製作方法プリセット行 HTML ビルダー
+      // ============================================================
+      function buildMatProcRow(bid, currentProc) {
+        const presetBtns = MAT_PROC_PRESETS.map(p => {
+          const sel = (p === currentProc) ? " selected" : "";
+          return `<button type="button" class="proc-preset-btn${sel}" onclick="selectMatProc('${bid}','${p}',this)">${p}</button>`;
+        }).join("");
+        return `<div class="mat-proc-row" id="proc-row-${bid}">
+          <span class="mat-proc-label">⚙ 製作方法：</span>
+          ${presetBtns}
+          <input type="text" class="proc-custom-input mat-proc-input" id="proc-input-${bid}"
+            placeholder="自由入力..." value="${escVal(currentProc && !MAT_PROC_PRESETS.includes(currentProc) ? currentProc : '')}"
+            oninput="clearMatProcPresets('${bid}')">
+          <button type="button" class="proc-clear-btn" onclick="clearMatProc('${bid}')">✕ クリア</button>
+        </div>`;
+      }
+
+      function selectMatProc(bid, val, btn) {
+        const row = document.getElementById(`proc-row-${bid}`);
+        row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        const inp = document.getElementById(`proc-input-${bid}`);
+        if (inp) inp.value = "";
+      }
+      function clearMatProcPresets(bid) {
+        const row = document.getElementById(`proc-row-${bid}`);
+        if (row) row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
+      }
+      function clearMatProc(bid) {
+        const row = document.getElementById(`proc-row-${bid}`);
+        if (row) row.querySelectorAll(".proc-preset-btn").forEach(b => b.classList.remove("selected"));
+        const inp = document.getElementById(`proc-input-${bid}`);
+        if (inp) inp.value = "";
+      }
+      function getMatProc(bid) {
+        const row = document.getElementById(`proc-row-${bid}`);
+        if (!row) return "";
+        const sel = row.querySelector(".proc-preset-btn.selected");
+        if (sel) return sel.textContent;
+        const inp = document.getElementById(`proc-input-${bid}`);
+        return inp ? inp.value.trim() : "";
+      }
+
+      // ============================================================
       // 製作材料ブロック（Step2）
       // ============================================================
-      function addMatBlock(matName, matQty, alts) {
+      function addMatBlock(matName, matQty, alts, matProc) {
         if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
         matBlockCount++;
         const bid = `mb-${matBlockCount}`;
@@ -1255,6 +1250,7 @@
             <button class="alt-add-btn" onclick="addAltRow('${bid}')">＋ 代替</button>
             <button class="del-btn"     onclick="delMatBlock('${bid}')">×</button>
           </div>
+          ${buildMatProcRow(bid, matProc || "")}
           <div class="alt-list" id="alt-list-${bid}"></div>`;
         document.getElementById("mat-block-list").appendChild(div);
         if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
@@ -1271,8 +1267,7 @@
         altCounts[bid]++;
         const uid = nextAltUid();
         const aid = `alt-${bid}-uid${uid}`;
-        const div = document.createElement("div");
-        div.className = "alt-entry mat-alt-entry"; div.id = aid;
+        const div = document.createElement("div"); div.className = "alt-entry mat-alt-entry"; div.id = aid;
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -1317,10 +1312,7 @@
         if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
         initCrossGroupDragSort();
       }
-      function delSubgroup(gid) {
-        document.getElementById(gid).remove(); subgroupCount--;
-        document.getElementById("add-sub-btn").style.display = "";
-      }
+      function delSubgroup(gid) { document.getElementById(gid).remove(); subgroupCount--; document.getElementById("add-sub-btn").style.display = ""; }
       function toggleRefPanel(panelId, gid) {
         const panel = document.getElementById(panelId), btn = document.getElementById(`ref-btn-${gid}`);
         if (panel.classList.contains("open")) { closeRefPanel(panelId); btn.classList.remove("open"); }
@@ -1351,14 +1343,10 @@
           selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
         }
         const wrapper = document.createElement("div");
-        wrapper.className = "step-drag-wrapper";
-        wrapper.id = `wrapper-${sid}`;
-        wrapper.setAttribute("data-step-id", sid);
-        wrapper.setAttribute("data-gid", gid);
-
+        wrapper.className = "step-drag-wrapper"; wrapper.id = `wrapper-${sid}`;
+        wrapper.setAttribute("data-step-id", sid); wrapper.setAttribute("data-gid", gid);
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
-
         const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
         stepDiv.innerHTML = `
           <div class="step-header">
@@ -1369,10 +1357,7 @@
             <label>加工名<span class="opt">任意</span></label>
             <input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理">
           </div>
-          <div class="section-divider">
-            入力材料
-            <span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span>
-          </div>
+          <div class="section-divider">入力材料<span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span></div>
           <div id="sml-${sid}">
             <div class="mat-block" data-smat-header="1" style="padding:4px 12px;background:transparent;border-color:transparent;margin-bottom:2px;">
               <div class="smat-grid">
@@ -1381,8 +1366,7 @@
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">基準量</span>
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">×個数</span>
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">＝必要量</span>
-                <span></span>
-                <span></span>
+                <span></span><span></span>
               </div>
             </div>
           </div>
@@ -1394,36 +1378,27 @@
               oninput="updateStepNeeded('${sid}')"
               title="目標個数。材料の必要量はこの値×基準量で自動計算されます">
           </div>
-          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">
-            ← 目標個数を入力すると材料の必要量を自動計算
-          </div>`;
+          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">← 目標個数を入力すると材料の必要量を自動計算</div>`;
         wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
         container.appendChild(wrapper);
         addStepMat(sid);
-
         initCrossGroupDragSort();
       }
 
-      // ============================================================
-      // 必要量インライン更新
-      // ============================================================
       function updateStepNeeded(sid) {
         const stepEl = document.getElementById(sid); if (!stepEl) return;
         const targetInput = stepEl.querySelector(".step-target-qty");
         const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
         const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
         smlEl.querySelectorAll(":scope > .mat-block").forEach(block => {
-          const qtyInput = block.querySelector(".smat-qty");
-          const badge    = block.querySelector(".smat-needed");
+          const qtyInput = block.querySelector(".smat-qty"), badge = block.querySelector(".smat-needed");
           if (!qtyInput || !badge) return;
           const baseQty = parseFloat(qtyInput.value);
           if (!isNaN(baseQty) && baseQty > 0) { badge.textContent = `×${Math.ceil(baseQty * target)}`; badge.classList.remove("empty"); }
           else { badge.textContent = "—"; badge.classList.add("empty"); }
           const mid = block.id;
           block.querySelectorAll(`#alt-list-${mid} .alt-entry`).forEach(ae => {
-            const altQtyInput = ae.querySelector(".smat-alt-qty");
-            const altMultEl   = ae.querySelector(".smat-alt-mult");
-            const altBadge    = ae.querySelector(".smat-alt-needed");
+            const altQtyInput = ae.querySelector(".smat-alt-qty"), altMultEl = ae.querySelector(".smat-alt-mult"), altBadge = ae.querySelector(".smat-alt-needed");
             if (altMultEl) altMultEl.textContent = `×${target}`;
             if (altQtyInput && altBadge) {
               const altBase = parseFloat(altQtyInput.value);
@@ -1445,10 +1420,8 @@
         const c = document.getElementById(`con-${sid}`); if (c) c.remove();
         const w = document.getElementById(`wrapper-${sid}`); if (w) w.remove();
         if (stepCounters[gid] > 0) stepCounters[gid]--;
-        renumberSteps(gid);
-        initCrossGroupDragSort();
+        renumberSteps(gid); initCrossGroupDragSort();
       }
-
       function renumberSteps(gid) {
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
         [...container.querySelectorAll(":scope > .step-drag-wrapper")].forEach((w, i) => {
@@ -1456,17 +1429,14 @@
           const labelEl = stepBlock.querySelector(".step-label-text"); if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
         });
       }
-
       function reorderConnectors(gid) {
         const container = document.getElementById(`step-list-${gid}`); if (!container) return;
         [...container.querySelectorAll(":scope > .connector-block")].forEach(c => c.remove());
         const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
         wrappers.forEach((wrapper, i) => {
           const sid = wrapper.getAttribute("data-step-id");
-          if (i === 0) {
-            const delBtn = wrapper.querySelector(".del-text-btn");
-            if (delBtn) delBtn.style.display = "none";
-          } else {
+          if (i === 0) { const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "none"; }
+          else {
             let conEl = document.getElementById(`con-${sid}`);
             if (!conEl) {
               conEl = document.createElement("div"); conEl.className = "connector-block"; conEl.id = `con-${sid}`; conEl.setAttribute("data-step-id", sid);
@@ -1477,11 +1447,7 @@
             const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "";
           }
         });
-        if (wrappers.length > 0) {
-          const firstSid = wrappers[0].getAttribute("data-step-id");
-          const firstCon = document.getElementById(`con-${firstSid}`);
-          if (firstCon) firstCon.remove();
-        }
+        if (wrappers.length > 0) { const firstSid = wrappers[0].getAttribute("data-step-id"); const firstCon = document.getElementById(`con-${firstSid}`); if (firstCon) firstCon.remove(); }
       }
 
       // ============================================================
@@ -1493,18 +1459,16 @@
         stepMatCounters[sid]++;
         const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
         const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px"; div.draggable = false;
-        const stepEl   = document.getElementById(sid);
-        const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
-        const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
+        const stepEl = document.getElementById(sid), tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
+        const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(matQty);
-        const neededStr   = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
         div.innerHTML = `
           <div class="smat-grid smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
             <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
-            <input type="text" placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}"
-              oninput="updateStepNeeded('${sid}')">
+            <input type="text" placeholder="基準量" class="smat-qty"  value="${escVal(matQty)}" oninput="updateStepNeeded('${sid}')">
             <span class="smat-mult-label" id="mult-${mid}">×${target}</span>
             <span class="${neededClass}" id="needed-${mid}">${neededStr}</span>
             <button class="alt-add-btn" onclick="addStepMatAlt('${mid}','${sid}')">＋ 代替</button>
@@ -1538,17 +1502,15 @@
           block.addEventListener("drop",      e => { e.preventDefault(); e.stopPropagation(); const src = listEl._smatDragSrc; if (!src || src === block) return; block.classList.remove("smat-drag-over"); const all = getDirectBlocks(); if (all.indexOf(src) < all.indexOf(block)) block.after(src); else block.before(src); });
         });
       }
-
       function addStepMatAlt(mid, sid, connector, name, qty) {
         stepMatAltCounters[mid] = stepMatAltCounters[mid] || 0;
         if (stepMatAltCounters[mid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
         stepMatAltCounters[mid]++;
         const aid = `salt-${mid}-${stepMatAltCounters[mid]}`;
-        const stepEl   = sid ? document.getElementById(sid) : null;
-        const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
-        const target   = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
+        const stepEl = sid ? document.getElementById(sid) : null, tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
+        const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(qty);
-        const neededStr   = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed alt-badge empty" : "smat-needed alt-badge";
         const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
         if (sid) div.setAttribute("data-sid", sid);
@@ -1556,8 +1518,7 @@
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
           <input type="text" placeholder="代替材料名" class="smat-alt-name" value="${escVal(name)}">
-          <input type="text" placeholder="基準量"     class="smat-alt-qty"  value="${escVal(qty)}"
-            oninput="updateStepNeededFromAlt(this,'${sid}')">
+          <input type="text" placeholder="基準量"     class="smat-alt-qty"  value="${escVal(qty)}" oninput="updateStepNeededFromAlt(this,'${sid}')">
           <span class="smat-mult-label smat-alt-mult">×${target}</span>
           <span class="${neededClass} smat-alt-needed" id="alt-needed-${aid}">${neededStr}</span>
           <button class="del-btn" onclick="delStepMatAlt('${mid}','${aid}')">×</button>`;
@@ -1567,7 +1528,7 @@
       function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
 
       // ============================================================
-      // [修正] collectData - null ガードを追加
+      // ★ collectData（mat_proc を追加収集）
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1586,6 +1547,9 @@
           const name = nameEl ? nameEl.value.trim() : "";
           const qty  = qtyEl  ? qtyEl.value.trim()  : "";
           if (!name) return;
+          // ★ 製作方法を取得
+          const bid  = block.id;
+          const proc = getMatProc(bid) || null;
           const alts = [];
           block.querySelectorAll(".alt-entry").forEach(ae => {
             const an = ae.querySelector(".alt-name")  ? ae.querySelector(".alt-name").value.trim()  : "";
@@ -1594,7 +1558,7 @@
             const ac = acEl ? acEl.value : "あるいは";
             if (an) alts.push({ connector: ac, name: an, qty: aq });
           });
-          mats.push({ name, qty, alts });
+          mats.push({ name, qty, proc, alts });
         });
 
         const sheetName   = document.getElementById("f-sheet").value;
@@ -1622,18 +1586,16 @@
         };
 
         document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
-          const parentEl = gel.querySelector(".sg-parent");
-          const parent   = parentEl ? parentEl.value.trim() : "";
-          const steps    = [];
-          const gid      = gel.id;
+          const parentEl  = gel.querySelector(".sg-parent");
+          const parent    = parentEl ? parentEl.value.trim() : "";
+          const steps     = [];
+          const gid       = gel.id;
           const container = document.getElementById(`step-list-${gid}`);
           if (!container) return;
-
           container.querySelectorAll(":scope > .step-drag-wrapper").forEach((wrapper, wi) => {
             const sid = wrapper.getAttribute("data-step-id");
             const sel = sid ? document.getElementById(sid) : null;
-            if (!sel) return; // ★ null ガード
-
+            if (!sel) return;
             let connector = "";
             const cb = document.getElementById(`con-${sid}`);
             if (cb) {
@@ -1641,56 +1603,34 @@
               const cu = document.getElementById(`coninput-${sid}`);
               connector = (cu ? cu.value.trim() : "") || (s ? s.textContent : "↓");
             }
-
-            const procEl       = sel.querySelector(".step-proc");
-            const proc         = procEl ? procEl.value.trim() : "";
-
-            const targetInput  = sel.querySelector(".step-target-qty"); // ★ null ガード
-            const target       = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
-
-            const resultNameEl = sel.querySelector(".step-result-name"); // ★ null ガード
-            const resultQtyEl  = sel.querySelector(".step-result-qty");  // ★ null ガード
+            const procEl      = sel.querySelector(".step-proc");
+            const proc        = procEl ? procEl.value.trim() : "";
+            const targetInput = sel.querySelector(".step-target-qty");
+            const target      = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
+            const resultNameEl = sel.querySelector(".step-result-name");
+            const resultQtyEl  = sel.querySelector(".step-result-qty");
             const result_name  = resultNameEl ? resultNameEl.value.trim() : "";
             const result_qty   = resultQtyEl  ? resultQtyEl.value.trim()  : "";
-
             const stepMats = [];
             const smlEl = document.getElementById(`sml-${sid}`);
             if (smlEl) {
               smlEl.querySelectorAll(":scope > .mat-block").forEach(mb => {
-                const nEl = mb.querySelector(".smat-name");
-                const qEl = mb.querySelector(".smat-qty");
-                const n   = nEl ? nEl.value.trim() : "";
-                const q   = qEl ? qEl.value.trim() : "";
+                const nEl = mb.querySelector(".smat-name"), qEl = mb.querySelector(".smat-qty");
+                const n   = nEl ? nEl.value.trim() : "", q = qEl ? qEl.value.trim() : "";
                 if (!n) return;
                 const alts = [];
                 mb.querySelectorAll(".alt-entry").forEach(ae => {
-                  const anEl = ae.querySelector(".smat-alt-name");
-                  const aqEl = ae.querySelector(".smat-alt-qty");
-                  const acEl = ae.querySelector(".alt-connector-select");
-                  const an   = anEl ? anEl.value.trim() : "";
-                  const aq   = aqEl ? aqEl.value.trim() : "";
-                  const ac   = acEl ? acEl.value : "あるいは";
+                  const anEl = ae.querySelector(".smat-alt-name"), aqEl = ae.querySelector(".smat-alt-qty"), acEl = ae.querySelector(".alt-connector-select");
+                  const an = anEl ? anEl.value.trim() : "", aq = aqEl ? aqEl.value.trim() : "", ac = acEl ? acEl.value : "あるいは";
                   if (an) alts.push({ connector: ac, name: an, qty: aq });
                 });
                 stepMats.push({ name: n, qty: q, baseQty: q, target, alts });
               });
             }
-
-            if (proc || stepMats.length) {
-              steps.push({
-                connector: wi === 0 ? "" : connector,
-                proc,
-                mats: stepMats,
-                result_name,
-                result_qty,
-                target,
-              });
-            }
+            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty, target });
           });
-
           if (parent) data.subgroups.push({ parent, steps });
         });
-
         return data;
       }
 
@@ -1704,9 +1644,7 @@
         if (d.skill_level) {
           const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
           const lvStr = d.skill_level_num ? ` Lv.${d.skill_level_num}` : "";
-          html += `<div class="confirm-section"><div class="confirm-label">必要スキルレベル</div>
-            <span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}${lvStr}</span>
-          </div>`;
+          html += `<div class="confirm-section"><div class="confirm-label">必要スキルレベル</div><span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}${lvStr}</span></div>`;
         }
         if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
         if (d.cities && d.cities.length) {
@@ -1719,16 +1657,15 @@
         if (d.imperial_rank || d.imperial_qty_min || d.imperial_qty_max) {
           html += `<div class="confirm-imperial"><div class="confirm-imperial-title">👑 皇室納品情報</div><div class="confirm-imperial-body">`;
           if (d.imperial_rank) html += `ランク：<strong>${d.imperial_rank}</strong>　`;
-          if (d.imperial_qty_min || d.imperial_qty_max) {
-            const minStr = d.imperial_qty_min || "—"; const maxStr = d.imperial_qty_max || "—";
-            html += `１箱の入個数：<strong>${minStr}－上位：${maxStr}</strong>`;
-          }
+          if (d.imperial_qty_min || d.imperial_qty_max) { const minStr = d.imperial_qty_min || "—"; const maxStr = d.imperial_qty_max || "—"; html += `１箱の入個数：<strong>${minStr}－上位：${maxStr}</strong>`; }
           html += `</div></div>`;
         }
         if (d.mats.length) {
           html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
           d.mats.forEach(m => {
-            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
+            // ★ 製作方法バッジを追加
+            const procBadge = m.proc ? `<span class="confirm-mat-proc">⚙ ${m.proc}</span>` : "";
+            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span>${procBadge}</div>`;
             (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
           });
           html += `</div>`;
@@ -1736,8 +1673,7 @@
         if (d.subgroups.length) {
           html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
           d.subgroups.forEach(g => {
-            html += `<div style="margin-bottom:16px;">`;
-            html += `<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1a1a1a;">▸ ${g.parent} の作り方</div>`;
+            html += `<div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1a1a1a;">▸ ${g.parent} の作り方</div>`;
             g.steps.forEach((s, i) => {
               if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
               html += `<div class="confirm-step">`;
@@ -1749,8 +1685,7 @@
                 const qtyStr = neededQ !== null ? `×${neededQ}` : (m.qty ? `×${m.qty}` : "");
                 html += `<div class="confirm-mat">${m.name} <span class="qty">${qtyStr}</span></div>`;
                 (m.alts || []).forEach(a => {
-                  const altBase = parseFloat(a.qty);
-                  const altNeeded = (!isNaN(altBase) && altBase > 0) ? Math.ceil(altBase * tgt) : null;
+                  const altBase = parseFloat(a.qty), altNeeded = (!isNaN(altBase) && altBase > 0) ? Math.ceil(altBase * tgt) : null;
                   const altQtyStr = altNeeded !== null ? `×${altNeeded}` : (a.qty ? `×${a.qty}` : "");
                   html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${altQtyStr}</span></div>`;
                 });
@@ -1766,7 +1701,9 @@
       }
 
       // ============================================================
-      // 保存・更新・削除
+      // ★ 保存（insert_recipe_full は mat_proc を payload に含める）
+      // ★ insert_recipe_full の SQL 側で mat_proc を受け取れるよう
+      //    SQL も別途更新が必要（下記 SQL パッチを参照）
       // ============================================================
       async function submitRecipe() {
         const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
@@ -1778,19 +1715,15 @@
 
       async function updateCurrentRecipe() {
         if (!currentEditId) { showToast("編集対象が選択されていません"); return; }
-        const data = collectData();
-        if (!data.name) { showToast("アイテム名がありません"); return; }
+        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
         const allUpdateBtns = document.querySelectorAll(".edit-only-btn");
         allUpdateBtns.forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
         try {
           const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
           if (error) { showToast("エラー: " + error.message); }
           else { showToast("✓ 更新しました"); editRecipes = []; await loadMasterList(); clearEditForm(); }
-        } catch (e) {
-          showToast("エラー: " + e.message);
-        } finally {
-          allUpdateBtns.forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; });
-        }
+        } catch (e) { showToast("エラー: " + e.message); }
+        finally { allUpdateBtns.forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; }); }
       }
 
       function resetForm() {
@@ -1813,22 +1746,13 @@
       async function goStep(n) {
         if (n === 2 && !validate1()) return;
         if (n === 3) await loadMasterList();
-        if (n === 4) {
-          try {
-            buildConfirm();
-          } catch(e) {
-            console.error("buildConfirm error:", e);
-            showToast("確認画面の生成に失敗しました: " + e.message);
-            return;
-          }
-        }
+        if (n === 4) { try { buildConfirm(); } catch(e) { console.error("buildConfirm error:", e); showToast("確認画面の生成に失敗しました: " + e.message); return; } }
         [1,2,3,4].forEach(i => {
           document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
           const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
         });
         if (n === 4) {
-          const submitBtn = document.getElementById("submit-btn");
-          const updateBtn = document.getElementById("step4-update-btn");
+          const submitBtn = document.getElementById("submit-btn"), updateBtn = document.getElementById("step4-update-btn");
           if (currentEditId) { submitBtn.style.display = "none"; updateBtn.style.display = ""; }
           else { submitBtn.style.display = ""; updateBtn.style.display = "none"; }
         }
@@ -1865,8 +1789,7 @@
         renderEditList(editRecipes);
       }
       function filterEditList() {
-        const q     = document.getElementById("edit-search").value.toLowerCase();
-        const sheet = document.getElementById("edit-sheet-filter").value;
+        const q = document.getElementById("edit-search").value.toLowerCase(), sheet = document.getElementById("edit-sheet-filter").value;
         renderEditList(editRecipes.filter(r => (!q || r.name.toLowerCase().includes(q)) && (!sheet || r.sheet === sheet)));
       }
       function renderEditList(list) {
@@ -1877,12 +1800,13 @@
 
       async function loadEditRecipe(id, sheetName, itemName) {
         currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
+        // ★ mat_proc を追加取得
         const { data } = await sb.from("recipes").select(`
           id,name,category,image_url,effect,skill_level,skill_level_num,
           imperial_rank,imperial_qty_min,imperial_qty_max,
           sheets(name),
           recipe_cities(sort_order,city_name,city_level),
-          recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),
+          recipe_mats(id,sort_order,mat_name,mat_qty,mat_proc,alt_connector,parent_mat_id),
           recipe_subgroups(
             id,sort_order,parent,
             recipe_steps(
@@ -1927,9 +1851,10 @@
         document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
         (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
         const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
+        // ★ mat_proc を復元
         allMats.filter(m => !m.parent_mat_id).forEach(m => {
           const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a,b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-          addMatBlock(m.mat_name, m.mat_qty, alts);
+          addMatBlock(m.mat_name, m.mat_qty, alts, m.mat_proc || "");
         });
         if (matBlockCount === 0) addMatBlock();
         (data.recipe_subgroups || []).sort((a,b) => a.sort_order - b.sort_order).forEach(sg => {
@@ -1985,9 +1910,6 @@
         if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
       }
 
-      // ============================================================
-      // トースト
-      // ============================================================
       function showToast(msg) {
         const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
         setTimeout(() => t.classList.remove("show"), 2500);
