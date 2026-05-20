@@ -1,8 +1,7 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - recipes から recipe_proc（レシピ全体の製作方法）を取得
-  - 製作材料列の上部（材料一覧の前）に製作方法バッジを表示
-  - 各材料行の mat_proc バッジを削除
+  - 検索行（controls-row1）の右端に「上に戻る」ボタンを追加
+  - スクロール量に応じてボタンの表示/非表示を切り替え
   ※ その他は既存のまま維持
 -->
 <!doctype html>
@@ -34,6 +33,19 @@
       .cat-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; color: #666; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
       .cat-btn:hover { border-color: #888; color: #1a1a1a; }
       .cat-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-weight: 600; }
+
+      /* ★ 上に戻るボタン */
+      .scroll-top-btn {
+        display: flex; align-items: center; gap: 5px;
+        padding: 7px 14px; border: 1px solid #ddd; border-radius: 20px;
+        background: #fff; color: #666; font-size: 12px; cursor: pointer;
+        white-space: nowrap; transition: all 0.2s; flex-shrink: 0;
+        opacity: 0; pointer-events: none;
+      }
+      .scroll-top-btn.visible { opacity: 1; pointer-events: auto; }
+      .scroll-top-btn:hover { border-color: #888; color: #1a1a1a; background: #f5f4f0; }
+      .scroll-top-btn .arrow { font-size: 11px; }
+
       @media (max-width: 600px) { .controls-row1, .controls-row2 { padding: 10px 16px; } }
       .table-container { padding: 16px 24px; overflow-x: auto; }
       .result-info { font-size: 12px; color: #aaa; margin-bottom: 10px; }
@@ -51,7 +63,6 @@
       .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
       .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
       .mat-list { display: flex; flex-direction: column; gap: 3px; }
-      /* ★ 製作方法バッジ（レシピ全体・材料列上部） */
       .recipe-proc-badge {
         display: inline-flex; align-items: center; gap: 3px;
         padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700;
@@ -126,6 +137,10 @@
       <div id="tag-buttons">
         <button class="cat-btn active" onclick="setTag('all', this)">すべて</button>
       </div>
+      <!-- ★ 上に戻るボタン -->
+      <button class="scroll-top-btn" id="scroll-top-btn" onclick="scrollToTop()" title="ページ上部へ戻る">
+        <span class="arrow">▲</span> 上に戻る
+      </button>
     </div>
     <div class="controls-row2" id="cat-row" style="display: none">
       <span style="font-size: 11px; color: #aaa; margin-right: 4px">カテゴリ：</span>
@@ -190,6 +205,21 @@
         "名匠":  { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
+
+      // ★ 上に戻る処理
+      function scrollToTop() {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      // ★ スクロール量に応じてボタン表示切替（200px以上で表示）
+      window.addEventListener("scroll", function () {
+        const btn = document.getElementById("scroll-top-btn");
+        if (window.scrollY > 200) {
+          btn.classList.add("visible");
+        } else {
+          btn.classList.remove("visible");
+        }
+      }, { passive: true });
 
       function fmtQty(raw, multiplier) {
         if (!raw || String(raw).trim() === "") return "";
@@ -321,7 +351,7 @@
           imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
           skill_level:     r.skill_level     || "",
           skill_level_num: r.skill_level_num != null ? r.skill_level_num : null,
-          recipe_proc:     r.recipe_proc     || "",   // ★ レシピ全体の製作方法
+          recipe_proc:     r.recipe_proc     || "",
           tag,
           cities,
           mats,
@@ -476,7 +506,6 @@
 
           const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
 
-          // ★ 製作材料列：製作方法バッジを材料一覧の上部に表示
           const procBadgeHTML = r.recipe_proc
             ? `<div><span class="recipe-proc-badge">⚙ ${r.recipe_proc}</span></div>`
             : "";
