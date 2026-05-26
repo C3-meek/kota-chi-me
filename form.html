@@ -1,787 +1,224 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - 【バグ修正】initStepMatDragSort の cloneNode+replaceWith を廃止し
-    _dragInitialized フラグで二重登録を防ぐ方式に変更
-    → cloneNode により input の value attribute がリセットされ
-      保存時に乗算済みの値が qty として送られていた問題を解消
-  - 【バグ修正】smat-qty input に data-base-qty 属性を追加し
-    collectData では data-base-qty を優先参照するよう変更
-  - その他（画像アップロード、skill_level、recipe_proc、RLS 等）は既存のまま維持
+  - fmtQty の表示形式を「×必要数」→「基準値×作成数＝必要数」に変更
+  - 製作材料列のヘッダーに「基準値×作成数＝必要数」の説明を追加
+  - sub-step内の材料数量表示も同様に変更
+  ※ その他は既存のまま維持
 -->
 <!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>レシピ入力フォーム</title>
+    <title>黒い砂漠 加工・製作レシピ検索</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body {
+      body { font-family: "Noto Sans JP", "Hiragino Sans", sans-serif; background: #f5f4f0; color: #1a1a1a; min-height: 100vh; }
+      header { background: #fff; border-bottom: 1px solid #e0ddd5; padding: 14px 24px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      .header-logo { font-size: 10px; letter-spacing: 0.12em; color: #aaa; text-transform: uppercase; }
+      .header-title { font-size: 18px; font-weight: 700; color: #1a1a1a; }
+      .header-right { margin-left: auto; font-size: 12px; color: #999; }
+      .controls-row1 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 24px; background: #fff; border-bottom: 0.5px solid #f0ede8; }
+      .controls-row2 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 24px 10px; background: #faf9f6; border-bottom: 1px solid #e8e6e0; }
+      .controls-row2 .cat-btn { font-size: 11px; padding: 4px 12px; border-radius: 20px; }
+      .controls-row2 .cat-btn.active { background: #555; border-color: #555; }
+      .search-wrap { position: relative; flex: 1; min-width: 200px; }
+      .search-wrap::before { content: "🔍"; position: absolute; left: 10px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; z-index: 1; }
+      input[type="text"] { width: 100%; padding: 8px 36px 8px 32px; background: #f5f4f0; border: 1px solid #ddd; border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s; }
+      input[type="text"]:focus { border-color: #888; background: #fff; }
+      input[type="text"]::placeholder { color: #bbb; }
+      .search-clear-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border-radius: 50%; border: none; background: #ccc; color: #fff; font-size: 12px; line-height: 1; cursor: pointer; display: none; align-items: center; justify-content: center; padding: 0; transition: background 0.15s; z-index: 2; }
+      .search-clear-btn:hover { background: #888; }
+      .search-clear-btn.visible { display: flex; }
+      .cat-btn { padding: 6px 14px; border: 1px solid #ddd; border-radius: 20px; background: #fff; color: #666; font-size: 12px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+      .cat-btn:hover { border-color: #888; color: #1a1a1a; }
+      .cat-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-weight: 600; }
+
+      /* ★ 上に戻るボタン（画面右下固定） */
+      #scroll-top-btn {
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 20px;
+        background: #1a1a1a;
+        color: #fff;
+        border: none;
+        border-radius: 24px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px);
+        transition: opacity 0.25s ease, transform 0.25s ease, background 0.15s;
         font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
-        background: #f5f4f0; color: #1a1a1a; padding: 24px 16px 60px;
       }
-      .app-header { text-align: center; margin-bottom: 28px; }
-      .app-header h1 { font-size: 20px; font-weight: 700; }
-      .tab-bar {
-        display: flex; gap: 0; margin-top: 12px; border: 1px solid #ddd;
-        border-radius: 8px; overflow: hidden; max-width: 300px;
-        margin-left: auto; margin-right: auto;
+      #scroll-top-btn.visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateY(0);
       }
-      .tab-btn { flex: 1; padding: 8px; border: none; font-size: 13px; cursor: pointer; transition: all 0.15s; }
-      .tab-btn.active { background: #1a1a1a; color: #fff; }
-      .tab-btn:not(.active) { background: #fff; color: #666; border-left: 1px solid #ddd; }
-      .steps-indicator {
-        display: flex; align-items: center; justify-content: center;
-        margin-bottom: 28px; max-width: 680px; margin-left: auto; margin-right: auto;
-      }
-      .si-step { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
-      .si-circle {
-        width: 30px; height: 30px; border-radius: 50%; background: #e8e6e0; color: #aaa;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 12px; font-weight: 600; transition: all 0.2s;
-      }
-      .si-step.active .si-circle { background: #1a1a1a; color: #fff; }
-      .si-step.done  .si-circle { background: #4caf50; color: #fff; }
-      .si-label { font-size: 10px; color: #aaa; white-space: nowrap; }
-      .si-step.active .si-label { color: #1a1a1a; font-weight: 600; }
-      .si-line { flex: 1; height: 1px; background: #e0ddd5; margin-top: -18px; max-width: 32px; }
-
-      .card {
-        background: #fff; border: 1px solid #e8e6e0; border-radius: 12px;
-        padding: 20px; max-width: 680px; margin: 0 auto 16px;
-      }
-      .card-title {
-        font-size: 14px; font-weight: 700; color: #1a1a1a;
-        margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1px solid #f0ede8;
-        display: flex; align-items: center; gap: 8px;
-      }
-      .card-title .num {
-        width: 22px; height: 22px; border-radius: 50%; background: #1a1a1a; color: #fff;
-        display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0;
-      }
-      .field { margin-bottom: 14px; }
-      .field:last-child { margin-bottom: 0; }
-      label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
-      label .req { color: #e53935; margin-left: 3px; }
-      label .opt { color: #aaa; font-weight: 400; margin-left: 3px; font-size: 11px; }
-      input[type="text"], input[type="email"], input[type="password"], select {
-        width: 100%; padding: 9px 12px; background: #f5f4f0; border: 1px solid #ddd;
-        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none; transition: border-color 0.2s;
-      }
-      input:focus, select:focus { border-color: #888; background: #fff; }
-      input::placeholder { color: #bbb; }
-      select {
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
-      }
-      textarea.effect-input {
-        width: 100%; padding: 9px 12px; background: #f5f4f0; border: 1px solid #ddd;
-        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none;
-        transition: border-color 0.2s; resize: vertical; font-family: inherit; line-height: 1.6;
-      }
-      textarea.effect-input:focus { border-color: #888; background: #fff; }
-      textarea.effect-input::placeholder { color: #bbb; }
-
-      /* ============================================================
-         画像アップロードUI
-         ============================================================ */
-      .image-upload-area {
-        border: 2px dashed #ddd; border-radius: 10px; background: #faf9f6;
-        transition: all 0.2s; cursor: pointer; overflow: hidden;
-        position: relative; min-height: 120px;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-      }
-      .image-upload-area.has-image { border-style: solid; border-color: #e0ddd5; background: #f0ede8; }
-      .image-upload-area.dragging { border-color: #3a5aad; background: #f0f4ff; }
-      .image-upload-area:hover { border-color: #888; }
-      .image-upload-area input[type="file"] {
-        position: absolute; inset: 0; width: 100%; height: 100%;
-        opacity: 0; cursor: pointer; z-index: 2;
-      }
-      .image-upload-placeholder {
-        display: flex; flex-direction: column; align-items: center; gap: 6px;
-        padding: 24px; pointer-events: none;
-      }
-      .image-upload-placeholder .icon { font-size: 32px; opacity: 0.4; }
-      .image-upload-placeholder .text { font-size: 13px; color: #888; font-weight: 500; }
-      .image-upload-placeholder .subtext { font-size: 11px; color: #bbb; }
-      .image-preview-wrap {
-        display: none; width: 100%; align-items: center; gap: 14px; padding: 14px;
-      }
-      .image-preview-wrap.visible { display: flex; }
-      .image-preview-thumb {
-        width: 80px; height: 80px; border-radius: 8px; object-fit: cover;
-        border: 1px solid #e0ddd5; flex-shrink: 0; background: #f5f4f0;
-      }
-      .image-preview-info { flex: 1; min-width: 0; }
-      .image-preview-name { font-size: 12px; font-weight: 600; color: #1a1a1a; word-break: break-all; margin-bottom: 3px; }
-      .image-preview-size { font-size: 11px; color: #aaa; }
-      .image-preview-status { font-size: 11px; margin-top: 4px; }
-      .image-preview-status.uploading { color: #1565c0; }
-      .image-preview-status.done { color: #2e7d32; }
-      .image-preview-status.error { color: #e53935; }
-      .image-change-btn {
-        padding: 5px 12px; border: 1px solid #ddd; border-radius: 6px;
-        background: #fff; color: #666; font-size: 11px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s; flex-shrink: 0; position: relative; z-index: 3;
-      }
-      .image-change-btn:hover { border-color: #888; color: #1a1a1a; }
-      .image-remove-btn {
-        padding: 5px 10px; border: 1px solid #eee; border-radius: 6px;
-        background: #fff; color: #ccc; font-size: 11px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s; flex-shrink: 0; z-index: 3; position: relative;
-      }
-      .image-remove-btn:hover { border-color: #e53935; color: #e53935; }
-      .upload-progress {
-        width: 100%; height: 3px; background: #e0ddd5; border-radius: 2px;
-        margin-top: 4px; overflow: hidden; display: none;
-      }
-      .upload-progress.visible { display: block; }
-      .upload-progress-bar {
-        height: 100%; background: #3a5aad; border-radius: 2px;
-        width: 0%; transition: width 0.3s;
+      #scroll-top-btn:hover { background: #444; }
+      #scroll-top-btn:active { transform: scale(0.97); }
+      @media (max-width: 600px) {
+        #scroll-top-btn { bottom: 16px; right: 16px; padding: 9px 15px; font-size: 12px; }
       }
 
-      .skill-level-row { display: flex; align-items: center; gap: 8px; }
-      .skill-level-row select { flex: 1; }
-      .skill-level-lv-wrap { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-      .skill-level-lv-wrap span { font-size: 13px; color: #666; white-space: nowrap; font-weight: 600; }
-      .skill-level-lv-input {
-        width: 64px; padding: 9px 8px; background: #f5f4f0; border: 1px solid #ddd;
-        border-radius: 8px; color: #1a1a1a; font-size: 14px; text-align: center;
-        outline: none; transition: border-color 0.2s;
-        -moz-appearance: textfield;
+      @media (max-width: 600px) { .controls-row1, .controls-row2 { padding: 10px 16px; } }
+      .table-container { padding: 16px 24px; overflow-x: auto; }
+      .result-info { font-size: 12px; color: #aaa; margin-bottom: 10px; }
+      table { width: 100%; border-collapse: collapse; table-layout: fixed; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e8e6e0; }
+      thead tr { background: #f0ede8; border-bottom: 1px solid #ddd; }
+      thead th { padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 600; color: #555; letter-spacing: 0.04em; white-space: nowrap; }
+      tbody tr { border-bottom: 1px solid #f0ede8; transition: background 0.1s; }
+      tbody tr:last-child { border-bottom: none; }
+      tbody tr:hover { background: #faf9f6; }
+      tbody td { padding: 11px 14px; vertical-align: top; font-size: 13px; }
+      .item-cell { display: flex; align-items: center; gap: 10px; }
+      .item-img { width: 70px; height: 70px; border-radius: 6px; border: 1px solid #e0ddd5; background: #f5f4f0; overflow: hidden; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 32px; }
+      .item-img img { width: 100%; height: 100%; object-fit: cover; }
+      .item-name { font-weight: 600; font-size: 13px; color: #1a1a1a; word-break: break-all; }
+      .cat-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; background: #f0ede8; color: #666; border: 1px solid #e0ddd5; margin-top: 3px; }
+      .effect-text { font-size: 11px; color: #795548; line-height: 1.6; background: #fff8e1; border: 1px solid #ffe082; border-radius: 6px; padding: 4px 8px; white-space: pre-wrap; word-break: break-all; }
+      .mat-list { display: flex; flex-direction: column; gap: 3px; }
+      .recipe-proc-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; white-space: nowrap; margin-bottom: 6px; }
+      .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+      .mat-qty { color: #1a1a1a; font-weight: 600; }
+      /* ★ 新規: 基準値・等号・必要数のスタイル */
+      .mat-qty-formula { display: inline-flex; align-items: center; gap: 2px; }
+      .mat-qty-base { color: #888; font-size: 11px; font-weight: 400; }
+      .mat-qty-sep { color: #aaa; font-size: 11px; }
+      .mat-qty-result { color: #1a1a1a; font-weight: 700; }
+      .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
+      .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
+      .imperial-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fff8e1; color: #e65100; border: 1px solid #ffe082; margin-top: 4px; white-space: nowrap; }
+      .imperial-qty { font-size: 11px; color: #795548; margin-top: 3px; display: flex; align-items: center; gap: 3px; }
+      .imperial-qty-num { font-weight: 700; color: #e65100; }
+      .skill-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 700; margin-top: 4px; white-space: nowrap; border: 1px solid; }
+      input.qty-input { width: 72px; padding: 5px 4px 5px 8px; background: #f5f4f0; border: 1px solid #ddd; border-radius: 6px; color: #1a1a1a; font-size: 13px; text-align: center; outline: none; }
+      input.qty-input:focus { border-color: #888; background: #fff; }
+      .expand-btn { padding: 5px 11px; border: 1px solid #ddd; border-radius: 6px; background: #fff; color: #888; font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+      .expand-btn:hover { border-color: #888; color: #1a1a1a; }
+      .expand-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+      .sub-row td { background: #faf9f6; padding: 10px 14px 12px 32px; border-bottom: 1px solid #f0ede8; }
+      .sub-group { margin-bottom: 14px; }
+      .sub-group:last-child { margin-bottom: 0; }
+      .sub-parent-label { font-size: 11px; color: #aaa; margin-bottom: 7px; }
+      .sub-parent-name { color: #1a1a1a; font-weight: 600; font-size: 12px; }
+      .sub-steps { display: flex; flex-direction: column; gap: 0; padding-left: 8px; }
+      .sub-step { background: #fff; border: 0.5px solid #e8e6e0; border-radius: 6px; padding: 7px 10px; margin-bottom: 2px; }
+      .proc-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; background: #e8eaf6; color: #1a237e; border: 1px solid #9fa8da; margin-bottom: 4px; font-weight: 600; }
+      .step-mats { display: flex; flex-direction: column; gap: 2px; }
+      .step-mat { font-size: 12px; color: #555; display: flex; gap: 5px; align-items: center; }
+      .step-mat-qty { color: #1a1a1a; font-weight: 600; }
+      .step-mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 14px; }
+      .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
+      .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
+      .step-connector { text-align: center; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
+      .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
+      .spinner { display: inline-block; width: 22px; height: 22px; border: 2px solid #eee; border-top-color: #888; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .lightbox { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; cursor: zoom-out; }
+      .lightbox.active { display: flex; }
+      .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+      .item-img img { cursor: zoom-in; transition: opacity 0.15s; }
+      .item-img img:hover { opacity: 0.85; }
+      /* ★ 数量列ヘッダーの説明ラベル */
+      .qty-formula-legend {
+        display: block;
+        font-size: 9px;
+        font-weight: 400;
+        color: #aaa;
+        margin-top: 2px;
+        letter-spacing: 0;
       }
-      .skill-level-lv-input::-webkit-outer-spin-button,
-      .skill-level-lv-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-      .skill-level-lv-input:focus { border-color: #888; background: #fff; }
-
-      #imperial-section {
-        background: #fff8e1; border: 1px solid #ffe082; border-radius: 10px;
-        padding: 14px 16px; margin-bottom: 14px; transition: all 0.2s;
-      }
-      #imperial-section .imperial-title {
-        font-size: 12px; font-weight: 700; color: #e65100; margin-bottom: 12px;
-        display: flex; align-items: center; gap: 6px;
-      }
-      .imperial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-      .imperial-qty-row { display: flex; align-items: center; gap: 8px; }
-      .imperial-qty-row input[type="number"] {
-        flex: 1; padding: 9px 10px; background: #fff; border: 1px solid #ddd;
-        border-radius: 8px; color: #1a1a1a; font-size: 14px; outline: none;
-        transition: border-color 0.2s; text-align: center;
-        -moz-appearance: textfield;
-      }
-      .imperial-qty-row input[type="number"]::-webkit-outer-spin-button,
-      .imperial-qty-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
-      .imperial-qty-row input[type="number"]:focus { border-color: #888; background: #fff; }
-      .imperial-qty-sep { font-size: 16px; color: #888; font-weight: 400; white-space: nowrap; flex-shrink: 0; }
-      #imperial-rank-select { background-color: #fff; border-color: #ffe082; color: #e65100; font-weight: 600; }
-
-      .recipe-proc-row {
-        display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
-        padding: 10px 12px;
-        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
-      }
-      .recipe-proc-label {
-        font-size: 11px; font-weight: 700; color: #3a5aad;
-        white-space: nowrap; margin-right: 4px; width: 100%; margin-bottom: 4px;
-      }
-      .proc-preset-btn {
-        padding: 3px 9px; border: 1px solid #c5cfe8; border-radius: 14px;
-        background: #fff; color: #3a5aad; font-size: 11px; cursor: pointer;
-        transition: all 0.15s; white-space: nowrap;
-      }
-      .proc-preset-btn:hover { border-color: #3a5aad; background: #e8eaf6; }
-      .proc-preset-btn.selected { background: #3a5aad; color: #fff; border-color: #3a5aad; }
-      .proc-custom-input {
-        flex: 1; min-width: 120px; padding: 4px 8px;
-        border: 1px solid #c5cfe8; border-radius: 6px;
-        background: #fff; color: #1a1a1a; font-size: 12px; outline: none;
-        transition: border-color 0.2s;
-      }
-      .proc-custom-input:focus { border-color: #3a5aad; }
-      .proc-custom-input::placeholder { color: #bbb; }
-      .proc-clear-btn {
-        padding: 3px 8px; border: 1px solid #e0ddd5; border-radius: 6px;
-        background: #fff; color: #aaa; font-size: 11px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
-      }
-      .proc-clear-btn:hover { border-color: #e53935; color: #e53935; }
-
-      .mat-block {
-        background: #faf9f6; border: 1px solid #e8e6e0;
-        border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
-      }
-      .mat-main-row {
-        display: grid; grid-template-columns: 1fr 110px auto 32px;
-        gap: 6px; align-items: center;
-      }
-      .mat-main-row input { background: #fff; margin: 0; }
-
-      .smat-grid {
-        display: grid;
-        grid-template-columns: 18px 1fr 74px 46px 72px auto 32px;
-        gap: 6px; align-items: center;
-      }
-      .smat-needed {
-        display: flex; align-items: center; justify-content: center;
-        height: 34px; padding: 0 6px;
-        background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
-        font-size: 12px; font-weight: 700; color: #2e7d32; white-space: nowrap;
-      }
-      .smat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
-      .smat-mult-label {
-        display: flex; align-items: center; justify-content: center;
-        height: 34px; font-size: 12px; color: #888; white-space: nowrap;
-      }
-      .smat-drag-handle {
-        display: flex; align-items: center; justify-content: center;
-        cursor: grab; color: #bbb; font-size: 14px; user-select: none; height: 100%;
-      }
-      .smat-drag-handle:active { cursor: grabbing; }
-      .mat-block.smat-dragging { opacity: 0.4; }
-      .mat-block.smat-drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
-
-      .step-drag-wrapper { position: relative; margin-bottom: 0; }
-      .step-drag-wrapper.step-dragging { opacity: 0.35; }
-      .step-drag-wrapper.step-drop-top    { border-top:    3px solid #3a5aad; }
-      .step-drag-wrapper.step-drop-bottom { border-bottom: 3px solid #3a5aad; }
-      .step-drag-handle {
-        position: absolute; left: -22px; top: 12px;
-        display: flex; align-items: center; justify-content: center;
-        width: 18px; height: 24px; cursor: grab; color: #ccc; font-size: 15px;
-        user-select: none; border-radius: 4px; transition: color 0.15s;
-      }
-      .step-drag-handle:hover { color: #888; }
-      .step-drag-handle:active { cursor: grabbing; }
-      .step-list-wrap { position: relative; padding-left: 24px; min-height: 44px; }
-      .step-list-wrap.group-drag-over { outline: 2px dashed #3a5aad; border-radius: 8px; background: #f0f4ff; }
-
-      .alt-add-btn {
-        padding: 5px 12px; border: 1px dashed #3a5aad; border-radius: 6px;
-        background: #fff; color: #3a5aad; font-size: 11px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s;
-      }
-      .alt-add-btn:hover { background: #f0f4ff; border-style: solid; }
-      .alt-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-
-      .alt-entry {
-        display: grid;
-        grid-template-columns: 20px minmax(80px, auto) 1fr 90px 46px 72px 32px;
-        gap: 6px; align-items: center;
-        padding: 8px 12px 8px 10px;
-        background: #f0f4ff; border: 1px solid #c5cfe8; border-radius: 8px;
-      }
-      .alt-entry.mat-alt-entry {
-        grid-template-columns: 20px minmax(80px, auto) 1fr 110px 32px;
-      }
-      .alt-tree-icon { color: #9fa8da; font-size: 14px; text-align: center; line-height: 1; }
-      .alt-connector-select {
-        width: 100%; min-width: 76px; padding: 6px 26px 6px 8px; font-size: 12px;
-        background: #fff; border: 1px solid #c5cfe8; border-radius: 6px;
-        color: #3a5aad; font-weight: 600;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239fa8da' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: right 6px center;
-        appearance: none; white-space: nowrap;
-      }
-      .alt-entry input { background: #fff; margin: 0; }
-      .smat-needed.alt-badge { background: #e8eaf6; border-color: #9fa8da; color: #3949ab; }
-      .smat-needed.alt-badge.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; }
-
-      .del-btn {
-        width: 32px; height: 32px; border-radius: 6px; border: 1px solid #eee;
-        background: #fff; color: #ccc; font-size: 16px; cursor: pointer;
-        display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
-      }
-      .del-btn:hover { border-color: #e53935; color: #e53935; }
-
-      .subgroup {
-        border: 1px solid #e8e6e0; border-radius: 10px;
-        padding: 14px; margin-bottom: 10px; background: #faf9f6;
-      }
-      .subgroup-header {
-        display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
-      }
-      .subgroup-title { font-size: 13px; font-weight: 600; color: #1a1a1a; }
-      .step-block {
-        border: 1px solid #e8e6e0; border-radius: 8px; padding: 10px 12px; background: #fff;
-      }
-      .step-header {
-        display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;
-      }
-      .step-label-text { font-size: 12px; font-weight: 600; color: #666; }
-      .result-row { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
-      .step-target-qty { text-align: right; padding-right: 10px !important; }
-
-      .connector-block {
-        display: flex; align-items: center; gap: 8px;
-        margin: 8px 0; padding: 8px 12px; background: #f0ede8; border-radius: 8px;
-      }
-      .connector-label { font-size: 11px; color: #888; white-space: nowrap; }
-      .connector-presets { display: flex; gap: 5px; flex-wrap: wrap; }
-      .preset-btn {
-        padding: 4px 10px; border: 1px solid #ddd; border-radius: 20px;
-        background: #fff; color: #555; font-size: 12px; cursor: pointer;
-        transition: all 0.15s; white-space: nowrap;
-      }
-      .preset-btn:hover { border-color: #888; color: #1a1a1a; }
-      .preset-btn.selected { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-      .connector-custom { flex: 1; min-width: 80px; padding: 5px 8px; font-size: 12px; }
-      .add-btn {
-        width: 100%; padding: 8px; border: 1px dashed #ccc; border-radius: 8px;
-        background: transparent; color: #888; font-size: 12px; cursor: pointer;
-        transition: all 0.15s; margin-top: 8px;
-      }
-      .add-btn:hover { border-color: #888; color: #1a1a1a; background: #faf9f6; }
-      .del-text-btn {
-        background: none; border: none; color: #ccc; font-size: 12px;
-        cursor: pointer; padding: 2px 6px; border-radius: 4px;
-      }
-      .del-text-btn:hover { color: #e53935; background: #fff0f0; }
-      .section-divider { font-size: 11px; color: #aaa; margin: 10px 0 6px; font-weight: 600; }
-      .nav {
-        display: flex; gap: 10px; max-width: 680px;
-        margin: 0 auto; justify-content: space-between;
-      }
-      .btn-back {
-        padding: 11px 24px; border: 1px solid #ddd; border-radius: 8px;
-        background: #fff; color: #666; font-size: 14px; cursor: pointer; transition: all 0.15s;
-      }
-      .btn-back:hover { border-color: #888; color: #1a1a1a; }
-      .btn-next {
-        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
-        background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 600;
-        cursor: pointer; transition: all 0.15s;
-      }
-      .btn-next:hover { background: #333; }
-      .btn-submit {
-        flex: 1; padding: 11px 24px; border: none; border-radius: 8px;
-        background: #2e7d32; color: #fff; font-size: 14px; font-weight: 600;
-        cursor: pointer; transition: all 0.15s;
-      }
-      .btn-submit:hover { background: #1b5e20; }
-      .btn-submit:disabled { background: #aaa; cursor: not-allowed; }
-      .confirm-section { margin-bottom: 14px; }
-      .confirm-label { font-size: 11px; color: #aaa; margin-bottom: 3px; }
-      .confirm-value { font-size: 13px; color: #1a1a1a; }
-      .confirm-mat { font-size: 12px; color: #555; padding: 2px 0; }
-      .confirm-mat .qty { font-weight: 600; color: #1a1a1a; }
-      .confirm-mat-alt {
-        font-size: 12px; color: #3a5aad; padding: 1px 0 1px 16px;
-        display: flex; align-items: center; gap: 6px;
-      }
-      .confirm-mat-alt .alt-connector { font-size: 10px; color: #9fa8da; }
-      .confirm-step { background: #f5f4f0; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; }
-      .confirm-recipe-proc {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 12px; border-radius: 10px; font-size: 12px; font-weight: 700;
-        background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da;
-        white-space: nowrap; vertical-align: middle;
-      }
-      .confirm-result {
-        font-size: 12px; color: #2e7d32; font-weight: 600;
-        margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5;
-      }
-      .confirm-connector { text-align: center; font-size: 12px; color: #aaa; padding: 3px 0; }
-      .confirm-imperial {
-        background: #fff8e1; border: 1px solid #ffe082; border-radius: 8px;
-        padding: 10px 14px; margin-bottom: 14px;
-      }
-      .confirm-imperial-title { font-size: 11px; font-weight: 700; color: #e65100; margin-bottom: 6px; }
-      .confirm-imperial-body { font-size: 13px; color: #1a1a1a; }
-      .toast {
-        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-        background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px;
-        font-size: 13px; opacity: 0; transition: opacity 0.3s;
-        pointer-events: none; z-index: 100; white-space: nowrap;
-      }
-      .toast.show { opacity: 1; }
-      .hidden { display: none !important; }
-      .edit-item {
-        padding: 10px 14px; background: #fff; border: 1px solid #e8e6e0;
-        border-radius: 8px; cursor: pointer; display: flex;
-        justify-content: space-between; align-items: center; transition: background 0.1s;
-      }
-      .edit-item:hover { background: #f5f4f0; }
-      .edit-item-name { font-size: 13px; font-weight: 500; }
-      .edit-item-sheet { font-size: 11px; color: #aaa; }
-      .login-wrap {
-        max-width: 400px; margin: 60px auto; background: #fff;
-        border: 1px solid #e8e6e0; border-radius: 12px; padding: 32px 24px; text-align: center;
-      }
-      .login-wrap h2 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-      .login-wrap p { font-size: 13px; color: #888; margin-bottom: 24px; }
-      .login-wrap input { width: 100%; margin-bottom: 12px; }
-      .admin-box {
-        max-width: 680px; margin: 0 auto 20px; background: #f0f4ff;
-        border: 1px solid #c5cfe8; border-radius: 10px; padding: 12px 16px;
-      }
-      .admin-box-title { font-size: 12px; font-weight: 600; color: #3a5aad; margin-bottom: 6px; }
-      #city-master-panel {
-        display: none; margin-top: 10px; background: #fff;
-        border: 1px solid #c5cfe8; border-radius: 8px; padding: 14px;
-      }
-      #city-master-panel .panel-title {
-        font-size: 12px; font-weight: 700; color: #1a1a1a;
-        margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #f0ede8;
-      }
-      .city-master-list {
-        display: flex; flex-direction: column; gap: 4px;
-        max-height: 220px; overflow-y: auto; margin-bottom: 10px;
-      }
-      .city-master-item {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 7px 10px; background: #faf9f6; border: 1px solid #f0ede8;
-        border-radius: 6px; font-size: 13px;
-      }
-      .city-master-item .city-del-btn {
-        background: none; border: 1px solid #eee; border-radius: 5px;
-        color: #ccc; font-size: 12px; padding: 2px 8px; cursor: pointer;
-        transition: all 0.15s; white-space: nowrap;
-      }
-      .city-master-item .city-del-btn:hover { border-color: #e53935; color: #e53935; background: #fff0f0; }
-      .city-add-row { display: flex; gap: 6px; }
-      .city-add-row input { flex: 1; }
-      .city-add-row button {
-        padding: 8px 14px; border: none; border-radius: 8px;
-        background: #1a1a1a; color: #fff; font-size: 13px; font-weight: 600;
-        cursor: pointer; white-space: nowrap;
-      }
-      .city-add-row button:hover { background: #333; }
-      .city-master-empty { font-size: 12px; color: #bbb; text-align: center; padding: 16px 0; }
-      .city-row { cursor: default; transition: opacity 0.15s; }
-      .city-row.dragging { opacity: 0.4; }
-      .city-row.drag-over { border-color: #3a5aad !important; background: #f0f4ff !important; }
-      .city-drag-handle {
-        display: flex; align-items: center; justify-content: center;
-        cursor: grab; color: #ccc; font-size: 14px; user-select: none;
-      }
-      .city-drag-handle:active { cursor: grabbing; }
-      .master-input-wrap { position: relative; }
-      .master-input-row { display: flex; gap: 6px; align-items: center; }
-      .master-input-row input { flex: 1; }
-      .master-ref-btn {
-        padding: 7px 12px; border: 1px solid #3a5aad; border-radius: 8px;
-        background: #fff; color: #3a5aad; font-size: 12px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
-      }
-      .master-ref-btn:hover { background: #f0f4ff; }
-      .master-ref-btn.open { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-      .apply-btn {
-        padding: 7px 12px; border: 1px solid #2e7d32; border-radius: 8px;
-        background: #fff; color: #2e7d32; font-size: 12px; cursor: pointer;
-        white-space: nowrap; transition: all 0.15s; flex-shrink: 0;
-      }
-      .apply-btn:hover { background: #f0fff1; }
-      .master-ref-panel {
-        display: none; position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-        background: #fff; border: 1px solid #c5cfe8; border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.12); z-index: 50; overflow: hidden;
-      }
-      .master-ref-panel.open { display: block; }
-      .mrp-header {
-        padding: 10px 12px 8px; background: #f5f7ff;
-        border-bottom: 1px solid #e0e5f5; display: flex; align-items: center; gap: 8px;
-      }
-      .mrp-search {
-        flex: 1; padding: 6px 10px; font-size: 13px; border: 1px solid #dde;
-        border-radius: 6px; background: #fff; outline: none;
-      }
-      .mrp-search:focus { border-color: #3a5aad; }
-      .mrp-tabs { display: flex; border: 1px solid #dde; border-radius: 6px; overflow: hidden; }
-      .mrp-tab {
-        padding: 5px 10px; font-size: 11px; border: none; background: #fff;
-        color: #888; cursor: pointer; transition: all 0.15s; white-space: nowrap;
-      }
-      .mrp-tab.active { background: #3a5aad; color: #fff; }
-      .mrp-body { max-height: 260px; overflow-y: auto; padding: 6px; }
-      .mrp-empty { padding: 24px; text-align: center; font-size: 12px; color: #bbb; }
-      .mrp-section-label {
-        font-size: 10px; font-weight: 700; color: #9fa8da;
-        padding: 6px 8px 2px; letter-spacing: 0.06em; text-transform: uppercase;
-      }
-      .mrp-item {
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 8px 10px; border-radius: 7px; cursor: pointer;
-        transition: background 0.1s; gap: 8px;
-      }
-      .mrp-item:hover { background: #f0f4ff; }
-      .mrp-item-name { font-size: 13px; font-weight: 500; color: #1a1a1a; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .mrp-item-meta { font-size: 10px; color: #aaa; white-space: nowrap; flex-shrink: 0; }
-      .mrp-item-badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; flex-shrink: 0; }
-      .badge-recipe { background: #fce4ec; color: #c62828; border: 1px solid #ef9a9a; }
-      .badge-sub    { background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; }
-      .badge-mat    { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+      @media (max-width: 600px) { header, .table-container { padding: 12px 16px; } .header-title { font-size: 16px; } }
     </style>
   </head>
   <body>
-    <div id="login-area" class="login-wrap" style="display:none">
-      <h2>🔐 ログイン</h2>
-      <p>レシピ管理にはログインが必要です</p>
-      <input type="email" id="login-email" placeholder="メールアドレス" />
-      <input type="password" id="login-password" placeholder="パスワード" />
-      <button class="btn-submit" style="width:100%;margin-top:4px" onclick="doLogin()">ログイン</button>
-      <p style="font-size:11px;color:#e53935;margin-top:12px" id="login-error"></p>
-    </div>
-
-    <div id="main-area" style="display:none">
-      <div class="app-header">
-        <h1>🏠 レシピ入力フォーム</h1>
-        <p id="user-email-label" style="font-size:11px;color:#aaa;margin-top:4px"></p>
-        <div class="tab-bar" style="margin-top:12px">
-          <button id="tab-new"  class="tab-btn active" onclick="switchTab('new')">＋ 新規登録</button>
-          <button id="tab-edit" class="tab-btn"        onclick="switchTab('edit')">✏ 編集・削除</button>
-        </div>
-        <button onclick="doLogout()" style="margin-top:8px;padding:4px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#888;font-size:11px;cursor:pointer">ログアウト</button>
+    <header>
+      <div>
+        <div class="header-logo">Black Desert Online</div>
+        <div class="header-title">加工・製作レシピ検索</div>
       </div>
+      <div class="header-right" id="last-updated"></div>
+    </header>
 
-      <div id="area-new">
-        <div class="admin-box">
-          <div class="admin-box-title">🔧 管理者メニュー</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button type="button" onclick="showNewSheetDialog()" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">＋ 新しいシートを作成</button>
-            <button type="button" onclick="toggleCityMasterPanel()" id="city-master-toggle-btn" style="padding:7px 14px;border:1px solid #3a5aad;border-radius:6px;background:#fff;color:#3a5aad;font-size:12px;cursor:pointer">🏙 都市マスタを管理</button>
-          </div>
-          <div id="new-sheet-dialog" style="display:none;margin-top:10px">
-            <div style="display:flex;gap:6px">
-              <input type="text" id="new-sheet-name" placeholder="例: 加工品" style="flex:1" />
-              <button class="btn-next" style="padding:8px 14px;font-size:13px;flex:none" onclick="submitNewSheet()">作成</button>
-              <button class="btn-back" style="padding:8px 14px;font-size:13px" onclick="hideNewSheetDialog()">✕</button>
-            </div>
-          </div>
-          <div id="city-master-panel">
-            <div class="panel-title">🏙 都市マスタ管理</div>
-            <div class="city-master-list" id="city-master-list"><div class="city-master-empty">読み込み中...</div></div>
-            <div class="city-add-row">
-              <input type="text" id="new-city-name" placeholder="都市名を入力（例: カルフェオン）" />
-              <button onclick="submitNewCity()">＋ 追加</button>
-            </div>
-            <div style="font-size:11px;color:#888;margin-top:8px">※ 追加した都市はフォームの「製作できる都市」候補に反映されます</div>
-          </div>
-          <div style="font-size:11px;color:#888;margin-top:6px">※ シートを追加するとフォームのカテゴリ選択に反映されます</div>
-        </div>
-
-        <div class="steps-indicator">
-          <div class="si-step active" id="si-1"><div class="si-circle">1</div><div class="si-label">基本情報</div></div>
-          <div class="si-line"></div>
-          <div class="si-step" id="si-2"><div class="si-circle">2</div><div class="si-label">製作材料</div></div>
-          <div class="si-line"></div>
-          <div class="si-step" id="si-3"><div class="si-circle">3</div><div class="si-label">副材料</div></div>
-          <div class="si-line"></div>
-          <div class="si-step" id="si-4"><div class="si-circle">4</div><div class="si-label">確認</div></div>
-        </div>
-
-        <!-- Step 1 -->
-        <div id="page-1">
-          <div class="card">
-            <div class="card-title"><span class="num">1</span>基本情報</div>
-            <div class="field">
-              <label>カテゴリ（シート）<span class="req">*</span></label>
-              <select id="f-sheet" onchange="onSheetChange()"></select>
-            </div>
-            <div class="field">
-              <label>アイテム名<span class="req">*</span></label>
-              <input type="text" id="f-name" placeholder="例: トネリコ合板" />
-            </div>
-            <div class="field">
-              <label>サブカテゴリ<span class="opt">任意</span></label>
-              <input type="text" id="f-category" list="cat-list" placeholder="例: ソース類・家具セット" />
-              <datalist id="cat-list"></datalist>
-            </div>
-
-            <!-- 画像アップロードUI -->
-            <div class="field">
-              <label>アイテム画像<span class="opt">任意・PNG/JPG/WebP・最大5MB</span></label>
-              <div class="image-upload-area" id="image-upload-area"
-                ondragover="onImageDragOver(event)" ondragleave="onImageDragLeave(event)" ondrop="onImageDrop(event)">
-                <input type="file" id="f-image-file" accept="image/png,image/jpeg,image/webp,image/gif"
-                  onchange="onImageFileSelected(this.files[0])">
-                <div class="image-upload-placeholder" id="image-upload-placeholder">
-                  <div class="icon">🖼</div>
-                  <div class="text">クリックまたはドラッグ＆ドロップで画像を選択</div>
-                  <div class="subtext">PNG / JPG / WebP / GIF ・ 最大 5 MB</div>
-                </div>
-                <div class="image-preview-wrap" id="image-preview-wrap">
-                  <img class="image-preview-thumb" id="image-preview-thumb" src="" alt="">
-                  <div class="image-preview-info">
-                    <div class="image-preview-name" id="image-preview-name"></div>
-                    <div class="image-preview-size" id="image-preview-size"></div>
-                    <div class="upload-progress" id="upload-progress">
-                      <div class="upload-progress-bar" id="upload-progress-bar"></div>
-                    </div>
-                    <div class="image-preview-status" id="image-preview-status"></div>
-                  </div>
-                  <button type="button" class="image-change-btn" onclick="triggerImageFileInput()">📁 変更</button>
-                  <button type="button" class="image-remove-btn" onclick="removeImage()">✕</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>必要スキルレベル<span class="opt">任意</span></label>
-              <div class="skill-level-row">
-                <select id="skill-level-select">
-                  <option value="">未設定</option>
-                  <option value="初級">初級</option>
-                  <option value="見習い">見習い</option>
-                  <option value="熟練">熟練</option>
-                  <option value="専門">専門</option>
-                  <option value="職人">職人</option>
-                  <option value="名匠">名匠</option>
-                  <option value="道人">道人</option>
-                </select>
-                <div class="skill-level-lv-wrap">
-                  <span>Lv.</span>
-                  <input type="number" id="skill-level-num" class="skill-level-lv-input" min="1" max="99" placeholder="—" />
-                </div>
-              </div>
-            </div>
-
-            <!-- 製作方法（レシピ全体） -->
-            <div class="field">
-              <label>製作方法<span class="opt">任意・このレシピ全体の加工方法</span></label>
-              <div class="recipe-proc-row" id="recipe-proc-row">
-                <span class="recipe-proc-label">⚙ プリセットから選択、または自由入力：</span>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶粉砕',this)">L:加工▶粉砕</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶乾燥',this)">L:加工▶乾燥</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶加熱',this)">L:加工▶加熱</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶選別',this)">L:加工▶選別</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶錬金',this)">L:加工▶錬金</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('L:加工▶薪割',this)">L:加工▶薪割</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('料理道具',this)">料理道具</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('錬金道具',this)">錬金道具</button>
-                <button type="button" class="proc-preset-btn" onclick="selectRecipeProc('労働者',this)">労働者</button>
-                <input type="text" id="recipe-proc-custom" class="proc-custom-input"
-                  placeholder="自由入力..." oninput="clearRecipeProcPresets()">
-                <button type="button" class="proc-clear-btn" onclick="clearRecipeProc()">✕ クリア</button>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>製作できる都市 ＆ 製作所レベル<span class="opt">任意・最大10都市</span></label>
-              <div id="city-level-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
-              <button type="button" class="add-btn" id="add-city-btn" onclick="addCityRow()">＋ 都市を追加</button>
-            </div>
-            <div class="field">
-              <label>効果<span class="opt">任意</span></label>
-              <textarea id="f-effect" class="effect-input" placeholder="例: 移動速度 +2&#10;持続時間 90分" rows="4"></textarea>
-            </div>
-
-            <div id="imperial-section" class="hidden">
-              <div class="imperial-title">👑 皇室納品情報<span style="font-size:10px;font-weight:400;color:#bf8000;margin-left:6px">料理・錬金のみ</span></div>
-              <div class="imperial-grid">
-                <div>
-                  <label style="margin-bottom:6px;">皇室納品ランク<span class="opt">任意</span></label>
-                  <select id="imperial-rank-select" style="background-color:#fff;border-color:#ffe082;color:#e65100;font-weight:600;">
-                    <option value="">未設定</option>
-                    <option value="見習い">見習い</option>
-                    <option value="熟練">熟練</option>
-                    <option value="専門家">専門家</option>
-                    <option value="職人">職人</option>
-                    <option value="名匠">名匠</option>
-                    <option value="道人">道人</option>
-                  </select>
-                </div>
-                <div>
-                  <label style="margin-bottom:6px;">１箱の入個数（下位 - 上位）<span class="opt">任意</span></label>
-                  <div class="imperial-qty-row">
-                    <input type="number" id="imperial-qty-min" min="1" max="9999" placeholder="例: 10" />
-                    <span class="imperial-qty-sep">－</span>
-                    <input type="number" id="imperial-qty-max" min="1" max="9999" placeholder="例: 25" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="nav">
-            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
-            <button class="btn-next" onclick="goStep(2)">次へ：製作材料 →</button>
-          </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div id="page-2" class="hidden">
-          <div class="card">
-            <div class="card-title">
-              <span class="num">2</span>製作材料
-              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">最大6種 ／ 各材料に代替品を追加可</span>
-            </div>
-            <div id="mat-block-list"></div>
-            <button class="add-btn" id="add-mat-btn" onclick="addMatBlock()">＋ 材料を追加</button>
-          </div>
-          <div class="nav">
-            <button class="btn-back" onclick="goStep(1)">← 戻る</button>
-            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
-            <button class="btn-next" onclick="goStep(3)">次へ：副材料 →</button>
-          </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div id="page-3" class="hidden">
-          <div class="card">
-            <div class="card-title">
-              <span class="num">3</span>副材料（材料の作り方）
-              <span style="font-size:11px;font-weight:400;color:#aaa;margin-left:auto">任意・最大15グループ</span>
-            </div>
-            <p style="font-size:12px;color:#888;margin-bottom:6px">材料をどうやって作るかを加工ステップで登録します。不要なら空のまま次へ。</p>
-            <p style="font-size:11px;color:#9fa8da;margin-bottom:14px">💡 ステップの ⠿ ハンドルをドラッグすると、グループをまたいで移動できます</p>
-            <div id="subgroup-list"></div>
-            <button class="add-btn" id="add-sub-btn" onclick="addSubgroup()">＋ 副材料グループを追加</button>
-          </div>
-          <div class="nav" id="nav-step3">
-            <button class="btn-back" onclick="goStep(2)">← 戻る</button>
-            <button class="btn-submit edit-only-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
-            <button class="btn-next" onclick="goStep(4)">次へ：確認 →</button>
-          </div>
-        </div>
-
-        <!-- Step 4 -->
-        <div id="page-4" class="hidden">
-          <div class="card">
-            <div class="card-title"><span class="num">4</span>内容確認</div>
-            <div id="confirm-content"></div>
-          </div>
-          <div class="nav">
-            <button class="btn-back" onclick="goStep(3)">← 戻る</button>
-            <button class="btn-submit edit-only-btn" id="step4-update-btn" style="display:none" onclick="updateCurrentRecipe()">✏ 更新する</button>
-            <button class="btn-submit" id="submit-btn" onclick="submitRecipe()">✓ 保存する</button>
-          </div>
-        </div>
+    <div class="controls-row1">
+      <div class="search-wrap">
+        <input type="text" id="search" placeholder="アイテム名・材料名・効果で検索..." />
+        <button class="search-clear-btn" id="search-clear-btn" onclick="clearSearch()" title="クリア">✕</button>
       </div>
-
-      <!-- 編集・削除エリア -->
-      <div id="area-edit" style="display:none">
-        <div style="max-width:680px;margin:0 auto 16px">
-          <div style="display:flex;gap:8px;margin-bottom:12px">
-            <input type="text" id="edit-search" placeholder="アイテム名で検索..." oninput="filterEditList()" style="flex:1" />
-            <select id="edit-sheet-filter" onchange="filterEditList()" style="width:100px">
-              <option value="">全シート</option>
-            </select>
-          </div>
-          <div id="edit-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto"></div>
-        </div>
-        <div id="edit-form-area" style="display:none">
-          <div style="max-width:680px;margin:0 auto 8px;display:flex;justify-content:space-between;align-items:center">
-            <button onclick="clearEditForm()" style="padding:6px 12px;border:1px solid #ddd;border-radius:6px;background:#fff;color:#666;font-size:12px;cursor:pointer">← 一覧に戻る</button>
-            <button onclick="deleteCurrentRecipe()" style="padding:6px 12px;border:1px solid #e53935;border-radius:6px;background:#fff;color:#e53935;font-size:12px;cursor:pointer">🗑 削除</button>
-          </div>
-        </div>
+      <div id="tag-buttons">
+        <button class="cat-btn active" onclick="setTag('all', this)">すべて</button>
       </div>
     </div>
+    <div class="controls-row2" id="cat-row" style="display: none">
+      <span style="font-size: 11px; color: #aaa; margin-right: 4px">カテゴリ：</span>
+      <div id="cat-buttons"></div>
+    </div>
 
-    <div class="toast" id="toast"></div>
+    <!-- ★ 上に戻るボタン（画面右下固定・スクロールで表示） -->
+    <button id="scroll-top-btn" onclick="scrollToTop()" title="ページ上部へ戻る">▲ 上に戻る</button>
+
+    <div id="lightbox" class="lightbox" onclick="closeLightbox()">
+      <img id="lightbox-img" src="" alt="" />
+    </div>
+
+    <div class="table-container">
+      <div style="font-size: 11px; color: #aaa; margin-bottom: 8px">
+        <p>※ 細分化材料の数量は単純計算した最小数を表記しています</p>
+        <p>※ 熟練度が上がると計算値よりも少ない量で作り終えることができます</p>
+      </div>
+      <div class="result-info" id="result-info"></div>
+      <table>
+        <thead id="table-head">
+          <tr>
+            <th style="width: 18%">アイテム名</th>
+            <th style="width: auto">
+              製作材料
+              <!-- ★ 数量説明ラベル -->
+              <span class="qty-formula-legend">基準値 × 作成数 ＝ 必要数</span>
+            </th>
+            <th style="width: 14%">🍽 効果 / 👑 皇室納品</th>
+            <th style="width: 18%">製作できる都市 / 製作所Lv</th>
+            <th style="width: 7%">作成個数</th>
+            <th style="width: 8%">材料細分化</th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr>
+            <td colspan="6" class="state-msg">
+              <div class="spinner"></div>
+              <div>データを読み込んでいます...</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
 
     <script>
-      const SUPABASE_URL  = "https://qvdlqqlstohsxfdersqf.supabase.co";
+      const SUPABASE_URL = "https://qvdlqqlstohsxfdersqf.supabase.co";
       const SUPABASE_ANON = "sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6";
-      const STORAGE_BUCKET = "recipe-images";
+      const EFFECT_SHEET_NAMES = ["料理"];
+      const IMPERIAL_SHEET_NAMES = ["料理", "錬金"];
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-      const IMPERIAL_SHEETS = ["料理", "錬金"];
+      const COL_SPAN = 6;
+      let SHEETS = [];
+      let allData = [];
+      let currentTag = "all";
+      let currentCat = "all";
+      const quantities = {};
+      const expanded = {};
+
       const SKILL_LEVEL_COLORS = {
         "初級":  { bg: "#f5f4f0", color: "#888",    border: "#ddd"    },
         "見習い":{ bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
@@ -791,1507 +228,410 @@
         "名匠":  { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
-      const CONNECTORS     = ["↓", "あるいは", "または", "さらに"];
-      const ALT_CONNECTORS = ["あるいは", "または", "もしくは"];
 
-      const MAX_GROUPS = 15, MAX_STEPS = 10, MAX_MATS = 10,
-            MAX_BASIC_MATS = 6, MAX_CITIES = 10, MAX_ALTS = 3;
-
-      let matBlockCount = 0, subgroupCount = 0;
-      let stepCounters = {}, stepMatCounters = {}, stepMatAltCounters = {};
-      let cityRowCount = 0, availableCities = [];
-      let editRecipes = [], currentEditId = null, currentEditSheet = null;
-      let cityMasterPanelOpen = false;
-      let masterListCache = [];
-      let _altUid = 0;
-      const altCounts = {};
-      function nextAltUid() { return ++_altUid; }
-
-      // ============================================================
-      // 画像アップロード状態
-      // ============================================================
-      let imageState = {
-        file: null,
-        uploadedUrl: null,
-        existingUrl: null,
-        isUploading: false,
-      };
-
-      function triggerImageFileInput() {
-        document.getElementById("f-image-file").click();
-      }
-
-      function onImageDragOver(e) {
-        e.preventDefault();
-        document.getElementById("image-upload-area").classList.add("dragging");
-      }
-      function onImageDragLeave(e) {
-        document.getElementById("image-upload-area").classList.remove("dragging");
-      }
-      function onImageDrop(e) {
-        e.preventDefault();
-        document.getElementById("image-upload-area").classList.remove("dragging");
-        const file = e.dataTransfer.files[0];
-        if (file) onImageFileSelected(file);
-      }
-
-      function onImageFileSelected(file) {
-        if (!file) return;
-        const allowed = ["image/png","image/jpeg","image/webp","image/gif"];
-        if (!allowed.includes(file.type)) {
-          showToast("PNG / JPG / WebP / GIF のみアップロードできます");
-          return;
-        }
-        if (file.size > 5 * 1024 * 1024) {
-          showToast("ファイルサイズは5MBまでです");
-          return;
-        }
-        imageState.file = file;
-        imageState.uploadedUrl = null;
-        showImagePreview(file);
-        uploadImageToStorage(file);
-      }
-
-      function showImagePreview(file) {
-        const area      = document.getElementById("image-upload-area");
-        const ph        = document.getElementById("image-upload-placeholder");
-        const wrap      = document.getElementById("image-preview-wrap");
-        const thumb     = document.getElementById("image-preview-thumb");
-        const nameEl    = document.getElementById("image-preview-name");
-        const sizeEl    = document.getElementById("image-preview-size");
-        const statusEl  = document.getElementById("image-preview-status");
-        const progressEl= document.getElementById("upload-progress");
-        const barEl     = document.getElementById("upload-progress-bar");
-
-        area.classList.add("has-image");
-        ph.style.display = "none";
-        wrap.classList.add("visible");
-
-        const reader = new FileReader();
-        reader.onload = e => { thumb.src = e.target.result; };
-        reader.readAsDataURL(file);
-
-        nameEl.textContent = file.name;
-        sizeEl.textContent = formatBytes(file.size);
-        statusEl.textContent = "アップロード準備中...";
-        statusEl.className = "image-preview-status uploading";
-        progressEl.classList.add("visible");
-        barEl.style.width = "0%";
-      }
-
-      function showExistingImagePreview(url) {
-        const area      = document.getElementById("image-upload-area");
-        const ph        = document.getElementById("image-upload-placeholder");
-        const wrap      = document.getElementById("image-preview-wrap");
-        const thumb     = document.getElementById("image-preview-thumb");
-        const nameEl    = document.getElementById("image-preview-name");
-        const sizeEl    = document.getElementById("image-preview-size");
-        const statusEl  = document.getElementById("image-preview-status");
-        const progressEl= document.getElementById("upload-progress");
-
-        area.classList.add("has-image");
-        ph.style.display = "none";
-        wrap.classList.add("visible");
-        thumb.src = url;
-        const parts = url.split("/");
-        nameEl.textContent = decodeURIComponent(parts[parts.length - 1].split("?")[0]);
-        sizeEl.textContent = "既存画像";
-        statusEl.textContent = "✓ 保存済み";
-        statusEl.className = "image-preview-status done";
-        progressEl.classList.remove("visible");
-      }
-
-      function removeImage() {
-        imageState.file = null;
-        imageState.uploadedUrl = null;
-        imageState.existingUrl = null;
-        const area     = document.getElementById("image-upload-area");
-        const ph       = document.getElementById("image-upload-placeholder");
-        const wrap     = document.getElementById("image-preview-wrap");
-        const thumb    = document.getElementById("image-preview-thumb");
-        const fileInput= document.getElementById("f-image-file");
-        area.classList.remove("has-image");
-        ph.style.display = "";
-        wrap.classList.remove("visible");
-        thumb.src = "";
-        fileInput.value = "";
-      }
-
-      async function uploadImageToStorage(file) {
-        if (imageState.isUploading) return;
-        imageState.isUploading = true;
-        const statusEl  = document.getElementById("image-preview-status");
-        const barEl     = document.getElementById("upload-progress-bar");
-
-        statusEl.textContent = "アップロード中...";
-        statusEl.className = "image-preview-status uploading";
-        barEl.style.width = "30%";
-
-        try {
-          const ext = file.name.split(".").pop().toLowerCase();
-          const safeName = `${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-
-          barEl.style.width = "60%";
-
-          const { data, error } = await sb.storage
-            .from(STORAGE_BUCKET)
-            .upload(safeName, file, {
-              cacheControl: "3600",
-              upsert: false,
-              contentType: file.type,
-            });
-
-          if (error) throw error;
-
-          barEl.style.width = "100%";
-
-          const { data: urlData } = sb.storage
-            .from(STORAGE_BUCKET)
-            .getPublicUrl(data.path);
-
-          imageState.uploadedUrl = urlData.publicUrl;
-          statusEl.textContent = "✓ アップロード完了";
-          statusEl.className = "image-preview-status done";
-
-          setTimeout(() => {
-            document.getElementById("upload-progress").classList.remove("visible");
-          }, 800);
-
-        } catch (e) {
-          statusEl.textContent = "⚠ アップロード失敗: " + (e.message || "不明なエラー");
-          statusEl.className = "image-preview-status error";
-          barEl.style.width = "0%";
-          showToast("画像のアップロードに失敗しました: " + (e.message || ""));
-        } finally {
-          imageState.isUploading = false;
-        }
-      }
-
-      function getImageUrl() {
-        return imageState.uploadedUrl || imageState.existingUrl || "";
-      }
-
-      function resetImageState() {
-        imageState = { file: null, uploadedUrl: null, existingUrl: null, isUploading: false };
-        removeImage();
-      }
-
-      function formatBytes(bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
-        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-      }
-
-      // ============================================================
-      // グローバルドラッグ状態
-      // ============================================================
-      let _stepDrag = null;
-
-      function _clearStepDropIndicators() {
-        document.querySelectorAll('.step-drop-top, .step-drop-bottom').forEach(el => {
-          el.classList.remove('step-drop-top', 'step-drop-bottom');
-        });
-        document.querySelectorAll('.group-drag-over').forEach(el => {
-          el.classList.remove('group-drag-over');
-        });
-      }
-
-      function initCrossGroupDragSort() {
-        document.querySelectorAll('#subgroup-list .step-drag-wrapper').forEach(wrapper => {
-          if (wrapper.dataset.dragInit === '1') return;
-          wrapper.dataset.dragInit = '1';
-          const handle = wrapper.querySelector('.step-drag-handle');
-          if (!handle) return;
-          const stepId = wrapper.getAttribute('data-step-id');
-          const getGid = () => wrapper.getAttribute('data-gid');
-          handle.addEventListener('mousedown', () => { wrapper.draggable = true; });
-          handle.addEventListener('mouseup',   () => { wrapper.draggable = false; });
-          wrapper.addEventListener('dragstart', e => {
-            _stepDrag = { wrapperEl: wrapper, stepId, fromGid: getGid() };
-            wrapper.classList.add('step-dragging');
-            e.dataTransfer.effectAllowed = 'move';
-          });
-          wrapper.addEventListener('dragend', () => {
-            wrapper.classList.remove('step-dragging');
-            wrapper.draggable = false;
-            _clearStepDropIndicators();
-            _stepDrag = null;
-          });
-          wrapper.addEventListener('dragover', e => {
-            if (!_stepDrag || _stepDrag.stepId === stepId) return;
-            e.preventDefault(); e.stopPropagation();
-            _clearStepDropIndicators();
-            const rect = wrapper.getBoundingClientRect();
-            if (e.clientY < rect.top + rect.height / 2) wrapper.classList.add('step-drop-top');
-            else wrapper.classList.add('step-drop-bottom');
-          });
-          wrapper.addEventListener('dragleave', e => {
-            if (!wrapper.contains(e.relatedTarget)) wrapper.classList.remove('step-drop-top', 'step-drop-bottom');
-          });
-          wrapper.addEventListener('drop', e => {
-            e.preventDefault(); e.stopPropagation();
-            if (!_stepDrag || _stepDrag.stepId === stepId) return;
-            const above = wrapper.classList.contains('step-drop-top');
-            _clearStepDropIndicators();
-            _moveStepAcrossGroups(_stepDrag, getGid(), stepId, above ? 'before' : 'after');
-          });
-        });
-        document.querySelectorAll('#subgroup-list .step-list-wrap').forEach(listWrap => {
-          if (listWrap.dataset.crossDragInit === '1') return;
-          listWrap.dataset.crossDragInit = '1';
-          const gid = listWrap.id.replace('step-list-', '');
-          listWrap.addEventListener('dragover', e => {
-            if (!_stepDrag) return;
-            if (e.target.closest('.step-drag-wrapper')) return;
-            e.preventDefault(); _clearStepDropIndicators();
-            listWrap.classList.add('group-drag-over');
-          });
-          listWrap.addEventListener('dragleave', e => {
-            if (!listWrap.contains(e.relatedTarget)) listWrap.classList.remove('group-drag-over');
-          });
-          listWrap.addEventListener('drop', e => {
-            if (!_stepDrag) return;
-            if (e.target.closest('.step-drag-wrapper')) return;
-            e.preventDefault(); _clearStepDropIndicators();
-            _moveStepAcrossGroups(_stepDrag, gid, null, 'end');
-          });
-        });
-      }
-
-      function _moveStepAcrossGroups(drag, toGid, relativeStepId, position) {
-        const { wrapperEl, stepId, fromGid } = drag;
-        const fromList = document.getElementById('step-list-' + fromGid);
-        const toList   = document.getElementById('step-list-' + toGid);
-        if (!fromList || !toList) return;
-        const fromConEl = document.getElementById('con-' + stepId);
-        if (fromConEl) fromConEl.remove();
-        wrapperEl.remove();
-        wrapperEl.setAttribute('data-gid', toGid);
-        if (position === 'end' || !relativeStepId) {
-          toList.appendChild(wrapperEl);
-        } else {
-          const relWrapper = toList.querySelector(`.step-drag-wrapper[data-step-id="${relativeStepId}"]`);
-          if (!relWrapper) { toList.appendChild(wrapperEl); }
-          else {
-            const relCon = document.getElementById('con-' + relativeStepId);
-            if (position === 'before') { if (relCon) relCon.before(wrapperEl); else relWrapper.before(wrapperEl); }
-            else { relWrapper.after(wrapperEl); }
-          }
-        }
-        reorderConnectors(fromGid); reorderConnectors(toGid);
-        renumberSteps(fromGid); renumberSteps(toGid);
-        initCrossGroupDragSort();
-      }
-
-      // ============================================================
-      // 皇室納品セクション表示制御
-      // ============================================================
-      function onSheetChange() {
-        const sheetName = document.getElementById("f-sheet").value;
-        const sec = document.getElementById("imperial-section");
-        if (IMPERIAL_SHEETS.includes(sheetName)) sec.classList.remove("hidden");
-        else {
-          sec.classList.add("hidden");
-          document.getElementById("imperial-rank-select").value = "";
-          document.getElementById("imperial-qty-min").value = "";
-          document.getElementById("imperial-qty-max").value = "";
-        }
-        updateCatDatalist(sheetName);
-      }
-
-      async function updateCatDatalist(sheetName) {
-        if (!sheetName) return;
-        const sid = await getSheetId(sheetName);
-        if (!sid) return;
-        const { data } = await sb.from("recipes").select("category").eq("sheet_id", sid);
-        const dl = document.getElementById("cat-list");
-        dl.innerHTML = "";
-        [...new Set((data || []).map(r => r.category).filter(Boolean))].sort().forEach(c => {
-          const o = document.createElement("option"); o.value = c; dl.appendChild(o);
-        });
-      }
-
-      // ============================================================
-      // 製作方法（レシピ全体）操作
-      // ============================================================
-      function selectRecipeProc(val, btn) {
-        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        document.getElementById("recipe-proc-custom").value = "";
-      }
-      function clearRecipeProcPresets() {
-        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
-      }
-      function clearRecipeProc() {
-        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => b.classList.remove("selected"));
-        document.getElementById("recipe-proc-custom").value = "";
-      }
-      function getRecipeProc() {
-        const sel = document.querySelector("#recipe-proc-row .proc-preset-btn.selected");
-        if (sel) return sel.textContent;
-        const custom = document.getElementById("recipe-proc-custom");
-        return custom ? custom.value.trim() : "";
-      }
-      function setRecipeProc(val) {
-        if (!val) { clearRecipeProc(); return; }
-        let matched = false;
-        document.querySelectorAll("#recipe-proc-row .proc-preset-btn").forEach(b => {
-          if (b.textContent === val) { b.classList.add("selected"); matched = true; }
-          else b.classList.remove("selected");
-        });
-        if (!matched) {
-          document.getElementById("recipe-proc-custom").value = val;
-        }
-      }
-
-      // ============================================================
-      // 認証
-      // ============================================================
-      async function checkAuth() {
-        const { data: { session } } = await sb.auth.getSession();
-        if (session) showMain(session.user.email);
-        else document.getElementById("login-area").style.display = "";
-      }
-      async function doLogin() {
-        const email    = document.getElementById("login-email").value.trim();
-        const password = document.getElementById("login-password").value;
-        const { error } = await sb.auth.signInWithPassword({ email, password });
-        if (error) { document.getElementById("login-error").textContent = "ログイン失敗: " + error.message; }
-        else { const { data: { session } } = await sb.auth.getSession(); showMain(session.user.email); }
-      }
-      async function doLogout() { await sb.auth.signOut(); location.reload(); }
-      function showMain(email) {
-        document.getElementById("login-area").style.display = "none";
-        document.getElementById("main-area").style.display = "";
-        document.getElementById("user-email-label").textContent = email;
-        init();
-      }
-
-      // ============================================================
-      // 初期化
-      // ============================================================
-      async function init() {
-        addMatBlock();
-        await loadSheetList();
-        await loadMasterList();
-        await loadCityList();
-        document.addEventListener("click", function (e) {
-          document.querySelectorAll(".master-ref-panel.open").forEach(panel => {
-            const wrap = panel.closest(".master-input-wrap");
-            if (wrap && !wrap.contains(e.target)) {
-              closeRefPanel(panel);
-              wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open"));
-            }
-          });
-        });
-      }
-
-      // ============================================================
-      // シート管理
-      // ============================================================
-      async function loadSheetList() {
-        const { data } = await sb.from("sheets").select("id,name").order("sort_order");
-        const sel = document.getElementById("f-sheet");
-        sel.innerHTML = '<option value="">選択してください</option>';
-        (data || []).forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; sel.appendChild(o); });
-        const ef = document.getElementById("edit-sheet-filter");
-        ef.innerHTML = '<option value="">全シート</option>';
-        (data || []).forEach(s => { const o = document.createElement("option"); o.value = s.name; o.textContent = s.name; ef.appendChild(o); });
-      }
-      async function getSheetId(name) {
-        const { data } = await sb.from("sheets").select("id").eq("name", name).single();
-        return data ? data.id : null;
-      }
-      async function submitNewSheet() {
-        const name = document.getElementById("new-sheet-name").value.trim();
-        if (!name) { showToast("タグ名を入力してください"); return; }
-        const { data: last } = await sb.from("sheets").select("sort_order").order("sort_order", { ascending: false }).limit(1);
-        const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-        const { error } = await sb.from("sheets").insert({ name, sort_order: nextOrder });
-        if (error) { showToast(error.code === "23505" ? "同じ名前のシートが既に存在します" : "エラー: " + error.message); }
-        else { showToast("「" + name + "」を作成しました"); hideNewSheetDialog(); await loadSheetList(); }
-      }
-      function showNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = ""; document.getElementById("new-sheet-name").focus(); }
-      function hideNewSheetDialog() { document.getElementById("new-sheet-dialog").style.display = "none"; document.getElementById("new-sheet-name").value = ""; }
-
-      // ============================================================
-      // 都市マスタ
-      // ============================================================
-      async function toggleCityMasterPanel() {
-        cityMasterPanelOpen = !cityMasterPanelOpen;
-        const panel = document.getElementById("city-master-panel");
-        const btn   = document.getElementById("city-master-toggle-btn");
-        panel.style.display  = cityMasterPanelOpen ? "block" : "none";
-        btn.style.background = cityMasterPanelOpen ? "#1a1a1a" : "#fff";
-        btn.style.color      = cityMasterPanelOpen ? "#fff"    : "#3a5aad";
-        btn.style.borderColor= cityMasterPanelOpen ? "#1a1a1a" : "#3a5aad";
-        if (cityMasterPanelOpen) await renderCityMasterList();
-      }
-      async function renderCityMasterList() {
-        const listEl = document.getElementById("city-master-list");
-        listEl.innerHTML = '<div class="city-master-empty">読み込み中...</div>';
-        const { data, error } = await sb.from("sheet_cities").select("id,city_name,sort_order").order("sort_order");
-        if (error) { listEl.innerHTML = '<div class="city-master-empty" style="color:#e53935;">読み込みエラー</div>'; return; }
-        if (!data || data.length === 0) { listEl.innerHTML = '<div class="city-master-empty">都市が登録されていません</div>'; return; }
-        listEl.innerHTML = data.map(c => `
-          <div class="city-master-item" id="city-master-row-${c.id}">
-            <span>${c.city_name}</span>
-            <button class="city-del-btn" onclick="deleteCityMaster(${c.id},'${c.city_name.replace(/'/g,"\\'")}')">× 削除</button>
-          </div>`).join("");
-      }
-      async function submitNewCity() {
-        const input = document.getElementById("new-city-name");
-        const name  = input.value.trim();
-        if (!name) { showToast("都市名を入力してください"); return; }
-        const { data: last } = await sb.from("sheet_cities").select("sort_order").order("sort_order", { ascending: false }).limit(1);
-        const nextOrder = last && last.length ? last[0].sort_order + 1 : 1;
-        const { error } = await sb.from("sheet_cities").insert({ city_name: name, sort_order: nextOrder });
-        if (error) { showToast(error.code === "23505" ? "同じ都市名が既に存在します" : "エラー: " + error.message); }
-        else { showToast("「" + name + "」を追加しました"); input.value = ""; await renderCityMasterList(); await loadCityList(); }
-      }
-      async function deleteCityMaster(id, name) {
-        if (!confirm(`「${name}」を都市マスタから削除しますか？\n※ 既存レシピの都市データには影響しません。`)) return;
-        const { error } = await sb.from("sheet_cities").delete().eq("id", id);
-        if (error) { showToast("エラー: " + error.message); }
-        else { showToast("「" + name + "」を削除しました"); await renderCityMasterList(); await loadCityList(); }
-      }
-      async function loadCityList() {
-        const { data } = await sb.from("sheet_cities").select("city_name").order("sort_order");
-        availableCities = (data || []).map(r => r.city_name);
-        const dl = document.getElementById("city-datalist");
-        if (dl) dl.innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
-      }
-      function buildLevelOptions(sel) {
-        let h = '<option value="">レベル未設定</option>';
-        for (let i = 1; i <= 10; i++) h += `<option value="${i}"${sel == i ? " selected" : ""}>Lv.${i}</option>`;
-        return h;
-      }
-      function addCityRow(cityName, cityLevel) {
-        if (cityRowCount >= MAX_CITIES) { showToast("都市は最大10件までです"); return; }
-        cityRowCount++;
-        const rowId = `city-row-${cityRowCount}`;
-        if (!document.getElementById("city-datalist")) {
-          const dl = document.createElement("datalist"); dl.id = "city-datalist"; document.body.appendChild(dl);
-        }
-        document.getElementById("city-datalist").innerHTML = availableCities.map(c => `<option value="${c}">`).join("");
-        const div = document.createElement("div");
-        div.className = "city-row"; div.id = rowId; div.draggable = true;
-        div.style.cssText = "display:grid;grid-template-columns:24px 1fr 120px 32px;gap:6px;align-items:center;background:#faf9f6;border:1px solid #e8e6e0;border-radius:8px;padding:8px 10px;";
-        div.innerHTML = `
-          <span class="city-drag-handle" title="ドラッグで並び替え">⠿</span>
-          <input type="text" class="city-name-input" placeholder="都市名" list="city-datalist" value="${escVal(cityName)}">
-          <select class="city-level-select">${buildLevelOptions(cityLevel || "")}</select>
-          <button class="del-btn" onclick="delCityRow('${rowId}')">×</button>`;
-        document.getElementById("city-level-list").appendChild(div);
-        if (cityRowCount >= MAX_CITIES) document.getElementById("add-city-btn").style.display = "none";
-        initCityDragSort();
-      }
-      function delCityRow(id) {
-        document.getElementById(id).remove(); cityRowCount--;
-        document.getElementById("add-city-btn").style.display = "";
-      }
-      function initCityDragSort() {
-        const list = document.getElementById("city-level-list");
-        let dragSrc = null;
-        list.querySelectorAll(".city-row").forEach(row => { const f = row.cloneNode(true); row.replaceWith(f); });
-        list.querySelectorAll(".city-row").forEach(row => {
-          row.addEventListener("dragstart", e => { dragSrc = row; row.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
-          row.addEventListener("dragend",   () => { row.classList.remove("dragging"); list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); dragSrc = null; });
-          row.addEventListener("dragover",  e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (dragSrc && dragSrc !== row) { list.querySelectorAll(".city-row").forEach(r => r.classList.remove("drag-over")); row.classList.add("drag-over"); } });
-          row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-          row.addEventListener("drop",      e => { e.preventDefault(); if (!dragSrc || dragSrc === row) return; row.classList.remove("drag-over"); const all = [...list.querySelectorAll(".city-row")]; if (all.indexOf(dragSrc) < all.indexOf(row)) row.after(dragSrc); else row.before(dragSrc); });
-        });
-      }
-
-      // ============================================================
-      // マスターリスト
-      // ============================================================
-      async function loadMasterList() {
-        const { data: recipeData } = await sb.from("recipes").select("id, name, sheets(name)").order("name");
-        const { data: subData }    = await sb.from("recipe_subgroups").select("parent, recipes(id, name, sheets(name))").order("parent");
-        const { data: matData }    = await sb.from("recipe_mats").select("mat_name, recipe_id, recipes(name, sheets(name))").is("parent_mat_id", null).order("mat_name");
-        const cache = [];
-        (recipeData || []).forEach(row => { const name = (row.name || "").trim(); if (!name) return; cache.push({ name, type: "recipe", recipeId: row.id, sheet: row.sheets?.name || "", recipeName: "" }); });
-        const subSeen = new Set();
-        (subData || []).forEach(row => { const name = (row.parent || "").trim(); if (!name || subSeen.has(name)) return; subSeen.add(name); cache.push({ name, type: "sub", recipeId: row.recipes?.id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" }); });
-        const matSeen = new Set();
-        (matData || []).forEach(row => { const name = (row.mat_name || "").trim(); if (!name || matSeen.has(name)) return; matSeen.add(name); cache.push({ name, type: "mat", recipeId: row.recipe_id || null, sheet: row.recipes?.sheets?.name || "", recipeName: row.recipes?.name || "" }); });
-        cache.sort((a, b) => a.name.localeCompare(b.name, "ja"));
-        masterListCache = cache;
-      }
-
-      // ============================================================
-      // 参照パネルUI
-      // ============================================================
-      function buildRefPanelHTML(panelId) {
-        return `<div class="master-ref-panel" id="${panelId}">
-          <div class="mrp-header">
-            <input class="mrp-search" type="text" placeholder="名前で絞り込み..." oninput="filterRefPanel('${panelId}', this.value)">
-            <div class="mrp-tabs">
-              <button class="mrp-tab active" onclick="setRefTab('${panelId}','all',this)">すべて</button>
-              <button class="mrp-tab" onclick="setRefTab('${panelId}','recipe',this)">レシピ名</button>
-              <button class="mrp-tab" onclick="setRefTab('${panelId}','sub',this)">副材料</button>
-              <button class="mrp-tab" onclick="setRefTab('${panelId}','mat',this)">製作材料</button>
-            </div>
-          </div>
-          <div class="mrp-body" id="${panelId}-body"></div>
-        </div>`;
-      }
-      function openRefPanel(panelId, onSelect) {
-        document.querySelectorAll(".master-ref-panel.open").forEach(p => {
-          if (p.id !== panelId) { closeRefPanel(p); const wrap = p.closest(".master-input-wrap"); if (wrap) wrap.querySelectorAll(".master-ref-btn").forEach(b => b.classList.remove("open")); }
-        });
-        const panel = document.getElementById(panelId);
-        panel.classList.add("open");
-        const searchEl = panel.querySelector(".mrp-search"); searchEl.value = "";
-        panel.querySelectorAll(".mrp-tab").forEach((t, i) => t.classList.toggle("active", i === 0));
-        panel._currentTab = "all"; panel._onSelect = onSelect;
-        renderRefPanel(panelId, "", "all"); setTimeout(() => searchEl.focus(), 50);
-      }
-      function closeRefPanel(panelOrId) { const panel = typeof panelOrId === "string" ? document.getElementById(panelOrId) : panelOrId; if (panel) panel.classList.remove("open"); }
-      function setRefTab(panelId, tab, btn) {
-        const panel = document.getElementById(panelId);
-        panel.querySelectorAll(".mrp-tab").forEach(t => t.classList.remove("active")); btn.classList.add("active");
-        panel._currentTab = tab; renderRefPanel(panelId, panel.querySelector(".mrp-search").value, tab);
-      }
-      function filterRefPanel(panelId, q) { const panel = document.getElementById(panelId); renderRefPanel(panelId, q, panel._currentTab || "all"); }
-      function renderRefPanel(panelId, q, tab) {
-        const body = document.getElementById(panelId + "-body");
-        const lq = (q || "").toLowerCase();
-        let items = masterListCache;
-        if (tab === "recipe") items = items.filter(i => i.type === "recipe");
-        else if (tab === "sub") items = items.filter(i => i.type === "sub");
-        else if (tab === "mat") items = items.filter(i => i.type === "mat");
-        if (lq) items = items.filter(i => i.name.toLowerCase().includes(lq) || (i.recipeName || "").toLowerCase().includes(lq) || (i.sheet || "").toLowerCase().includes(lq));
-        if (!items.length) { body.innerHTML = '<div class="mrp-empty">候補が見つかりません</div>'; return; }
-        const recipes = items.filter(i => i.type === "recipe"), subs = items.filter(i => i.type === "sub"), mats = items.filter(i => i.type === "mat");
-        let html = "";
-        if (tab === "all") {
-          if (recipes.length) { html += `<div class="mrp-section-label">🍳 レシピ名</div>`; recipes.forEach(item => { html += renderRefItem(panelId, item); }); }
-          if (mats.length)    { html += `<div class="mrp-section-label">🧱 製作材料</div>`; mats.forEach(item => { html += renderRefItem(panelId, item); }); }
-          if (subs.length)    { html += `<div class="mrp-section-label">📦 副材料の作り方</div>`; subs.forEach(item => { html += renderRefItem(panelId, item); }); }
-        } else { items.forEach(item => { html += renderRefItem(panelId, item); }); }
-        body.innerHTML = html;
-      }
-      function renderRefItem(panelId, item) {
-        let badge, meta;
-        if (item.type === "recipe") { badge = `<span class="mrp-item-badge badge-recipe">レシピ</span>`; meta = item.sheet ? `<span class="mrp-item-meta">${item.sheet}</span>` : ""; }
-        else if (item.type === "sub") { badge = `<span class="mrp-item-badge badge-sub">副材料</span>`; meta = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : ""; }
-        else { badge = `<span class="mrp-item-badge badge-mat">製作材料</span>`; meta = item.recipeName ? `<span class="mrp-item-meta">${item.sheet ? item.sheet + " / " : ""}${item.recipeName}</span>` : ""; }
-        const safeName = item.name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-        return `<div class="mrp-item" onclick="selectRefItem('${panelId}','${safeName}','${item.type}','${item.recipeId || ""}')"><span class="mrp-item-name">${item.name}</span>${meta}${badge}</div>`;
-      }
-      async function selectRefItem(panelId, name, type, recipeId) {
-        const panel = document.getElementById(panelId);
-        if (panel._onSelect) await panel._onSelect(name, type, recipeId || null);
-        closeRefPanel(panelId);
-      }
-
-      // ============================================================
-      // applyMasterByName
-      // ============================================================
-      async function applyMasterByName(groupEl, name, type, recipeId) {
-        const gid = groupEl.id;
-        if (type === "sub") {
-          const { data: byParent } = await sb.from("recipe_subgroups").select("id,parent,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("parent", name).limit(1).maybeSingle();
-          if (byParent) {
-            groupEl.querySelector(".sg-parent").value = byParent.parent || name;
-            resetSteps(gid);
-            (byParent.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
-            showToast("「" + name + "」（副材料）を適用しました");
-          } else { groupEl.querySelector(".sg-parent").value = name; showToast("「" + name + "」を設定しました（データなし）"); }
-          return;
-        }
-        if (type === "mat") {
-          groupEl.querySelector(".sg-parent").value = name;
-          let targetRecipeId = recipeId || null;
-          if (!targetRecipeId) { const { data: matRow } = await sb.from("recipe_mats").select("recipe_id").eq("mat_name", name).is("parent_mat_id", null).limit(1).maybeSingle(); if (matRow) targetRecipeId = matRow.recipe_id; }
-          if (targetRecipeId) {
-            const { data: sgList } = await sb.from("recipe_subgroups").select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("recipe_id", targetRecipeId).eq("parent", name).order("sort_order");
-            if (sgList && sgList.length > 0) {
-              resetSteps(gid);
-              (sgList[0].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
-              showToast("「" + name + "」（製作材料＋副材料）を適用しました"); return;
-            }
-          }
-          showToast("「" + name + "」を設定しました（副材料データなし）"); return;
-        }
-        let targetRecipeId = recipeId || null, targetRecipeName = name;
-        if (!targetRecipeId) { const { data: namedRecipe } = await sb.from("recipes").select("id, name").eq("name", name).maybeSingle(); if (namedRecipe) { targetRecipeId = namedRecipe.id; targetRecipeName = namedRecipe.name; } }
-        if (targetRecipeId) {
-          const [{ data: mats }, { data: sgList }] = await Promise.all([
-            sb.from("recipe_mats").select("id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id").eq("recipe_id", targetRecipeId).order("sort_order"),
-            sb.from("recipe_subgroups").select("id,parent,sort_order,recipe_steps(id,sort_order,connector,proc,result_name,result_qty,recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id))").eq("recipe_id", targetRecipeId).order("sort_order"),
-          ]);
-          groupEl.querySelector(".sg-parent").value = targetRecipeName;
-          resetSteps(gid);
-          if (mats && mats.length > 0) {
-            addStep(gid);
-            const s1id = `${gid}-s1`, s1el = document.getElementById(s1id);
-            if (s1el) {
-              s1el.querySelector(".step-proc").value = ""; s1el.querySelector(".step-result-name").value = targetRecipeName; s1el.querySelector(".step-result-qty").value = "";
-              const sml = document.getElementById(`sml-${s1id}`); sml.innerHTML = ""; stepMatCounters[s1id] = 0;
-              const allMats = mats.sort((a, b) => a.sort_order - b.sort_order);
-              allMats.filter(m => !m.parent_mat_id).forEach(m => {
-                const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-                addStepMat(s1id, m.mat_name || "", m.mat_qty || "", alts);
-              });
-              updateStepNeeded(s1id);
-            }
-          }
-          if (sgList && sgList.length > 0) {
-            const sg0 = sgList[0];
-            (sg0.recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`; fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid); });
-            for (let gi = 1; gi < sgList.length; gi++) {
-              if (subgroupCount >= MAX_GROUPS) { showToast("グループ上限に達しました"); break; }
-              addSubgroup();
-              const newGEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
-              const newGid = newGEl.id;
-              newGEl.querySelector(".sg-parent").value = sgList[gi].parent || targetRecipeName;
-              resetSteps(newGid);
-              (sgList[gi].recipe_steps || []).sort((a, b) => a.sort_order - b.sort_order).forEach(step => { addStep(newGid); const sc = stepCounters[newGid]; const sid = `${newGid}-s${sc}`; fillStep(newGid, sid, step, sc > 1); updateStepNeeded(sid); });
-            }
-          }
-          showToast("「" + targetRecipeName + "」（レシピ全体）を適用しました"); return;
-        }
-        groupEl.querySelector(".sg-parent").value = name;
-        showToast("「" + name + "」を設定しました（データなし）");
-      }
-
-      function resetSteps(gid) {
-        const stepList = document.getElementById(`step-list-${gid}`);
-        if (stepList) stepList.innerHTML = "";
-        stepCounters[gid] = 0;
-        Object.keys(stepMatCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatCounters[k]);
-        Object.keys(stepMatAltCounters).filter(k => k.startsWith(gid + "-s")).forEach(k => delete stepMatAltCounters[k]);
-      }
-
-      function fillStep(gid, sid, step, hasConnector) {
-        const sEl = document.getElementById(sid); if (!sEl) return;
-        sEl.querySelector(".step-proc").value        = step.proc || "";
-        sEl.querySelector(".step-result-name").value = step.result_name || "";
-        sEl.querySelector(".step-result-qty").value  = step.result_qty  || "";
-        if (hasConnector && step.connector) {
-          const cb = document.getElementById(`con-${sid}`);
-          if (cb) {
-            let matched = false;
-            cb.querySelectorAll(".preset-btn").forEach(b => { if (b.textContent === step.connector) { b.classList.add("selected"); matched = true; } else b.classList.remove("selected"); });
-            if (!matched) { cb.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); document.getElementById(`coninput-${sid}`).value = step.connector; }
-          }
-        }
-        const sml = document.getElementById(`sml-${sid}`); sml.innerHTML = ""; stepMatCounters[sid] = 0;
-        const allSM = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
-        allSM.filter(m => !m.parent_mat_id).forEach(m => {
-          const stepAlts = allSM.filter(a => a.parent_mat_id === m.id).sort((a, b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-          addStepMat(sid, m.mat_name || "", m.mat_qty || "", stepAlts);
-        });
-      }
-
-      // ============================================================
-      // ユーティリティ
-      // ============================================================
-      function escVal(v) { return v ? String(v).replace(/"/g, "&quot;") : ""; }
-      function buildAltConnSel(selected) {
-        return ALT_CONNECTORS.map(c => `<option value="${c}"${c === (selected || "あるいは") ? " selected" : ""}>${c}</option>`).join("");
-      }
-
-      // ============================================================
-      // 製作材料ブロック（Step2）
-      // ============================================================
-      function addMatBlock(matName, matQty, alts) {
-        if (matBlockCount >= MAX_BASIC_MATS) { showToast("材料は最大6種までです"); return; }
-        matBlockCount++;
-        const bid = `mb-${matBlockCount}`;
-        altCounts[bid] = 0;
-        const div = document.createElement("div"); div.className = "mat-block"; div.id = bid;
-        div.innerHTML = `
-          <div class="mat-main-row">
-            <input type="text" placeholder="材料名" class="mat-name" value="${escVal(matName)}">
-            <input type="text" placeholder="数量"   class="mat-qty"  value="${escVal(matQty)}">
-            <button class="alt-add-btn" onclick="addAltRow('${bid}')">＋ 代替</button>
-            <button class="del-btn"     onclick="delMatBlock('${bid}')">×</button>
-          </div>
-          <div class="alt-list" id="alt-list-${bid}"></div>`;
-        document.getElementById("mat-block-list").appendChild(div);
-        if (alts && alts.length) alts.forEach(a => addAltRow(bid, a.connector, a.name, a.qty));
-        if (matBlockCount >= MAX_BASIC_MATS) document.getElementById("add-mat-btn").style.display = "none";
-      }
-      function delMatBlock(bid) {
-        document.getElementById(bid).remove(); matBlockCount--;
-        delete altCounts[bid];
-        document.getElementById("add-mat-btn").style.display = "";
-      }
-      function addAltRow(bid, connector, name, qty) {
-        if (!altCounts[bid]) altCounts[bid] = 0;
-        if (altCounts[bid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
-        altCounts[bid]++;
-        const uid = nextAltUid();
-        const aid = `alt-${bid}-uid${uid}`;
-        const div = document.createElement("div"); div.className = "alt-entry mat-alt-entry"; div.id = aid;
-        div.innerHTML = `
-          <span class="alt-tree-icon">└</span>
-          <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
-          <input type="text" placeholder="代替材料名" class="alt-name" value="${escVal(name)}">
-          <input type="text" placeholder="数量"       class="alt-qty"  value="${escVal(qty)}">
-          <button class="del-btn" onclick="delAltRow('${bid}','${aid}')">×</button>`;
-        document.getElementById(`alt-list-${bid}`).appendChild(div);
-      }
-      function delAltRow(bid, aid) {
-        const el = document.getElementById(aid); if (!el) return;
-        el.remove(); if (altCounts[bid] > 0) altCounts[bid]--;
-      }
-
-      // ============================================================
-      // 副材料グループ
-      // ============================================================
-      function addSubgroup() {
-        if (subgroupCount >= MAX_GROUPS) { showToast("副材料グループは最大15つまでです"); return; }
-        subgroupCount++;
-        const gid = `sg-${subgroupCount}`, panelId = `ref-panel-${gid}`;
-        const div = document.createElement("div"); div.className = "subgroup"; div.id = gid;
-        div.innerHTML = `
-          <div class="subgroup-header">
-            <div class="subgroup-title">グループ ${subgroupCount}</div>
-            <button class="del-text-btn" onclick="delSubgroup('${gid}')">× 削除</button>
-          </div>
-          <div class="field">
-            <label>どの材料の作り方か</label>
-            <div class="master-input-wrap">
-              <div class="master-input-row">
-                <input type="text" class="sg-parent" placeholder="例: トネリコ合板" style="flex:1">
-                <button type="button" class="master-ref-btn" id="ref-btn-${gid}" onclick="toggleRefPanel('${panelId}','${gid}')">📋 履歴から参照</button>
-                <button type="button" class="apply-btn" onclick="applyCurrentParent('${gid}')">▶ 適用</button>
-              </div>
-              ${buildRefPanelHTML(panelId)}
-            </div>
-          </div>
-          <div id="step-list-${gid}" class="step-list-wrap"></div>
-          <button class="add-btn" onclick="addStep('${gid}')">＋ 加工ステップを追加</button>`;
-        document.getElementById("subgroup-list").appendChild(div);
-        addStep(gid);
-        if (subgroupCount >= MAX_GROUPS) document.getElementById("add-sub-btn").style.display = "none";
-        initCrossGroupDragSort();
-      }
-      function delSubgroup(gid) { document.getElementById(gid).remove(); subgroupCount--; document.getElementById("add-sub-btn").style.display = ""; }
-      function toggleRefPanel(panelId, gid) {
-        const panel = document.getElementById(panelId), btn = document.getElementById(`ref-btn-${gid}`);
-        if (panel.classList.contains("open")) { closeRefPanel(panelId); btn.classList.remove("open"); }
-        else { btn.classList.add("open"); const groupEl = document.getElementById(gid); openRefPanel(panelId, async (name, type, recipeId) => { btn.classList.remove("open"); await applyMasterByName(groupEl, name, type, recipeId); }); }
-      }
-      async function applyCurrentParent(gid) {
-        const groupEl = document.getElementById(gid), name = groupEl.querySelector(".sg-parent").value.trim();
-        if (!name) { showToast("材料名を入力してください"); return; }
-        const found = masterListCache.find(i => i.name === name);
-        await applyMasterByName(groupEl, name, found ? found.type : "sub", found ? found.recipeId : null);
-      }
-
-      // ============================================================
-      // ステップ追加
-      // ============================================================
-      function addStep(gid) {
-        if (!stepCounters[gid]) stepCounters[gid] = 0;
-        if (stepCounters[gid] >= MAX_STEPS) { showToast("ステップは最大10つまでです"); return; }
-        stepCounters[gid]++;
-        const sc = stepCounters[gid], sid = `${gid}-s${sc}`;
-        const container = document.getElementById(`step-list-${gid}`);
-        if (!container) { console.error("step-list not found:", gid); return; }
-        if (sc > 1) {
-          const conDiv = document.createElement("div");
-          conDiv.className = "connector-block"; conDiv.id = `con-${sid}`; conDiv.setAttribute("data-step-id", sid);
-          conDiv.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
-          container.appendChild(conDiv);
-          selectConnector(sid, "↓", conDiv.querySelector(".preset-btn"));
-        }
-        const wrapper = document.createElement("div");
-        wrapper.className = "step-drag-wrapper"; wrapper.id = `wrapper-${sid}`;
-        wrapper.setAttribute("data-step-id", sid); wrapper.setAttribute("data-gid", gid);
-        const handle = document.createElement("div");
-        handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
-        const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
-        stepDiv.innerHTML = `
-          <div class="step-header">
-            <span class="step-label-text">ステップ ${sc}</span>
-            ${sc > 1 ? `<button class="del-text-btn" onclick="delStep('${sid}','${gid}')">× 削除</button>` : ""}
-          </div>
-          <div class="field">
-            <label>加工名<span class="opt">任意</span></label>
-            <input type="text" class="step-proc" placeholder="例: 加熱・薪割り・料理">
-          </div>
-          <div class="section-divider">入力材料<span style="font-weight:400;color:#bbb;font-size:10px">（⠿ ドラッグで並び替え可）</span></div>
-          <div id="sml-${sid}">
-            <div class="mat-block" data-smat-header="1" style="padding:4px 12px;background:transparent;border-color:transparent;margin-bottom:2px;">
-              <div class="smat-grid">
-                <span></span>
-                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;">材料名</span>
-                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">基準量</span>
-                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">×個数</span>
-                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">＝必要量</span>
-                <span></span><span></span>
-              </div>
-            </div>
-          </div>
-          <button class="add-btn" onclick="addStepMat('${sid}')">＋ 材料を追加</button>
-          <div class="section-divider" style="margin-top:12px;">このステップの結果物</div>
-          <div class="result-row">
-            <input type="text" class="step-result-name" placeholder="例: トネリコ板">
-            <input type="number" min="1" class="step-result-qty step-target-qty" placeholder="個数"
-              oninput="updateStepNeeded('${sid}')"
-              title="目標個数。材料の必要量はこの値×基準量で自動計算されます">
-          </div>
-          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">← 目標個数を入力すると材料の必要量を自動計算</div>`;
-        wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
-        container.appendChild(wrapper);
-        addStepMat(sid);
-        initCrossGroupDragSort();
-      }
-
-      // ============================================================
-      // ★ updateStepNeeded
-      // バッジ表示のみ更新。smat-qty input の value は一切変更しない。
-      // ============================================================
-      function updateStepNeeded(sid) {
-        const stepEl = document.getElementById(sid); if (!stepEl) return;
-        const targetInput = stepEl.querySelector(".step-target-qty");
-        const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
-        const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
-        smlEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])").forEach(block => {
-          // ★ data-base-qty 属性から基準量を取得（inputのvalueには依存しない）
-          const qtyInput = block.querySelector(".smat-qty");
-          const badge    = block.querySelector(".smat-needed");
-          if (!qtyInput || !badge) return;
-          // inputのvalueが変わっていても data-base-qty は保護されている
-          const baseQtyStr = qtyInput.getAttribute("data-base-qty") || qtyInput.value;
-          const baseQty = parseFloat(baseQtyStr);
-          if (!isNaN(baseQty) && baseQty > 0) {
-            badge.textContent = `×${Math.ceil(baseQty * target)}`;
-            badge.classList.remove("empty");
-          } else {
-            badge.textContent = "—";
-            badge.classList.add("empty");
-          }
-          const mid = block.id;
-          block.querySelectorAll(`#alt-list-${mid} .alt-entry`).forEach(ae => {
-            const altQtyInput = ae.querySelector(".smat-alt-qty");
-            const altMultEl   = ae.querySelector(".smat-alt-mult");
-            const altBadge    = ae.querySelector(".smat-alt-needed");
-            if (altMultEl) altMultEl.textContent = `×${target}`;
-            if (altQtyInput && altBadge) {
-              const altBaseStr = altQtyInput.getAttribute("data-base-qty") || altQtyInput.value;
-              const altBase = parseFloat(altBaseStr);
-              if (!isNaN(altBase) && altBase > 0) {
-                altBadge.textContent = `×${Math.ceil(altBase * target)}`;
-                altBadge.classList.remove("empty");
-              } else {
-                altBadge.textContent = "—";
-                altBadge.classList.add("empty");
-              }
-            }
-          });
-        });
-      }
-
-      function selectConnector(sid, val, btn) {
-        const block = document.getElementById(`con-${sid}`);
-        block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); btn.classList.add("selected");
-        document.getElementById(`coninput-${sid}`).value = "";
-      }
-      function clearPresets(sid) { const block = document.getElementById(`con-${sid}`); if (block) block.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("selected")); }
-
-      function delStep(sid, gid) {
-        const c = document.getElementById(`con-${sid}`); if (c) c.remove();
-        const w = document.getElementById(`wrapper-${sid}`); if (w) w.remove();
-        if (stepCounters[gid] > 0) stepCounters[gid]--;
-        renumberSteps(gid); initCrossGroupDragSort();
-      }
-      function renumberSteps(gid) {
-        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
-        [...container.querySelectorAll(":scope > .step-drag-wrapper")].forEach((w, i) => {
-          const stepBlock = w.querySelector(".step-block"); if (!stepBlock) return;
-          const labelEl = stepBlock.querySelector(".step-label-text"); if (labelEl) labelEl.textContent = `ステップ ${i + 1}`;
-        });
-      }
-      function reorderConnectors(gid) {
-        const container = document.getElementById(`step-list-${gid}`); if (!container) return;
-        [...container.querySelectorAll(":scope > .connector-block")].forEach(c => c.remove());
-        const wrappers = [...container.querySelectorAll(":scope > .step-drag-wrapper")];
-        wrappers.forEach((wrapper, i) => {
-          const sid = wrapper.getAttribute("data-step-id");
-          if (i === 0) { const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "none"; }
-          else {
-            let conEl = document.getElementById(`con-${sid}`);
-            if (!conEl) {
-              conEl = document.createElement("div"); conEl.className = "connector-block"; conEl.id = `con-${sid}`; conEl.setAttribute("data-step-id", sid);
-              conEl.innerHTML = `<span class="connector-label">接続詞</span><div class="connector-presets">${CONNECTORS.map(c => `<button type="button" class="preset-btn" onclick="selectConnector('${sid}','${c}',this)">${c}</button>`).join("")}</div><input type="text" class="connector-custom" placeholder="自由入力" id="coninput-${sid}" oninput="clearPresets('${sid}')">`;
-              selectConnector(sid, "↓", conEl.querySelector(".preset-btn"));
-            }
-            wrapper.before(conEl);
-            const delBtn = wrapper.querySelector(".del-text-btn"); if (delBtn) delBtn.style.display = "";
-          }
-        });
-        if (wrappers.length > 0) { const firstSid = wrappers[0].getAttribute("data-step-id"); const firstCon = document.getElementById(`con-${firstSid}`); if (firstCon) firstCon.remove(); }
-      }
-
-      // ============================================================
-      // ★ ステップ材料
-      // 修正点:
-      //   1. smat-qty input に data-base-qty 属性を追加して基準量を保護
-      //   2. initStepMatDragSort で cloneNode+replaceWith を廃止し
-      //      _dragInitialized フラグで二重登録防止に変更
-      //      → cloneNode により value attribute がリセットされる問題を解消
-      // ============================================================
-      function addStepMat(sid, matName, matQty, alts) {
-        if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
-        if (stepMatCounters[sid] >= MAX_MATS) { showToast("1ステップの材料は最大10つまでです"); return; }
-        stepMatCounters[sid]++;
-        const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
-        const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px";
-        // draggable は initStepMatDragSort 内でハンドルのmousedownで設定するため初期値はfalse
-        div.draggable = false;
-        const stepEl = document.getElementById(sid);
-        const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
-        const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
-        const baseQtyN = parseFloat(matQty);
-        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
-        const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
-        // ★ data-base-qty に基準量を設定（基準量を attribute として保護）
-        div.innerHTML = `
-          <div class="smat-grid smat-main-row">
-            <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
-            <input type="text" placeholder="材料名" class="smat-name" value="${escVal(matName)}">
-            <input type="text" placeholder="基準量" class="smat-qty"
-              value="${escVal(matQty)}"
-              data-base-qty="${escVal(matQty)}"
-              oninput="onSmatQtyInput(this,'${sid}')">
-            <span class="smat-mult-label" id="mult-${mid}">×${target}</span>
-            <span class="${neededClass}" id="needed-${mid}">${neededStr}</span>
-            <button class="alt-add-btn" onclick="addStepMatAlt('${mid}','${sid}')">＋ 代替</button>
-            <button class="del-btn"     onclick="delStepMat('${mid}','${sid}')">×</button>
-          </div>
-          <div class="alt-list" id="alt-list-${mid}"></div>`;
-        const smlEl = document.getElementById(`sml-${sid}`);
-        if (!smlEl) { console.error("sml not found:", sid); return; }
-        smlEl.appendChild(div);
-        if (alts && alts.length) alts.forEach(a => addStepMatAlt(mid, sid, a.connector, a.name, a.qty));
-        initStepMatDragSort(smlEl);
-      }
-
-      // ★ smat-qty input 変更時に data-base-qty も同期更新
-      function onSmatQtyInput(inputEl, sid) {
-        inputEl.setAttribute("data-base-qty", inputEl.value);
-        updateStepNeeded(sid);
-      }
-
-      function delStepMat(mid, sid) {
-        document.getElementById(mid).remove();
-        if (stepMatCounters[sid] > 0) stepMatCounters[sid]--;
-        delete stepMatAltCounters[mid];
-        const smlEl = document.getElementById(`sml-${sid}`); if (smlEl) initStepMatDragSort(smlEl);
-      }
-
-      // ★ initStepMatDragSort: cloneNode+replaceWith を廃止
-      //    _dragInitialized フラグで二重登録防止
-      function initStepMatDragSort(listEl) {
-        if (!listEl) return;
-        listEl._smatDragSrc = null;
-        const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])")];
-
-        getDirectBlocks().forEach(block => {
-          // ★ 既に初期化済みのブロックはスキップ（cloneNode廃止の代替）
-          if (block._dragInitialized) return;
-          block._dragInitialized = true;
-
-          const handle = block.querySelector(".smat-drag-handle"); if (!handle) return;
-          handle.addEventListener("mousedown", () => { block.draggable = true; });
-          handle.addEventListener("mouseup",   () => { block.draggable = false; });
-          block.addEventListener("dragstart", e => {
-            listEl._smatDragSrc = block;
-            block.classList.add("smat-dragging");
-            e.dataTransfer.effectAllowed = "move";
-            e.stopPropagation();
-          });
-          block.addEventListener("dragend", () => {
-            block.classList.remove("smat-dragging");
-            block.draggable = false;
-            getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over"));
-            listEl._smatDragSrc = null;
-          });
-          block.addEventListener("dragover", e => {
-            e.preventDefault(); e.stopPropagation();
-            const src = listEl._smatDragSrc;
-            if (src && src !== block) {
-              getDirectBlocks().forEach(b => b.classList.remove("smat-drag-over"));
-              block.classList.add("smat-drag-over");
-            }
-          });
-          block.addEventListener("dragleave", () => block.classList.remove("smat-drag-over"));
-          block.addEventListener("drop", e => {
-            e.preventDefault(); e.stopPropagation();
-            const src = listEl._smatDragSrc;
-            if (!src || src === block) return;
-            block.classList.remove("smat-drag-over");
-            const all = getDirectBlocks();
-            if (all.indexOf(src) < all.indexOf(block)) block.after(src);
-            else block.before(src);
-          });
-        });
-      }
-
-      function addStepMatAlt(mid, sid, connector, name, qty) {
-        stepMatAltCounters[mid] = stepMatAltCounters[mid] || 0;
-        if (stepMatAltCounters[mid] >= MAX_ALTS) { showToast("代替品は1材料につき最大3つまでです"); return; }
-        stepMatAltCounters[mid]++;
-        const aid = `salt-${mid}-${stepMatAltCounters[mid]}`;
-        const stepEl = sid ? document.getElementById(sid) : null;
-        const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
-        const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
-        const baseQtyN = parseFloat(qty);
-        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `×${Math.ceil(baseQtyN * target)}` : "—";
-        const neededClass = neededStr === "—" ? "smat-needed alt-badge empty" : "smat-needed alt-badge";
-        const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
-        if (sid) div.setAttribute("data-sid", sid);
-        // ★ smat-alt-qty にも data-base-qty を設定
-        div.innerHTML = `
-          <span class="alt-tree-icon">└</span>
-          <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
-          <input type="text" placeholder="代替材料名" class="smat-alt-name" value="${escVal(name)}">
-          <input type="text" placeholder="基準量"     class="smat-alt-qty"
-            value="${escVal(qty)}"
-            data-base-qty="${escVal(qty)}"
-            oninput="onSmatAltQtyInput(this,'${sid}')">
-          <span class="smat-mult-label smat-alt-mult">×${target}</span>
-          <span class="${neededClass} smat-alt-needed" id="alt-needed-${aid}">${neededStr}</span>
-          <button class="del-btn" onclick="delStepMatAlt('${mid}','${aid}')">×</button>`;
-        document.getElementById(`alt-list-${mid}`).appendChild(div);
-      }
-
-      // ★ smat-alt-qty input 変更時に data-base-qty も同期更新
-      function onSmatAltQtyInput(inputEl, sid) {
-        inputEl.setAttribute("data-base-qty", inputEl.value);
-        if (sid) updateStepNeeded(sid);
-      }
-
-      function delStepMatAlt(mid, aid) { document.getElementById(aid).remove(); stepMatAltCounters[mid]--; }
-
-      // ============================================================
-      // ★ collectData
-      // 修正点: smat-qty の値は data-base-qty 属性を優先して読む
-      //         → cloneNode やその他の操作で value が変わっていても
-      //           正しい基準量が取得できる
-      // ============================================================
-      function collectData() {
-        const cities = [];
-        document.querySelectorAll("#city-level-list .city-row").forEach(row => {
-          const nameEl  = row.querySelector(".city-name-input");
-          const levelEl = row.querySelector(".city-level-select");
-          const name  = nameEl  ? nameEl.value.trim()  : "";
-          const level = levelEl ? levelEl.value         : "";
-          if (name) cities.push({ name, level });
-        });
-
-        const mats = [];
-        document.querySelectorAll("#mat-block-list .mat-block").forEach(block => {
-          const nameEl = block.querySelector(".mat-name");
-          const qtyEl  = block.querySelector(".mat-qty");
-          const name = nameEl ? nameEl.value.trim() : "";
-          const qty  = qtyEl  ? qtyEl.value.trim()  : "";
-          if (!name) return;
-          const alts = [];
-          block.querySelectorAll(".alt-entry").forEach(ae => {
-            const an = ae.querySelector(".alt-name")  ? ae.querySelector(".alt-name").value.trim()  : "";
-            const aq = ae.querySelector(".alt-qty")   ? ae.querySelector(".alt-qty").value.trim()   : "";
-            const acEl = ae.querySelector(".alt-connector-select");
-            const ac = acEl ? acEl.value : "あるいは";
-            if (an) alts.push({ connector: ac, name: an, qty: aq });
-          });
-          mats.push({ name, qty, alts });
-        });
-
-        const sheetName   = document.getElementById("f-sheet").value;
-        const isImperial  = IMPERIAL_SHEETS.includes(sheetName);
-        const imperialRank   = isImperial ? (document.getElementById("imperial-rank-select").value || null) : null;
-        const imperialQtyMin = isImperial ? (parseInt(document.getElementById("imperial-qty-min").value) || null) : null;
-        const imperialQtyMax = isImperial ? (parseInt(document.getElementById("imperial-qty-max").value) || null) : null;
-        const skillLevel    = document.getElementById("skill-level-select").value || null;
-        const skillLevelNum = parseInt(document.getElementById("skill-level-num").value) || null;
-        const recipeProc = getRecipeProc() || null;
-
-        const data = {
-          sheet_name:      sheetName,
-          name:            document.getElementById("f-name").value.trim(),
-          category:        document.getElementById("f-category").value.trim(),
-          image_url:       getImageUrl(),
-          effect:          document.getElementById("f-effect").value.trim(),
-          skill_level:     skillLevel,
-          skill_level_num: skillLevelNum,
-          imperial_rank:    imperialRank,
-          imperial_qty_min: imperialQtyMin,
-          imperial_qty_max: imperialQtyMax,
-          recipe_proc:     recipeProc,
-          cities,
-          mats,
-          subgroups: [],
-        };
-
-        document.querySelectorAll("#subgroup-list .subgroup").forEach(gel => {
-          const parentEl  = gel.querySelector(".sg-parent");
-          const parent    = parentEl ? parentEl.value.trim() : "";
-          const steps     = [];
-          const gid       = gel.id;
-          const container = document.getElementById(`step-list-${gid}`);
-          if (!container) return;
-          container.querySelectorAll(":scope > .step-drag-wrapper").forEach((wrapper, wi) => {
-            const sid = wrapper.getAttribute("data-step-id");
-            const sel = sid ? document.getElementById(sid) : null;
-            if (!sel) return;
-            let connector = "";
-            const cb = document.getElementById(`con-${sid}`);
-            if (cb) {
-              const s  = cb.querySelector(".preset-btn.selected");
-              const cu = document.getElementById(`coninput-${sid}`);
-              connector = (cu ? cu.value.trim() : "") || (s ? s.textContent : "↓");
-            }
-            const procEl      = sel.querySelector(".step-proc");
-            const proc        = procEl ? procEl.value.trim() : "";
-            const targetInput = sel.querySelector(".step-target-qty");
-            const target      = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
-            const resultNameEl = sel.querySelector(".step-result-name");
-            const resultQtyEl  = sel.querySelector(".step-result-qty");
-            const result_name  = resultNameEl ? resultNameEl.value.trim() : "";
-            const result_qty   = resultQtyEl  ? resultQtyEl.value.trim()  : "";
-            const stepMats = [];
-            const smlEl = document.getElementById(`sml-${sid}`);
-            if (smlEl) {
-              smlEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])").forEach(mb => {
-                const nEl = mb.querySelector(".smat-name");
-                const qEl = mb.querySelector(".smat-qty");
-                const n   = nEl ? nEl.value.trim() : "";
-                if (!n) return;
-                // ★ data-base-qty を優先し、なければ value を使用
-                const q = qEl ? (qEl.getAttribute("data-base-qty") || qEl.value).trim() : "";
-                const alts = [];
-                mb.querySelectorAll(".alt-entry").forEach(ae => {
-                  const anEl = ae.querySelector(".smat-alt-name");
-                  const aqEl = ae.querySelector(".smat-alt-qty");
-                  const acEl = ae.querySelector(".alt-connector-select");
-                  const an = anEl ? anEl.value.trim() : "";
-                  // ★ data-base-qty を優先
-                  const aq = aqEl ? (aqEl.getAttribute("data-base-qty") || aqEl.value).trim() : "";
-                  const ac = acEl ? acEl.value : "あるいは";
-                  if (an) alts.push({ connector: ac, name: an, qty: aq });
-                });
-                stepMats.push({ name: n, qty: q, baseQty: q, target, alts });
-              });
-            }
-            if (proc || stepMats.length) steps.push({ connector: wi === 0 ? "" : connector, proc, mats: stepMats, result_name, result_qty, target });
-          });
-          if (parent) data.subgroups.push({ parent, steps });
-        });
-        return data;
-      }
-
-      // ============================================================
-      // 確認画面
-      // ============================================================
-      function buildConfirm() {
-        const d = collectData(); let html = "";
-        html += `<div class="confirm-section"><div class="confirm-label">カテゴリ（シート）</div><div class="confirm-value">${d.sheet_name}</div></div>`;
-        html += `<div class="confirm-section"><div class="confirm-label">アイテム名</div><div class="confirm-value" style="font-weight:700;font-size:15px;">${d.name}</div></div>`;
-        if (d.skill_level) {
-          const sc = SKILL_LEVEL_COLORS[d.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
-          const lvStr = d.skill_level_num ? ` Lv.${d.skill_level_num}` : "";
-          html += `<div class="confirm-section"><div class="confirm-label">必要スキルレベル</div><span style="display:inline-block;padding:3px 12px;border-radius:12px;font-size:12px;font-weight:700;background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">🎖 ${d.skill_level}${lvStr}</span></div>`;
-        }
-        if (d.effect) html += `<div class="confirm-section"><div class="confirm-label">効果</div><div class="confirm-value" style="color:#2e7d32;white-space:pre-wrap;">${d.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div></div>`;
-        if (d.cities && d.cities.length) {
-          html += `<div class="confirm-section"><div class="confirm-label">製作できる都市 ＆ レベル</div>`;
-          d.cities.forEach(c => { html += `<div class="confirm-mat">${c.name}${c.level ? `　<span class="qty">Lv.${c.level}</span>` : ""}</div>`; });
-          html += `</div>`;
-        }
-        if (d.category) html += `<div class="confirm-section"><div class="confirm-label">サブカテゴリ</div><div class="confirm-value">${d.category}</div></div>`;
-        if (d.image_url) {
-          const uploadingEl = document.getElementById("image-preview-status");
-          const isUploading = uploadingEl && uploadingEl.classList.contains("uploading");
-          if (isUploading) {
-            html += `<div class="confirm-section"><div class="confirm-label">画像</div><div style="font-size:12px;color:#e65100;">⚠ 画像アップロード中です。完了後に保存してください。</div></div>`;
-          } else {
-            html += `<div class="confirm-section"><div class="confirm-label">画像</div><img src="${d.image_url}" style="width:64px;height:64px;border-radius:6px;object-fit:cover;border:1px solid #e0ddd5;"></div>`;
-          }
-        }
-        if (d.imperial_rank || d.imperial_qty_min || d.imperial_qty_max) {
-          html += `<div class="confirm-imperial"><div class="confirm-imperial-title">👑 皇室納品情報</div><div class="confirm-imperial-body">`;
-          if (d.imperial_rank) html += `ランク：<strong>${d.imperial_rank}</strong>　`;
-          if (d.imperial_qty_min || d.imperial_qty_max) { const minStr = d.imperial_qty_min || "—"; const maxStr = d.imperial_qty_max || "—"; html += `１箱の入個数：<strong>${minStr}－上位：${maxStr}</strong>`; }
-          html += `</div></div>`;
-        }
-        if (d.mats.length) {
-          html += `<div class="confirm-section"><div class="confirm-label">製作材料</div>`;
-          if (d.recipe_proc) {
-            html += `<div style="margin-bottom:8px;"><span class="confirm-recipe-proc">⚙ ${d.recipe_proc}</span></div>`;
-          }
-          d.mats.forEach(m => {
-            html += `<div class="confirm-mat">${m.name} <span class="qty">${m.qty ? "×" + m.qty : ""}</span></div>`;
-            (m.alts || []).forEach(a => { html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${a.qty ? "×" + a.qty : ""}</span></div>`; });
-          });
-          html += `</div>`;
-        }
-        if (d.subgroups.length) {
-          html += `<div class="confirm-section"><div class="confirm-label">副材料</div>`;
-          d.subgroups.forEach(g => {
-            html += `<div style="margin-bottom:16px;"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:#1a1a1a;">▸ ${g.parent} の作り方</div>`;
-            g.steps.forEach((s, i) => {
-              if (i > 0 && s.connector) html += `<div class="confirm-connector">${s.connector}</div>`;
-              html += `<div class="confirm-step">`;
-              if (s.proc) html += `<div style="margin-bottom:4px;"><span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;background:#e8eaf6;color:#1a237e;border:1px solid #9fa8da;">${s.proc}</span></div>`;
-              const tgt = Math.max(1, parseFloat(s.target) || 1);
-              s.mats.forEach(m => {
-                const baseQ = parseFloat(m.baseQty || m.qty);
-                const neededQ = (!isNaN(baseQ) && baseQ > 0) ? Math.ceil(baseQ * tgt) : null;
-                const qtyStr = neededQ !== null ? `×${neededQ}` : (m.qty ? `×${m.qty}` : "");
-                html += `<div class="confirm-mat">${m.name} <span class="qty">${qtyStr}</span></div>`;
-                (m.alts || []).forEach(a => {
-                  const altBase = parseFloat(a.qty), altNeeded = (!isNaN(altBase) && altBase > 0) ? Math.ceil(altBase * tgt) : null;
-                  const altQtyStr = altNeeded !== null ? `×${altNeeded}` : (a.qty ? `×${a.qty}` : "");
-                  html += `<div class="confirm-mat-alt"><span class="alt-connector">${a.connector}</span>${a.name} <span class="qty">${altQtyStr}</span></div>`;
-                });
-              });
-              if (s.result_name) html += `<div class="confirm-result">→ ${s.result_name}${s.result_qty ? "　×" + s.result_qty : ""}</div>`;
-              html += `</div>`;
-            });
-            html += `</div>`;
-          });
-          html += `</div>`;
-        }
-        document.getElementById("confirm-content").innerHTML = html;
-      }
-
-      // ============================================================
-      // 保存
-      // ============================================================
-      async function submitRecipe() {
-        if (imageState.isUploading) { showToast("画像アップロード中です。完了をお待ちください"); return; }
-        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
-        const btn = document.getElementById("submit-btn"); btn.disabled = true; btn.textContent = "保存中...";
-        const { error } = await sb.rpc("insert_recipe_full", { payload: data });
-        if (error) { showToast("エラー: " + error.message); btn.disabled = false; btn.textContent = "✓ 保存する"; }
-        else { showToast("✓ 保存しました！"); setTimeout(async () => { resetForm(); await loadMasterList(); btn.disabled = false; btn.textContent = "✓ 保存する"; }, 1500); }
-      }
-
-      async function updateCurrentRecipe() {
-        if (!currentEditId) { showToast("編集対象が選択されていません"); return; }
-        if (imageState.isUploading) { showToast("画像アップロード中です。完了をお待ちください"); return; }
-        const data = collectData(); if (!data.name) { showToast("アイテム名がありません"); return; }
-        const allUpdateBtns = document.querySelectorAll(".edit-only-btn");
-        allUpdateBtns.forEach(b => { b.disabled = true; b.textContent = "更新中..."; });
-        try {
-          const { error } = await sb.rpc("update_recipe_full", { p_recipe_id: currentEditId, payload: data });
-          if (error) { showToast("エラー: " + error.message); }
-          else { showToast("✓ 更新しました"); editRecipes = []; await loadMasterList(); clearEditForm(); }
-        } catch (e) { showToast("エラー: " + e.message); }
-        finally { allUpdateBtns.forEach(b => { b.disabled = false; b.textContent = "✏ 更新する"; }); }
-      }
-
-      function resetForm() {
-        document.getElementById("f-sheet").selectedIndex = 0;
-        ["f-name","f-category","f-effect"].forEach(id => (document.getElementById(id).value = ""));
-        document.getElementById("skill-level-select").value = "";
-        document.getElementById("skill-level-num").value = "";
-        document.getElementById("imperial-section").classList.add("hidden");
-        document.getElementById("imperial-rank-select").value = "";
-        document.getElementById("imperial-qty-min").value = "";
-        document.getElementById("imperial-qty-max").value = "";
-        clearRecipeProc();
-        resetImageState();
-        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
-        for (const k in altCounts) delete altCounts[k];
-        _stepDrag = null;
-        addMatBlock(); goStep(1);
-      }
-
-      async function goStep(n) {
-        if (n === 2 && !validate1()) return;
-        if (n === 3) await loadMasterList();
-        if (n === 4) {
-          if (imageState.isUploading) { showToast("画像アップロード中です。完了をお待ちください"); return; }
-          try { buildConfirm(); } catch(e) { console.error("buildConfirm error:", e); showToast("確認画面の生成に失敗しました: " + e.message); return; }
-        }
-        [1,2,3,4].forEach(i => {
-          document.getElementById(`page-${i}`).classList.toggle("hidden", i !== n);
-          const si = document.getElementById(`si-${i}`); si.classList.toggle("active", i === n); si.classList.toggle("done", i < n);
-        });
-        if (n === 4) {
-          const submitBtn = document.getElementById("submit-btn"), updateBtn = document.getElementById("step4-update-btn");
-          if (currentEditId) { submitBtn.style.display = "none"; updateBtn.style.display = ""; }
-          else { submitBtn.style.display = ""; updateBtn.style.display = "none"; }
-        }
-        if (n === 3) { setTimeout(initCrossGroupDragSort, 100); }
+      // ★ 上に戻る
+      function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
 
-      function validate1() {
-        if (!document.getElementById("f-sheet").value) { showToast("カテゴリ（シート）を選択してください"); return false; }
-        if (!document.getElementById("f-name").value.trim()) { showToast("アイテム名を入力してください"); return false; }
-        return true;
-      }
-
-      // ============================================================
-      // タブ切替
-      // ============================================================
-      function switchTab(tab) {
-        const isNew = tab === "new";
-        if (isNew && (currentEditId || currentEditSheet)) clearEditForm();
-        document.getElementById("area-new").style.display  = isNew ? "" : "none";
-        document.getElementById("area-edit").style.display = isNew ? "none" : "";
-        document.getElementById("tab-new").classList.toggle("active",  isNew);
-        document.getElementById("tab-edit").classList.toggle("active", !isNew);
-        if (!isNew && editRecipes.length === 0) loadEditList();
-      }
-
-      // ============================================================
-      // 編集リスト
-      // ============================================================
-      async function loadEditList() {
-        document.getElementById("edit-list").innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">読み込み中...</div>';
-        const { data } = await sb.from("recipes").select("id,name,sheets(name)").order("name");
-        editRecipes = (data || []).map(r => ({ id: r.id, name: r.name, sheet: r.sheets ? r.sheets.name : "" }));
-        renderEditList(editRecipes);
-      }
-      function filterEditList() {
-        const q = document.getElementById("edit-search").value.toLowerCase(), sheet = document.getElementById("edit-sheet-filter").value;
-        renderEditList(editRecipes.filter(r => (!q || r.name.toLowerCase().includes(q)) && (!sheet || r.sheet === sheet)));
-      }
-      function renderEditList(list) {
-        const el = document.getElementById("edit-list");
-        if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">該当なし</div>'; return; }
-        el.innerHTML = list.map(r => `<div class="edit-item" onclick="loadEditRecipe(${r.id},'${r.sheet}','${r.name.replace(/'/g,"\\'")}')"><span class="edit-item-name">${r.name}</span><span class="edit-item-sheet">${r.sheet}</span></div>`).join("");
-      }
-
-      async function loadEditRecipe(id, sheetName, itemName) {
-        currentEditId = id; currentEditSheet = sheetName; showToast("読み込み中...");
-        const { data } = await sb.from("recipes").select(`
-          id,name,category,image_url,effect,skill_level,skill_level_num,
-          imperial_rank,imperial_qty_min,imperial_qty_max,recipe_proc,
-          sheets(name),
-          recipe_cities(sort_order,city_name,city_level),
-          recipe_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id),
-          recipe_subgroups(
-            id,sort_order,parent,
-            recipe_steps(
-              id,sort_order,connector,proc,result_name,result_qty,
-              recipe_step_mats(id,sort_order,mat_name,mat_qty,alt_connector,parent_mat_id)
-            )
-          )
-        `).eq("id", id).single();
-        if (!data) { showToast("データが見つかりません"); return; }
-        fillEditForm(data, sheetName);
-      }
-
-      function fillEditForm(data, sheetName) {
-        document.getElementById("edit-form-area").style.display = "";
-        document.getElementById("edit-list").style.display = "none";
-        document.getElementById("edit-search").parentElement.style.display = "none";
-        document.getElementById("area-new").style.display = "";
-        document.getElementById("area-edit").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
-        for (const k in altCounts) delete altCounts[k];
-        _stepDrag = null;
-        document.getElementById("f-sheet").value    = sheetName;
-        document.getElementById("f-name").value     = data.name     || "";
-        document.getElementById("f-category").value = data.category || "";
-        document.getElementById("f-effect").value   = data.effect   || "";
-        document.getElementById("skill-level-select").value = data.skill_level || "";
-        document.getElementById("skill-level-num").value = data.skill_level_num != null ? data.skill_level_num : "";
-        setRecipeProc(data.recipe_proc || "");
-
-        resetImageState();
-        if (data.image_url) {
-          imageState.existingUrl = data.image_url;
-          showExistingImagePreview(data.image_url);
-        }
-
-        const sec = document.getElementById("imperial-section");
-        if (IMPERIAL_SHEETS.includes(sheetName)) {
-          sec.classList.remove("hidden");
-          document.getElementById("imperial-rank-select").value = data.imperial_rank || "";
-          document.getElementById("imperial-qty-min").value = data.imperial_qty_min || "";
-          document.getElementById("imperial-qty-max").value = data.imperial_qty_max || "";
+      // ★ スクロール監視：200px超えたら表示
+      window.addEventListener("scroll", function () {
+        const btn = document.getElementById("scroll-top-btn");
+        if (window.scrollY > 200) {
+          btn.classList.add("visible");
         } else {
-          sec.classList.add("hidden");
-          document.getElementById("imperial-rank-select").value = "";
-          document.getElementById("imperial-qty-min").value = "";
-          document.getElementById("imperial-qty-max").value = "";
+          btn.classList.remove("visible");
         }
-        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
-        (data.recipe_cities || []).sort((a,b) => a.sort_order - b.sort_order).forEach(c => addCityRow(c.city_name, c.city_level));
-        const allMats = (data.recipe_mats || []).sort((a,b) => a.sort_order - b.sort_order);
-        allMats.filter(m => !m.parent_mat_id).forEach(m => {
-          const alts = allMats.filter(a => a.parent_mat_id === m.id).sort((a,b) => a.sort_order - b.sort_order).map(a => ({ connector: a.alt_connector || "あるいは", name: a.mat_name || "", qty: a.mat_qty || "" }));
-          addMatBlock(m.mat_name, m.mat_qty, alts);
-        });
-        if (matBlockCount === 0) addMatBlock();
-        (data.recipe_subgroups || []).sort((a,b) => a.sort_order - b.sort_order).forEach(sg => {
-          addSubgroup();
-          const gEl = [...document.querySelectorAll("#subgroup-list .subgroup")].at(-1);
-          const gid = gEl.id;
-          gEl.querySelector(".sg-parent").value = sg.parent;
-          resetSteps(gid);
-          (sg.recipe_steps || []).sort((a,b) => a.sort_order - b.sort_order).forEach(step => {
-            addStep(gid); const sc = stepCounters[gid]; const sid = `${gid}-s${sc}`;
-            fillStep(gid, sid, step, sc > 1); updateStepNeeded(sid);
+      }, { passive: true });
+
+      // ★ 数量フォーマット: 「基準値×作成数＝必要数」形式で返す
+      // qty=1(作成数1)のとき: 基準値のみ表示するシンプル版も考慮
+      function fmtQty(raw, multiplier) {
+        if (!raw || String(raw).trim() === "") return "";
+        const s = String(raw).trim();
+        const num = parseFloat(s);
+        if (!isNaN(num) && num > 0) {
+          const needed = Math.ceil(num * multiplier);
+          if (multiplier === 1) {
+            // 作成数1のときは基準値＝必要数なので「基準値＝必要数」
+            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+          }
+          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+        }
+        return s;
+      }
+
+      // ★ 細分化内部でも同じ形式で数量表示するヘルパー
+      function fmtStepQty(baseQty, multiplier) {
+        if (!baseQty || String(baseQty).trim() === "") return "";
+        const s = String(baseQty).trim();
+        const num = parseFloat(s);
+        if (!isNaN(num) && num > 0) {
+          const needed = Math.ceil(num * multiplier);
+          if (multiplier === 1) {
+            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+          }
+          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+        }
+        return s;
+      }
+
+      function clearSearch() {
+        const input = document.getElementById("search");
+        input.value = "";
+        document.getElementById("search-clear-btn").classList.remove("visible");
+        input.focus();
+        render();
+      }
+
+      function updateClearBtn() {
+        const val = document.getElementById("search").value;
+        const btn = document.getElementById("search-clear-btn");
+        val.length > 0 ? btn.classList.add("visible") : btn.classList.remove("visible");
+      }
+
+      async function loadData() {
+        try {
+          const { data: sheetsData, error: sheetsError } = await sb
+            .from("sheets").select("id, name").order("sort_order");
+          if (sheetsError) throw sheetsError;
+          SHEETS = (sheetsData || []).map((s) => s.name);
+
+          const { data: recipes, error: recipesError } = await sb
+            .from("recipes")
+            .select(`
+              id, name, category, image_url, effect,
+              imperial_rank, imperial_qty_min, imperial_qty_max,
+              skill_level, skill_level_num,
+              recipe_proc,
+              sheets(name),
+              recipe_cities(sort_order, city_name, city_level),
+              recipe_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id),
+              recipe_subgroups(
+                id, sort_order, parent,
+                recipe_steps(id, sort_order, connector, proc, result_name, result_qty,
+                  recipe_step_mats(id, sort_order, mat_name, mat_qty, alt_connector, parent_mat_id)
+                )
+              )
+            `)
+            .order("name");
+          if (recipesError) throw recipesError;
+
+          allData = (recipes || []).map((r) => parseRecipe(r));
+          buildTagButtons();
+          render();
+
+          const now = new Date();
+          document.getElementById("last-updated").textContent =
+            `最終更新: ${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+        } catch (e) {
+          document.getElementById("tbody").innerHTML =
+            `<tr><td colspan="${COL_SPAN}" class="state-msg">⚠️ データの読み込みに失敗しました。<br>Supabaseの接続設定を確認してください。<br><small style="color:#ccc;">${e.message || ""}</small></td></tr>`;
+          console.error(e);
+        }
+      }
+
+      function parseRecipe(r) {
+        const tag = r.sheets ? r.sheets.name : "";
+        const hasEffect   = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
+        const hasImperial = IMPERIAL_SHEET_NAMES.indexOf(tag) >= 0;
+        const cities = (r.recipe_cities || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((c) => ({ name: c.city_name || "", level: c.city_level || "" }));
+        const allRawMats = (r.recipe_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+        const mats = allRawMats
+          .filter((m) => !m.parent_mat_id)
+          .map((m) => ({
+            name: m.mat_name || "",
+            qty: m.mat_qty || "",
+            alts: allRawMats
+              .filter((a) => a.parent_mat_id === m.id)
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((a) => ({
+                connector: a.alt_connector || "あるいは",
+                name: a.mat_name || "",
+                qty: a.mat_qty || "",
+              })),
+          }));
+        const subgroups = (r.recipe_subgroups || [])
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((sg) => {
+            const steps = (sg.recipe_steps || [])
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((step, si) => {
+                const stepTarget = Math.max(1, parseFloat(step.result_qty) || 1);
+                const allRawStepMats = (step.recipe_step_mats || []).sort((a, b) => a.sort_order - b.sort_order);
+                const stepMats = allRawStepMats
+                  .filter((sm) => !sm.parent_mat_id)
+                  .map((sm) => ({
+                    name: sm.mat_name || "",
+                    baseQty: sm.mat_qty || "",
+                    stepTarget,
+                    alts: allRawStepMats
+                      .filter((a) => a.parent_mat_id === sm.id)
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((a) => ({
+                        connector: a.alt_connector || "あるいは",
+                        name: a.mat_name || "",
+                        baseQty: a.mat_qty || "",
+                        stepTarget,
+                      })),
+                  }));
+                return {
+                  connector: si > 0 ? step.connector || "" : "",
+                  proc: step.proc || "",
+                  mats: stepMats,
+                  result_name: step.result_name || "",
+                  result_qty: step.result_qty || "",
+                  stepTarget,
+                };
+              });
+            return { parent: sg.parent || "", steps };
           });
+        return {
+          name: r.name || "",
+          category: r.category || "",
+          image_url: r.image_url || "",
+          effect: hasEffect ? r.effect || "" : "",
+          imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
+          imperial_qty_min: hasImperial ? (r.imperial_qty_min != null ? r.imperial_qty_min : null) : null,
+          imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
+          skill_level:     r.skill_level     || "",
+          skill_level_num: r.skill_level_num != null ? r.skill_level_num : null,
+          recipe_proc:     r.recipe_proc     || "",
+          tag,
+          cities,
+          mats,
+          subgroups,
+        };
+      }
+
+      function buildTagButtons() {
+        const wrap = document.getElementById("tag-buttons");
+        wrap.innerHTML = `<button class="cat-btn active" onclick="setTag('all',this)">すべて</button>`;
+        SHEETS.forEach((tag) => {
+          const btn = document.createElement("button");
+          btn.className = "cat-btn";
+          btn.textContent = tag;
+          btn.onclick = function () { setTag(tag, this); };
+          wrap.appendChild(btn);
         });
-        document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = ""; b.disabled = false; b.textContent = "✏ 更新する"; });
-        document.getElementById("submit-btn").style.display = "none";
-        goStep(1);
-        showToast(`「${data.name}」を読み込みました`);
       }
 
-      async function deleteCurrentRecipe() {
-        if (!currentEditId) return;
-        const name = document.getElementById("f-name").value;
-        if (!confirm(`「${name}」を削除しますか？\nこの操作は元に戻せません。`)) return;
-        const { error } = await sb.from("recipes").delete().eq("id", currentEditId);
-        if (error) { showToast("エラー: " + error.message); }
-        else { showToast("削除しました"); editRecipes = []; clearEditForm(); switchTab("edit"); await loadEditList(); }
+      function buildCatButtons(tag) {
+        const catRow = document.getElementById("cat-row");
+        const catWrap = document.getElementById("cat-buttons");
+        if (tag === "all") { catRow.style.display = "none"; currentCat = "all"; return; }
+        const cats = [...new Set(
+          allData.filter((r) => r.tag === tag).map((r) => r.category).filter(Boolean)
+        )].sort();
+        if (cats.length === 0) { catRow.style.display = "none"; currentCat = "all"; return; }
+        catWrap.innerHTML = `<button class="cat-btn active" onclick="setCat('all',this)">すべて</button>`;
+        cats.forEach((cat) => {
+          const btn = document.createElement("button");
+          btn.className = "cat-btn";
+          btn.textContent = cat;
+          btn.onclick = function () { setCat(cat, this); };
+          catWrap.appendChild(btn);
+        });
+        catRow.style.display = "flex";
       }
 
-      function clearEditForm() {
-        currentEditId = null; currentEditSheet = null; _stepDrag = null;
-        const fs = document.getElementById("f-sheet"); if (fs && fs.options.length > 0) fs.selectedIndex = 0;
-        ["f-name","f-category","f-effect"].forEach(id => (document.getElementById(id).value = ""));
-        document.getElementById("skill-level-select").value = "";
-        document.getElementById("skill-level-num").value = "";
-        document.getElementById("imperial-section").classList.add("hidden");
-        document.getElementById("imperial-rank-select").value = "";
-        document.getElementById("imperial-qty-min").value = "";
-        document.getElementById("imperial-qty-max").value = "";
-        clearRecipeProc();
-        resetImageState();
-        document.getElementById("city-level-list").innerHTML = ""; cityRowCount = 0; document.getElementById("add-city-btn").style.display = "";
-        document.getElementById("mat-block-list").innerHTML = ""; document.getElementById("subgroup-list").innerHTML = "";
-        matBlockCount = 0; subgroupCount = 0; stepCounters = {}; stepMatCounters = {}; stepMatAltCounters = {};
-        for (const k in altCounts) delete altCounts[k];
-        addMatBlock(); goStep(1);
-        document.getElementById("edit-list").style.display = "";
-        document.getElementById("edit-search").parentElement.style.display = "";
-        document.getElementById("edit-form-area").style.display = "none";
-        document.getElementById("area-new").style.display = "none";
-        document.querySelectorAll(".edit-only-btn").forEach(b => { b.style.display = "none"; b.disabled = false; b.textContent = "✏ 更新する"; });
-        document.getElementById("submit-btn").style.display = "";
-        document.getElementById("submit-btn").disabled = false;
-        document.getElementById("submit-btn").textContent = "✓ 保存する";
-        document.getElementById("edit-search").value = ""; document.getElementById("edit-sheet-filter").value = "";
-        if (editRecipes.length > 0) renderEditList(editRecipes); else loadEditList();
+      function setTag(tag, el) {
+        currentTag = tag; currentCat = "all";
+        document.querySelectorAll("#tag-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
+        el.classList.add("active");
+        buildCatButtons(tag); render();
       }
 
-      function showToast(msg) {
-        const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
-        setTimeout(() => t.classList.remove("show"), 2500);
+      function setCat(cat, el) {
+        currentCat = cat;
+        document.querySelectorAll("#cat-buttons .cat-btn").forEach((b) => b.classList.remove("active"));
+        el.classList.add("active"); render();
       }
 
-      checkAuth();
+      function onQtyInput(key, el) {
+        const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
+        quantities[key] = v;
+        if (el.value !== "" && (parseInt(el.value) < 1 || parseInt(el.value) > 9999)) el.value = v;
+      }
+
+      function onQtyChange(key, el) {
+        const v = Math.min(9999, Math.max(1, parseInt(el.value) || 1));
+        quantities[key] = v; el.value = v; render();
+      }
+
+      const RANK_COLORS = {
+        "見習い": { bg: "#e8f5e9", color: "#2e7d32", border: "#a5d6a7" },
+        "熟練":   { bg: "#e3f2fd", color: "#1565c0", border: "#90caf9" },
+        "専門家": { bg: "#fff3e0", color: "#e65100", border: "#ffcc80" },
+        "職人":   { bg: "#fce4ec", color: "#c62828", border: "#ef9a9a" },
+        "名匠":   { bg: "#ede7f6", color: "#4527a0", border: "#ce93d8" },
+        "道人":   { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
+      };
+
+      const BOX_SUFFIX = { "料理": "の料理箱", "錬金": "の薬品箱" };
+
+      function buildImperialHTML(r) {
+        if (!r.imperial_rank && r.imperial_qty_min == null && r.imperial_qty_max == null) return "";
+        let html = "";
+        if (r.imperial_rank) {
+          const rc = RANK_COLORS[r.imperial_rank] || { bg: "#fff8e1", color: "#e65100", border: "#ffe082" };
+          const suffix = BOX_SUFFIX[r.tag] || "";
+          html += `<span class="imperial-badge" style="background:${rc.bg};color:${rc.color};border-color:${rc.border};">👑 ${r.imperial_rank + suffix}</span>`;
+        }
+        const hasMin = r.imperial_qty_min != null, hasMax = r.imperial_qty_max != null;
+        if (hasMin || hasMax) {
+          const minStr = hasMin ? `<span class="imperial-qty-num">${r.imperial_qty_min}</span>` : `<span style="color:#bbb">—</span>`;
+          const maxStr = hasMax ? `<span class="imperial-qty-num">${r.imperial_qty_max}</span>` : `<span style="color:#bbb">—</span>`;
+          html += `<div class="imperial-qty">📦 １箱の入個数：${minStr}<span style="color:#aaa;margin:0 2px;">－上位：</span>${maxStr}</div>`;
+        }
+        return html;
+      }
+
+      function buildSkillBadgeHTML(r) {
+        if (!r.skill_level) return "";
+        const sc = SKILL_LEVEL_COLORS[r.skill_level] || { bg: "#f5f4f0", color: "#888", border: "#ddd" };
+        const lvStr = r.skill_level_num != null ? ` Lv.${r.skill_level_num}` : "";
+        return `<span class="skill-badge" style="background:${sc.bg};color:${sc.color};border-color:${sc.border};">🎖 ${r.skill_level}${lvStr}</span>`;
+      }
+
+      function render() {
+        const q = document.getElementById("search").value.toLowerCase();
+        const rows = allData
+          .filter((r) => {
+            if (currentTag !== "all" && r.tag !== currentTag) return false;
+            if (currentCat !== "all" && r.category !== currentCat) return false;
+            if (q) {
+              const inName    = r.name.toLowerCase().includes(q);
+              const inMat     = r.mats.some((m) => m.name.toLowerCase().includes(q));
+              const inProc    = r.recipe_proc && r.recipe_proc.toLowerCase().includes(q);
+              const inSub     = r.subgroups.some((g) => g.parent.toLowerCase().includes(q) || g.steps.some((s) => s.mats.some((m) => m.name.toLowerCase().includes(q))));
+              const inEffect  = r.effect && r.effect.toLowerCase().includes(q);
+              const inCity    = r.cities && r.cities.some((c) => c.name.toLowerCase().includes(q));
+              const inRank    = r.imperial_rank && r.imperial_rank.toLowerCase().includes(q);
+              const inSkill   = r.skill_level && r.skill_level.toLowerCase().includes(q);
+              if (!inName && !inMat && !inProc && !inSub && !inEffect && !inCity && !inRank && !inSkill) return false;
+            }
+            return true;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name, "ja"));
+
+        document.getElementById("result-info").textContent = rows.length ? `${rows.length}件のレシピを表示中` : "";
+        const tbody = document.getElementById("tbody");
+        tbody.innerHTML = "";
+
+        if (!rows.length) {
+          tbody.innerHTML = `<tr><td colspan="${COL_SPAN}" class="state-msg">該当するレシピが見つかりませんでした</td></tr>`;
+          return;
+        }
+
+        rows.forEach((r) => {
+          const key = r.name;
+          if (!quantities[key]) quantities[key] = 1;
+          const qty = quantities[key];
+          const isOpen = expanded[key];
+          const hasSub = r.subgroups.length > 0;
+          const tr = document.createElement("tr");
+
+          const imgHTML = r.image_url
+            ? `<img src="${r.image_url}" alt="${r.name}" onclick="openLightbox(this.src)" onerror="this.parentNode.textContent='🍽'">`
+            : (r.tag === "料理" ? "🍽" : "🪑");
+
+          const cityHTML = r.cities && r.cities.length
+            ? r.cities.map((c) =>
+                `<div>・${c.name}${c.level ? `&nbsp;<span style="background:#e8eaf6;color:#3949ab;border:1px solid #9fa8da;border-radius:8px;padding:1px 6px;font-size:10px;white-space:nowrap;">Lv.${c.level}</span>` : ""}</div>`
+              ).join("")
+            : '<span style="color:#ddd">—</span>';
+
+          const skillBadgeHTML = buildSkillBadgeHTML(r);
+          const imperialHTML = buildImperialHTML(r);
+          let effectCell = "";
+          if (r.effect) effectCell += `<div class="effect-text">${r.effect.replace(/</g,"&lt;").replace(/>/g,"&gt;")}</div>`;
+          if (imperialHTML) effectCell += `<div style="margin-top:${r.effect ? "6px" : "0"}">${imperialHTML}</div>`;
+          if (!effectCell) effectCell = '<span style="color:#ddd;font-size:11px">—</span>';
+
+          const safeKey = key.replace(/\\/g,"\\\\").replace(/'/g,"\\'");
+
+          const procBadgeHTML = r.recipe_proc
+            ? `<div><span class="recipe-proc-badge">⚙ ${r.recipe_proc}</span></div>`
+            : "";
+
+          // ★ fmtQty がHTMLを返すようになったので innerHTML として扱う
+          const matsHTML = r.mats.map((m) => {
+            const qtyHTML = fmtQty(m.qty, qty);
+            const altHTML = (m.alts || []).map((a) => {
+              const altQtyHTML = fmtQty(a.qty, qty);
+              return `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${altQtyHTML}</span></div>`;
+            }).join("");
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${qtyHTML}</span></div>${altHTML}`;
+          }).join("");
+
+          tr.innerHTML = `
+            <td><div class="item-cell"><div class="item-img">${imgHTML}</div><div>
+              <div class="item-name">${r.name}</div>
+              <span class="cat-badge">${r.category}</span>
+              ${skillBadgeHTML ? `<div style="margin-top:4px;">${skillBadgeHTML}</div>` : ""}
+            </div></div></td>
+            <td><div class="mat-list">${procBadgeHTML}${matsHTML}</div></td>
+            <td>${effectCell}</td>
+            <td style="font-size:11px;color:#555;line-height:1.8;">${cityHTML}</td>
+            <td>
+              <input
+                type="number"
+                class="qty-input"
+                min="1"
+                max="9999"
+                step="1"
+                value="${qty}"
+                data-key="${key.replace(/"/g,"&quot;")}"
+                oninput="onQtyInput(this.dataset.key,this)"
+                onchange="onQtyChange(this.dataset.key,this)"
+                onkeydown="if(event.key==='Enter'){onQtyChange(this.dataset.key,this);this.blur();}"
+              >
+            </td>
+            <td>${hasSub ? `<button class="expand-btn ${isOpen?"open":""}" onclick="expanded['${safeKey}']=!expanded['${safeKey}'];render()">${isOpen?"▲ 閉じる":"▼ 材料細分化"}</button>` : '<span style="color:#ddd;font-size:11px">—</span>'}</td>`;
+          tbody.appendChild(tr);
+
+          if (isOpen && hasSub) {
+            const subtr = document.createElement("tr");
+            subtr.className = "sub-row";
+            const subHTML = r.subgroups.map((g) => {
+              const stepsHTML = g.steps.map((s, si) => {
+                const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
+                const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
+                const stepMultiplier = s.stepTarget * qty;
+                // ★ 細分化内も基準値×作成数＝必要数の形式で表示
+                const matsHTML = s.mats.map((m) => {
+                  const qtyHTML = fmtStepQty(m.baseQty, stepMultiplier);
+                  const altHTML = (m.alts || []).map((a) => {
+                    const altQtyHTML = fmtStepQty(a.baseQty, stepMultiplier);
+                    return `<div class="step-mat-alt"><span class="step-mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="step-mat-qty">${altQtyHTML}</span></div>`;
+                  }).join("");
+                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${qtyHTML}</span></div>${altHTML}`;
+                }).join("");
+                const resultQtyDisplay = s.result_qty
+                  ? (() => { const rq = parseFloat(s.result_qty); return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`; })()
+                  : "";
+                const resultHTML = s.result_name ? `<div class="step-result">→ ${s.result_name}${resultQtyDisplay}</div>` : "";
+                return `${connectorHTML}<div class="sub-step">${procHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
+              }).join("");
+              return `<div class="sub-group"><div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div><div class="sub-steps">${stepsHTML}</div></div>`;
+            }).join("");
+            subtr.innerHTML = `<td colspan="${COL_SPAN}">${subHTML}</td>`;
+            tbody.appendChild(subtr);
+          }
+        });
+      }
+
+      function openLightbox(src) { document.getElementById("lightbox-img").src = src; document.getElementById("lightbox").classList.add("active"); }
+      function closeLightbox() { document.getElementById("lightbox").classList.remove("active"); }
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeLightbox(); });
+
+      const searchInput = document.getElementById("search");
+      searchInput.addEventListener("input", function () { updateClearBtn(); render(); });
+
+      loadData();
     </script>
   </body>
 </html>
