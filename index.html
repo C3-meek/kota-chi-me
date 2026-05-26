@@ -1,8 +1,8 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - 「上に戻る」ボタンを position:fixed で画面右下に常時表示
-  - controls-row1 からは削除し body 直下の独立要素として配置
-  - スクロール200px以上で表示、それ以外は非表示（opacity+transform でフェード）
+  - fmtQty の表示形式を「×必要数」→「基準値×作成数＝必要数」に変更
+  - 製作材料列のヘッダーに「基準値×作成数＝必要数」の説明を追加
+  - sub-step内の材料数量表示も同様に変更
   ※ その他は既存のまま維持
 -->
 <!doctype html>
@@ -90,6 +90,11 @@
       .recipe-proc-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; white-space: nowrap; margin-bottom: 6px; }
       .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .mat-qty { color: #1a1a1a; font-weight: 600; }
+      /* ★ 新規: 基準値・等号・必要数のスタイル */
+      .mat-qty-formula { display: inline-flex; align-items: center; gap: 2px; }
+      .mat-qty-base { color: #888; font-size: 11px; font-weight: 400; }
+      .mat-qty-sep { color: #aaa; font-size: 11px; }
+      .mat-qty-result { color: #1a1a1a; font-weight: 700; }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .imperial-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fff8e1; color: #e65100; border: 1px solid #ffe082; margin-top: 4px; white-space: nowrap; }
@@ -124,6 +129,15 @@
       .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
       .item-img img { cursor: zoom-in; transition: opacity 0.15s; }
       .item-img img:hover { opacity: 0.85; }
+      /* ★ 数量列ヘッダーの説明ラベル */
+      .qty-formula-legend {
+        display: block;
+        font-size: 9px;
+        font-weight: 400;
+        color: #aaa;
+        margin-top: 2px;
+        letter-spacing: 0;
+      }
       @media (max-width: 600px) { header, .table-container { padding: 12px 16px; } .header-title { font-size: 16px; } }
     </style>
   </head>
@@ -167,7 +181,11 @@
         <thead id="table-head">
           <tr>
             <th style="width: 18%">アイテム名</th>
-            <th style="width: auto">製作材料</th>
+            <th style="width: auto">
+              製作材料
+              <!-- ★ 数量説明ラベル -->
+              <span class="qty-formula-legend">基準値 × 作成数 ＝ 必要数</span>
+            </th>
             <th style="width: 14%">🍽 効果 / 👑 皇室納品</th>
             <th style="width: 18%">製作できる都市 / 製作所Lv</th>
             <th style="width: 7%">作成個数</th>
@@ -226,11 +244,35 @@
         }
       }, { passive: true });
 
+      // ★ 数量フォーマット: 「基準値×作成数＝必要数」形式で返す
+      // qty=1(作成数1)のとき: 基準値のみ表示するシンプル版も考慮
       function fmtQty(raw, multiplier) {
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
         const num = parseFloat(s);
-        if (!isNaN(num) && num > 0) return `×${Math.ceil(num * multiplier)}`;
+        if (!isNaN(num) && num > 0) {
+          const needed = Math.ceil(num * multiplier);
+          if (multiplier === 1) {
+            // 作成数1のときは基準値＝必要数なので「基準値＝必要数」
+            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+          }
+          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+        }
+        return s;
+      }
+
+      // ★ 細分化内部でも同じ形式で数量表示するヘルパー
+      function fmtStepQty(baseQty, multiplier) {
+        if (!baseQty || String(baseQty).trim() === "") return "";
+        const s = String(baseQty).trim();
+        const num = parseFloat(s);
+        if (!isNaN(num) && num > 0) {
+          const needed = Math.ceil(num * multiplier);
+          if (multiplier === 1) {
+            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+          }
+          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
+        }
         return s;
       }
 
@@ -515,11 +557,14 @@
             ? `<div><span class="recipe-proc-badge">⚙ ${r.recipe_proc}</span></div>`
             : "";
 
+          // ★ fmtQty がHTMLを返すようになったので innerHTML として扱う
           const matsHTML = r.mats.map((m) => {
-            const altHTML = (m.alts || []).map((a) =>
-              `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty)}</span></div>`
-            ).join("");
-            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>${altHTML}`;
+            const qtyHTML = fmtQty(m.qty, qty);
+            const altHTML = (m.alts || []).map((a) => {
+              const altQtyHTML = fmtQty(a.qty, qty);
+              return `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${altQtyHTML}</span></div>`;
+            }).join("");
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${qtyHTML}</span></div>${altHTML}`;
           }).join("");
 
           tr.innerHTML = `
@@ -556,11 +601,14 @@
                 const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
                 const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
                 const stepMultiplier = s.stepTarget * qty;
+                // ★ 細分化内も基準値×作成数＝必要数の形式で表示
                 const matsHTML = s.mats.map((m) => {
-                  const altHTML = (m.alts || []).map((a) =>
-                    `<div class="step-mat-alt"><span class="step-mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="step-mat-qty">${fmtQty(a.baseQty, stepMultiplier)}</span></div>`
-                  ).join("");
-                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${fmtQty(m.baseQty, stepMultiplier)}</span></div>${altHTML}`;
+                  const qtyHTML = fmtStepQty(m.baseQty, stepMultiplier);
+                  const altHTML = (m.alts || []).map((a) => {
+                    const altQtyHTML = fmtStepQty(a.baseQty, stepMultiplier);
+                    return `<div class="step-mat-alt"><span class="step-mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="step-mat-qty">${altQtyHTML}</span></div>`;
+                  }).join("");
+                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${qtyHTML}</span></div>${altHTML}`;
                 }).join("");
                 const resultQtyDisplay = s.result_qty
                   ? (() => { const rq = parseFloat(s.result_qty); return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`; })()
