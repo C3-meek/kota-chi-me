@@ -1,10 +1,12 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - smat-needed バッジの前のラベルを「×」→「＝」表記に変更
-  - smat-grid ヘッダー行の「＝必要量」列ラベルを「基準値×作成数＝必要量」形式に変更
-  - ステップ結果物の説明テキストに「基準値×作成数＝必要数」の補足を追加
-  - updateStepNeeded でバッジのテキストを「＝×{n}」形式に変更
-  - その他（画像アップロード、skill_level、recipe_proc、RLS等）は既存のまま維持
+  - 【バグ修正】initStepMatDragSort の cloneNode+replaceWith を廃止し
+    _dragInitialized フラグで二重登録を防ぐ方式に変更
+    → cloneNode により input の value attribute がリセットされ
+      保存時に乗算済みの値が qty として送られていた問題を解消
+  - 【バグ修正】smat-qty input に data-base-qty 属性を追加し
+    collectData では data-base-qty を優先参照するよう変更
+  - その他（画像アップロード、skill_level、recipe_proc、RLS 等）は既存のまま維持
 -->
 <!doctype html>
 <html lang="ja">
@@ -224,7 +226,6 @@
         grid-template-columns: 18px 1fr 74px 46px 72px auto 32px;
         gap: 6px; align-items: center;
       }
-      /* ★ 必要量バッジ: 「＝×n」形式なので少し幅広に */
       .smat-needed {
         display: flex; align-items: center; justify-content: center;
         height: 34px; padding: 0 6px;
@@ -1607,7 +1608,6 @@
         const handle = document.createElement("div");
         handle.className = "step-drag-handle"; handle.title = "ドラッグしてステップを並び替え・グループ間移動"; handle.textContent = "⠿";
         const stepDiv = document.createElement("div"); stepDiv.className = "step-block"; stepDiv.id = sid;
-        // ★ ヘッダー行の列ラベルを「基準値×作成数＝必要量」に更新
         stepDiv.innerHTML = `
           <div class="step-header">
             <span class="step-label-text">ステップ ${sc}</span>
@@ -1623,7 +1623,7 @@
               <div class="smat-grid">
                 <span></span>
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;">材料名</span>
-                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">基準値</span>
+                <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">基準量</span>
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">×作成数</span>
                 <span style="font-size:10px;color:#aaa;font-weight:600;letter-spacing:0.04em;text-align:center;display:block;">＝必要量</span>
                 <span></span><span></span>
@@ -1636,9 +1636,9 @@
             <input type="text" class="step-result-name" placeholder="例: トネリコ板">
             <input type="number" min="1" class="step-result-qty step-target-qty" placeholder="個数"
               oninput="updateStepNeeded('${sid}')"
-              title="目標個数。材料の必要量はこの値×基準量で自動計算されます">
+              title="作成数。材料の必要量は ［基準量］×［作成数］＝［必要量］ で自動計算されます">
           </div>
-          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">← 目標個数（＝作成数）を入力すると材料の必要量を自動計算　基準値 × 作成数 ＝ 必要量</div>`;
+          <div style="font-size:10px;color:#9fa8da;margin-top:4px;text-align:right;">← 作成数を入力すると ［基準量］×［作成数］＝［必要量］ を自動計算</div>`;
         wrapper.appendChild(handle); wrapper.appendChild(stepDiv);
         container.appendChild(wrapper);
         addStepMat(sid);
@@ -1647,7 +1647,7 @@
 
       // ============================================================
       // ★ updateStepNeeded
-      // バッジ表示を「＝×n」形式に変更。smat-qty input の value は一切変更しない。
+      // バッジ表示のみ更新。smat-qty input の value は一切変更しない。
       // ============================================================
       function updateStepNeeded(sid) {
         const stepEl = document.getElementById(sid); if (!stepEl) return;
@@ -1655,14 +1655,15 @@
         const target = Math.max(1, parseFloat(targetInput ? targetInput.value : "1") || 1);
         const smlEl = document.getElementById(`sml-${sid}`); if (!smlEl) return;
         smlEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])").forEach(block => {
+          // ★ data-base-qty 属性から基準量を取得（inputのvalueには依存しない）
           const qtyInput = block.querySelector(".smat-qty");
           const badge    = block.querySelector(".smat-needed");
           if (!qtyInput || !badge) return;
+          // inputのvalueが変わっていても data-base-qty は保護されている
           const baseQtyStr = qtyInput.getAttribute("data-base-qty") || qtyInput.value;
           const baseQty = parseFloat(baseQtyStr);
           if (!isNaN(baseQty) && baseQty > 0) {
-            // ★ 「＝×n」形式に変更
-            badge.textContent = `＝×${Math.ceil(baseQty * target)}`;
+            badge.textContent = `＝${Math.ceil(baseQty * target)}`;
             badge.classList.remove("empty");
           } else {
             badge.textContent = "—";
@@ -1678,8 +1679,7 @@
               const altBaseStr = altQtyInput.getAttribute("data-base-qty") || altQtyInput.value;
               const altBase = parseFloat(altBaseStr);
               if (!isNaN(altBase) && altBase > 0) {
-                // ★ 「＝×n」形式に変更
-                altBadge.textContent = `＝×${Math.ceil(altBase * target)}`;
+                altBadge.textContent = `＝${Math.ceil(altBase * target)}`;
                 altBadge.classList.remove("empty");
               } else {
                 altBadge.textContent = "—";
@@ -1733,6 +1733,11 @@
 
       // ============================================================
       // ★ ステップ材料
+      // 修正点:
+      //   1. smat-qty input に data-base-qty 属性を追加して基準量を保護
+      //   2. initStepMatDragSort で cloneNode+replaceWith を廃止し
+      //      _dragInitialized フラグで二重登録防止に変更
+      //      → cloneNode により value attribute がリセットされる問題を解消
       // ============================================================
       function addStepMat(sid, matName, matQty, alts) {
         if (!stepMatCounters[sid]) stepMatCounters[sid] = 0;
@@ -1740,14 +1745,15 @@
         stepMatCounters[sid]++;
         const mid = `${sid}-m${stepMatCounters[sid]}`; stepMatAltCounters[mid] = 0;
         const div = document.createElement("div"); div.className = "mat-block"; div.id = mid; div.style.marginBottom = "6px";
+        // draggable は initStepMatDragSort 内でハンドルのmousedownで設定するため初期値はfalse
         div.draggable = false;
         const stepEl = document.getElementById(sid);
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(matQty);
-        // ★ バッジ表示を「＝×n」形式に変更
-        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `＝×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `＝${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed empty" : "smat-needed";
+        // ★ data-base-qty に基準量を設定（基準量を attribute として保護）
         div.innerHTML = `
           <div class="smat-grid smat-main-row">
             <span class="smat-drag-handle" title="ドラッグで並び替え">⠿</span>
@@ -1769,6 +1775,7 @@
         initStepMatDragSort(smlEl);
       }
 
+      // ★ smat-qty input 変更時に data-base-qty も同期更新
       function onSmatQtyInput(inputEl, sid) {
         inputEl.setAttribute("data-base-qty", inputEl.value);
         updateStepNeeded(sid);
@@ -1781,12 +1788,15 @@
         const smlEl = document.getElementById(`sml-${sid}`); if (smlEl) initStepMatDragSort(smlEl);
       }
 
+      // ★ initStepMatDragSort: cloneNode+replaceWith を廃止
+      //    _dragInitialized フラグで二重登録防止
       function initStepMatDragSort(listEl) {
         if (!listEl) return;
         listEl._smatDragSrc = null;
         const getDirectBlocks = () => [...listEl.querySelectorAll(":scope > .mat-block:not([data-smat-header])")];
 
         getDirectBlocks().forEach(block => {
+          // ★ 既に初期化済みのブロックはスキップ（cloneNode廃止の代替）
           if (block._dragInitialized) return;
           block._dragInitialized = true;
 
@@ -1835,11 +1845,11 @@
         const tgtInput = stepEl ? stepEl.querySelector(".step-target-qty") : null;
         const target = Math.max(1, parseFloat(tgtInput ? tgtInput.value : "1") || 1);
         const baseQtyN = parseFloat(qty);
-        // ★ バッジ表示を「＝×n」形式に変更
-        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `＝×${Math.ceil(baseQtyN * target)}` : "—";
+        const neededStr = (!isNaN(baseQtyN) && baseQtyN > 0) ? `＝${Math.ceil(baseQtyN * target)}` : "—";
         const neededClass = neededStr === "—" ? "smat-needed alt-badge empty" : "smat-needed alt-badge";
         const div = document.createElement("div"); div.className = "alt-entry"; div.id = aid;
         if (sid) div.setAttribute("data-sid", sid);
+        // ★ smat-alt-qty にも data-base-qty を設定
         div.innerHTML = `
           <span class="alt-tree-icon">└</span>
           <select class="alt-connector-select">${buildAltConnSel(connector)}</select>
@@ -1854,6 +1864,7 @@
         document.getElementById(`alt-list-${mid}`).appendChild(div);
       }
 
+      // ★ smat-alt-qty input 変更時に data-base-qty も同期更新
       function onSmatAltQtyInput(inputEl, sid) {
         inputEl.setAttribute("data-base-qty", inputEl.value);
         if (sid) updateStepNeeded(sid);
@@ -1863,6 +1874,9 @@
 
       // ============================================================
       // ★ collectData
+      // 修正点: smat-qty の値は data-base-qty 属性を優先して読む
+      //         → cloneNode やその他の操作で value が変わっていても
+      //           正しい基準量が取得できる
       // ============================================================
       function collectData() {
         const cities = [];
@@ -1952,6 +1966,7 @@
                 const qEl = mb.querySelector(".smat-qty");
                 const n   = nEl ? nEl.value.trim() : "";
                 if (!n) return;
+                // ★ data-base-qty を優先し、なければ value を使用
                 const q = qEl ? (qEl.getAttribute("data-base-qty") || qEl.value).trim() : "";
                 const alts = [];
                 mb.querySelectorAll(".alt-entry").forEach(ae => {
@@ -1959,6 +1974,7 @@
                   const aqEl = ae.querySelector(".smat-alt-qty");
                   const acEl = ae.querySelector(".alt-connector-select");
                   const an = anEl ? anEl.value.trim() : "";
+                  // ★ data-base-qty を優先
                   const aq = aqEl ? (aqEl.getAttribute("data-base-qty") || aqEl.value).trim() : "";
                   const ac = acEl ? acEl.value : "あるいは";
                   if (an) alts.push({ connector: ac, name: an, qty: aq });
