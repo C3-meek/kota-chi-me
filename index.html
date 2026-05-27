@@ -1,8 +1,9 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - fmtQty の表示形式を「×必要数」→「基準値×作成数＝必要数」に変更
-  - 製作材料列のヘッダーに「基準値×作成数＝必要数」の説明を追加
-  - sub-step内の材料数量表示も同様に変更
+  - 製作材料欄（メイン）: ×N 表記のまま（基準量×作成数の意）
+  - 材料細分化展開行: 基準量 × 作成数 ＝ 必要量 の形式で表示
+  - 細分化行のヘッダー説明ラベルを追加
+  - fmtQtyNeeded 関数を追加（＝N 形式）
   ※ その他は既存のまま維持
 -->
 <!doctype html>
@@ -35,35 +36,18 @@
       .cat-btn:hover { border-color: #888; color: #1a1a1a; }
       .cat-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; font-weight: 600; }
 
-      /* ★ 上に戻るボタン（画面右下固定） */
+      /* 上に戻るボタン（画面右下固定） */
       #scroll-top-btn {
-        position: fixed;
-        bottom: 28px;
-        right: 28px;
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 10px 20px;
-        background: #1a1a1a;
-        color: #fff;
-        border: none;
-        border-radius: 24px;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.28);
-        opacity: 0;
-        pointer-events: none;
-        transform: translateY(12px);
+        position: fixed; bottom: 28px; right: 28px; z-index: 999;
+        display: flex; align-items: center; gap: 6px;
+        padding: 10px 20px; background: #1a1a1a; color: #fff;
+        border: none; border-radius: 24px; font-size: 13px; font-weight: 600;
+        cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.28);
+        opacity: 0; pointer-events: none; transform: translateY(12px);
         transition: opacity 0.25s ease, transform 0.25s ease, background 0.15s;
         font-family: "Noto Sans JP", "Hiragino Sans", sans-serif;
       }
-      #scroll-top-btn.visible {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translateY(0);
-      }
+      #scroll-top-btn.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
       #scroll-top-btn:hover { background: #444; }
       #scroll-top-btn:active { transform: scale(0.97); }
       @media (max-width: 600px) {
@@ -90,11 +74,6 @@
       .recipe-proc-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; white-space: nowrap; margin-bottom: 6px; }
       .mat-item { font-size: 12px; color: #555; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
       .mat-qty { color: #1a1a1a; font-weight: 600; }
-      /* ★ 新規: 基準値・等号・必要数のスタイル */
-      .mat-qty-formula { display: inline-flex; align-items: center; gap: 2px; }
-      .mat-qty-base { color: #888; font-size: 11px; font-weight: 400; }
-      .mat-qty-sep { color: #aaa; font-size: 11px; }
-      .mat-qty-result { color: #1a1a1a; font-weight: 700; }
       .mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 12px; }
       .mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
       .imperial-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; background: #fff8e1; color: #e65100; border: 1px solid #ffe082; margin-top: 4px; white-space: nowrap; }
@@ -114,11 +93,52 @@
       .sub-steps { display: flex; flex-direction: column; gap: 0; padding-left: 8px; }
       .sub-step { background: #fff; border: 0.5px solid #e8e6e0; border-radius: 6px; padding: 7px 10px; margin-bottom: 2px; }
       .proc-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; background: #e8eaf6; color: #1a237e; border: 1px solid #9fa8da; margin-bottom: 4px; font-weight: 600; }
+      /* ★ 細分化ステップ材料ヘッダー */
+      .step-mat-header {
+        display: grid; grid-template-columns: 1fr 46px 46px 60px;
+        gap: 4px; align-items: center;
+        padding: 3px 0 5px; margin-bottom: 2px;
+        border-bottom: 1px solid #f0ede8;
+      }
+      .step-mat-header span {
+        font-size: 10px; color: #bbb; font-weight: 600;
+        letter-spacing: 0.04em; text-align: center;
+      }
+      .step-mat-header span:first-child { text-align: left; }
       .step-mats { display: flex; flex-direction: column; gap: 2px; }
-      .step-mat { font-size: 12px; color: #555; display: flex; gap: 5px; align-items: center; }
+      /* ★ 細分化の材料行: 基準量 × 作成数 ＝ 必要量 グリッド */
+      .step-mat {
+        font-size: 12px; color: #555;
+        display: grid; grid-template-columns: 1fr 46px 46px 60px;
+        gap: 4px; align-items: center;
+      }
+      .step-mat-base { color: #555; font-weight: 500; text-align: center; }
+      .step-mat-mult { color: #aaa; font-size: 11px; text-align: center; }
+      .step-mat-needed {
+        text-align: center; font-weight: 700;
+        background: #e8f5e9; border: 1px solid #a5d6a7;
+        border-radius: 5px; padding: 1px 4px;
+        color: #2e7d32; font-size: 11px;
+      }
+      .step-mat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
       .step-mat-qty { color: #1a1a1a; font-weight: 600; }
-      .step-mat-alt { font-size: 11px; color: #3a5aad; display: flex; align-items: center; gap: 5px; padding-left: 14px; }
-      .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; }
+      .step-mat-alt {
+        font-size: 11px; color: #3a5aad;
+        display: grid; grid-template-columns: 1fr 46px 46px 60px;
+        gap: 4px; align-items: center;
+        padding-left: 14px;
+      }
+      .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; grid-column: 1; }
+      .step-mat-alt-name { font-size: 11px; color: #3a5aad; }
+      .step-mat-alt-base { color: #555; font-weight: 500; text-align: center; font-size: 11px; }
+      .step-mat-alt-mult { color: #aaa; font-size: 10px; text-align: center; }
+      .step-mat-alt-needed {
+        text-align: center; font-weight: 700;
+        background: #e8eaf6; border: 1px solid #9fa8da;
+        border-radius: 5px; padding: 1px 4px;
+        color: #3949ab; font-size: 11px;
+      }
+      .step-mat-alt-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
       .step-connector { text-align: center; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
       .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
@@ -129,15 +149,6 @@
       .lightbox img { max-width: 90vw; max-height: 90vh; object-fit: contain; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
       .item-img img { cursor: zoom-in; transition: opacity 0.15s; }
       .item-img img:hover { opacity: 0.85; }
-      /* ★ 数量列ヘッダーの説明ラベル */
-      .qty-formula-legend {
-        display: block;
-        font-size: 9px;
-        font-weight: 400;
-        color: #aaa;
-        margin-top: 2px;
-        letter-spacing: 0;
-      }
       @media (max-width: 600px) { header, .table-container { padding: 12px 16px; } .header-title { font-size: 16px; } }
     </style>
   </head>
@@ -164,7 +175,7 @@
       <div id="cat-buttons"></div>
     </div>
 
-    <!-- ★ 上に戻るボタン（画面右下固定・スクロールで表示） -->
+    <!-- 上に戻るボタン（画面右下固定・スクロールで表示） -->
     <button id="scroll-top-btn" onclick="scrollToTop()" title="ページ上部へ戻る">▲ 上に戻る</button>
 
     <div id="lightbox" class="lightbox" onclick="closeLightbox()">
@@ -181,11 +192,7 @@
         <thead id="table-head">
           <tr>
             <th style="width: 18%">アイテム名</th>
-            <th style="width: auto">
-              製作材料
-              <!-- ★ 数量説明ラベル -->
-              <span class="qty-formula-legend">基準値 × 作成数 ＝ 必要数</span>
-            </th>
+            <th style="width: auto">製作材料</th>
             <th style="width: 14%">🍽 効果 / 👑 皇室納品</th>
             <th style="width: 18%">製作できる都市 / 製作所Lv</th>
             <th style="width: 7%">作成個数</th>
@@ -229,51 +236,30 @@
         "道人":  { bg: "#fdf6e3", color: "#8d6e00", border: "#f5c842" },
       };
 
-      // ★ 上に戻る
+      // 上に戻る
       function scrollToTop() {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-
-      // ★ スクロール監視：200px超えたら表示
       window.addEventListener("scroll", function () {
         const btn = document.getElementById("scroll-top-btn");
-        if (window.scrollY > 200) {
-          btn.classList.add("visible");
-        } else {
-          btn.classList.remove("visible");
-        }
+        if (window.scrollY > 200) btn.classList.add("visible");
+        else btn.classList.remove("visible");
       }, { passive: true });
 
-      // ★ 数量フォーマット: 「基準値×作成数＝必要数」形式で返す
-      // qty=1(作成数1)のとき: 基準値のみ表示するシンプル版も考慮
+      // ★ メイン材料欄用: ×N 形式
       function fmtQty(raw, multiplier) {
         if (!raw || String(raw).trim() === "") return "";
         const s = String(raw).trim();
         const num = parseFloat(s);
-        if (!isNaN(num) && num > 0) {
-          const needed = Math.ceil(num * multiplier);
-          if (multiplier === 1) {
-            // 作成数1のときは基準値＝必要数なので「基準値＝必要数」
-            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
-          }
-          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
-        }
+        if (!isNaN(num) && num > 0) return `×${Math.ceil(num * multiplier)}`;
         return s;
       }
 
-      // ★ 細分化内部でも同じ形式で数量表示するヘルパー
-      function fmtStepQty(baseQty, multiplier) {
-        if (!baseQty || String(baseQty).trim() === "") return "";
-        const s = String(baseQty).trim();
-        const num = parseFloat(s);
-        if (!isNaN(num) && num > 0) {
-          const needed = Math.ceil(num * multiplier);
-          if (multiplier === 1) {
-            return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">＝</span><span class="mat-qty-result">×${needed}</span></span>`;
-          }
-          return `<span class="mat-qty-formula"><span class="mat-qty-base">${s}</span><span class="mat-qty-sep">×${multiplier}＝</span><span class="mat-qty-result">×${needed}</span></span>`;
-        }
-        return s;
+      // ★ 細分化ステップ材料用: 数値のみ返す（表示はHTML側で組み立て）
+      function calcNeeded(baseQty, multiplier) {
+        const num = parseFloat(String(baseQty || "").trim());
+        if (!isNaN(num) && num > 0) return Math.ceil(num * multiplier);
+        return null;
       }
 
       function clearSearch() {
@@ -557,14 +543,12 @@
             ? `<div><span class="recipe-proc-badge">⚙ ${r.recipe_proc}</span></div>`
             : "";
 
-          // ★ fmtQty がHTMLを返すようになったので innerHTML として扱う
+          // メイン材料欄は × 表記（基準量×作成数）
           const matsHTML = r.mats.map((m) => {
-            const qtyHTML = fmtQty(m.qty, qty);
-            const altHTML = (m.alts || []).map((a) => {
-              const altQtyHTML = fmtQty(a.qty, qty);
-              return `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${altQtyHTML}</span></div>`;
-            }).join("");
-            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${qtyHTML}</span></div>${altHTML}`;
+            const altHTML = (m.alts || []).map((a) =>
+              `<div class="mat-alt"><span class="mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="mat-qty">${fmtQty(a.qty, qty)}</span></div>`
+            ).join("");
+            return `<div class="mat-item"><span>${m.name}</span><span class="mat-qty">${fmtQty(m.qty, qty)}</span></div>${altHTML}`;
           }).join("");
 
           tr.innerHTML = `
@@ -596,25 +580,57 @@
           if (isOpen && hasSub) {
             const subtr = document.createElement("tr");
             subtr.className = "sub-row";
+
+            // ★ 細分化展開行: 基準量 × 作成数 ＝ 必要量 形式
             const subHTML = r.subgroups.map((g) => {
               const stepsHTML = g.steps.map((s, si) => {
                 const connectorHTML = si > 0 && s.connector ? `<div class="step-connector">${s.connector}</div>` : "";
                 const procHTML = s.proc ? `<span class="proc-badge">${s.proc}</span>` : "";
+                // stepTarget は result_qty（そのステップで何個作るか）
+                // 全体作成数 qty を掛ける
                 const stepMultiplier = s.stepTarget * qty;
-                // ★ 細分化内も基準値×作成数＝必要数の形式で表示
+
+                // ★ ヘッダーラベル（材料がある場合のみ）
+                const headerHTML = s.mats.length > 0
+                  ? `<div class="step-mat-header">
+                      <span>材料名</span>
+                      <span>基準量</span>
+                      <span>×作成数</span>
+                      <span>＝必要量</span>
+                    </div>`
+                  : "";
+
                 const matsHTML = s.mats.map((m) => {
-                  const qtyHTML = fmtStepQty(m.baseQty, stepMultiplier);
+                  const needed = calcNeeded(m.baseQty, stepMultiplier);
+                  const neededHTML = needed !== null
+                    ? `<span class="step-mat-needed">＝${needed}</span>`
+                    : `<span class="step-mat-needed empty">—</span>`;
+                  const baseDisplay = m.baseQty || "—";
                   const altHTML = (m.alts || []).map((a) => {
-                    const altQtyHTML = fmtStepQty(a.baseQty, stepMultiplier);
-                    return `<div class="step-mat-alt"><span class="step-mat-alt-connector">└ ${a.connector}</span><span>${a.name}</span><span class="step-mat-qty">${altQtyHTML}</span></div>`;
+                    const altNeeded = calcNeeded(a.baseQty, stepMultiplier);
+                    const altNeededHTML = altNeeded !== null
+                      ? `<span class="step-mat-alt-needed">＝${altNeeded}</span>`
+                      : `<span class="step-mat-alt-needed empty">—</span>`;
+                    return `<div class="step-mat-alt">
+                      <span class="step-mat-alt-connector">└ ${a.connector} ${a.name}</span>
+                      <span class="step-mat-alt-base">${a.baseQty || "—"}</span>
+                      <span class="step-mat-alt-mult">×${stepMultiplier}</span>
+                      ${altNeededHTML}
+                    </div>`;
                   }).join("");
-                  return `<div class="step-mat"><span>${m.name}</span><span class="step-mat-qty">${qtyHTML}</span></div>${altHTML}`;
+                  return `<div class="step-mat">
+                    <span>${m.name}</span>
+                    <span class="step-mat-base">${baseDisplay}</span>
+                    <span class="step-mat-mult">×${stepMultiplier}</span>
+                    ${neededHTML}
+                  </div>${altHTML}`;
                 }).join("");
+
                 const resultQtyDisplay = s.result_qty
                   ? (() => { const rq = parseFloat(s.result_qty); return !isNaN(rq) && rq > 0 ? ` ×${Math.ceil(rq * qty)}` : ` ×${s.result_qty}`; })()
                   : "";
                 const resultHTML = s.result_name ? `<div class="step-result">→ ${s.result_name}${resultQtyDisplay}</div>` : "";
-                return `${connectorHTML}<div class="sub-step">${procHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
+                return `${connectorHTML}<div class="sub-step">${procHTML}${headerHTML}<div class="step-mats">${matsHTML}</div>${resultHTML}</div>`;
               }).join("");
               return `<div class="sub-group"><div class="sub-parent-label">▸ <span class="sub-parent-name">${g.parent}</span> の作り方</div><div class="sub-steps">${stepsHTML}</div></div>`;
             }).join("");
