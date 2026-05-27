@@ -94,47 +94,43 @@
       .sub-step { background: #fff; border: 0.5px solid #e8e6e0; border-radius: 6px; padding: 7px 10px; margin-bottom: 2px; }
       .proc-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; background: #e8eaf6; color: #1a237e; border: 1px solid #9fa8da; margin-bottom: 4px; font-weight: 600; }
       /* ★ 細分化ステップ材料 */
-      .step-mats { display: flex; flex-direction: column; gap: 3px; }
+      .step-mats { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
 
-      /* ヘッダー行: [基準値] × [作成数] ＝ [必要数] を材料行に揃えて左寄せ */
+      /* ヘッダー行: 左端から [基準値] × [作成数] ＝ [必要数] */
       .step-mat-header {
-        display: flex; align-items: center; gap: 6px;
+        display: inline-flex; align-items: center; gap: 6px;
         padding: 0 0 3px; margin-bottom: 2px;
-        border-bottom: 1px solid #f0ede8;
+        border-bottom: 1px solid #f0ede8; width: 100%;
         font-size: 10px; color: #aaa; font-weight: 600;
       }
-      .smh-name-pad { min-width: 80px; flex: 0 0 auto; visibility: hidden; font-size: 12px; }
-      .smh-lbl.smh-base { min-width: 32px; }
-      .smh-lbl.smh-mult { min-width: 32px; }
-      .smh-lbl.smh-need { min-width: 36px; }
       .smh-op { color: #ccc; }
 
-      /* 材料行: 材料名  基準値 × 作成数 ＝ 必要数（自然な左寄せ） */
+      /* 材料行: inline-flex で左端から自然に並ぶ */
       .step-mat {
-        display: flex; align-items: center; gap: 6px;
+        display: inline-flex; align-items: center; gap: 6px;
         font-size: 12px; color: #555;
       }
-      .step-mat-name  { color: #333; flex-shrink: 0; }
-      .smf-base { font-weight: 600; color: #1a1a1a; font-size: 12px; min-width: 32px; }
+      .step-mat-name  { color: #333; white-space: nowrap; }
+      .smf-base { font-weight: 600; color: #1a1a1a; font-size: 12px; white-space: nowrap; }
       .smf-op   { color: #bbb; font-size: 11px; }
-      .smf-mult { color: #888; font-size: 11px; min-width: 32px; }
+      .smf-mult { color: #888; font-size: 11px; white-space: nowrap; }
       .smf-eq   { color: #bbb; font-size: 11px; }
-      .smf-need { font-weight: 700; color: #2e7d32; font-size: 12px; min-width: 36px; }
+      .smf-need { font-weight: 700; color: #2e7d32; font-size: 12px; white-space: nowrap; }
       .smf-need.empty { color: #ccc; font-weight: 400; }
 
       /* 代替品行 */
       .step-mat-alt {
-        display: flex; align-items: center; gap: 6px;
+        display: inline-flex; align-items: center; gap: 6px;
         font-size: 11px; color: #3a5aad;
         padding-left: 10px;
       }
-      .step-mat-alt-connector { color: #9fa8da; font-size: 10px; flex-shrink: 0; }
-      .step-mat-alt-name  { color: #3a5aad; flex-shrink: 0; }
-      .smaf-base { font-weight: 600; color: #3a5aad; font-size: 11px; min-width: 32px; }
+      .step-mat-alt-connector { color: #9fa8da; font-size: 10px; white-space: nowrap; }
+      .step-mat-alt-name  { color: #3a5aad; white-space: nowrap; }
+      .smaf-base { font-weight: 600; color: #3a5aad; font-size: 11px; white-space: nowrap; }
       .smaf-op   { color: #bbb; font-size: 10px; }
-      .smaf-mult { color: #888; font-size: 10px; min-width: 32px; }
+      .smaf-mult { color: #888; font-size: 10px; white-space: nowrap; }
       .smaf-eq   { color: #bbb; font-size: 10px; }
-      .smaf-need { font-weight: 700; color: #3949ab; font-size: 11px; min-width: 36px; }
+      .smaf-need { font-weight: 700; color: #3949ab; font-size: 11px; white-space: nowrap; }
       .smaf-need.empty { color: #ccc; font-weight: 400; }
       .step-mat-qty { color: #1a1a1a; font-weight: 600; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
@@ -588,15 +584,14 @@
                 // 全体作成数 qty を掛ける
                 const stepMultiplier = s.stepTarget * qty;
 
-                // ★ ヘッダー: 材料名の幅分だけ空けてから [基準値] × [作成数] ＝ [必要数]
+                // ★ ヘッダー: 左端から [基準値] × [作成数] ＝ [必要数]
                 const headerHTML = s.mats.length > 0
                   ? `<div class="step-mat-header">
-                      <span class="smh-name-pad">&nbsp;</span>
-                      <span class="smh-lbl smh-base">[基準値]</span>
+                      <span class="smh-op">[基準値]</span>
                       <span class="smh-op">×</span>
-                      <span class="smh-lbl smh-mult">[作成数]</span>
+                      <span class="smh-op">[作成数]</span>
                       <span class="smh-op">＝</span>
-                      <span class="smh-lbl smh-need">[必要数]</span>
+                      <span class="smh-op">[必要数]</span>
                     </div>`
                   : "";
 
