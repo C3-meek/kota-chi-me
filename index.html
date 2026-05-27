@@ -96,20 +96,27 @@
       /* ★ 細分化ステップ材料 */
       .step-mats { display: flex; flex-direction: column; gap: 3px; }
 
-      /* ヘッダー: 右側の数値列の上だけに [基準値] × [作成数] ＝ [必要数] */
+      /* ヘッダー: 数値列の真上に左寄せで [基準値] × [作成数] ＝ [必要数] */
       .step-mat-header {
-        display: flex; align-items: center;
+        display: flex; align-items: center; justify-content: flex-start;
         padding: 0 0 3px; margin-bottom: 2px;
         border-bottom: 1px solid #f0ede8;
         font-size: 10px; color: #aaa; font-weight: 600;
       }
-      .step-mat-header .smh-spacer { flex: 1; }  /* 材料名列分の空白 */
+      /* smh-spacer は材料名 + 数値列の幅分だけ左にオフセットせず、
+         ヘッダーをそのまま材料行の数値部分と同じ幅・位置で左から始める */
+      .step-mat-header .smh-spacer { flex: 1; }
       .step-mat-header .smh-formula {
         display: flex; align-items: center; gap: 0;
         white-space: nowrap;
+        /* 材料行の .step-mat-formula と同じ幅に揃える */
+        width: calc(32px + 18px + 32px + 18px + 40px);
       }
-      .smh-lbl { padding: 0 4px; }
-      .smh-op  { padding: 0 2px; color: #ccc; }
+      .smh-lbl { padding: 0 0; text-align: right; }
+      .smh-lbl.smh-base { width: 32px; }
+      .smh-lbl.smh-mult { width: 32px; }
+      .smh-lbl.smh-need { width: 40px; }
+      .smh-op  { width: 18px; text-align: center; color: #ccc; }
 
       /* 材料行: 材料名(flex:1)  数値 × 数値 ＝ 数値 */
       .step-mat {
@@ -142,7 +149,7 @@
       .smaf-need.empty { color: #ccc; font-weight: 400; }
       .step-mat-qty { color: #1a1a1a; font-weight: 600; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
-      .step-connector { text-align: center; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
+      .step-connector { text-align: left; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
       .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
       .spinner { display: inline-block; width: 22px; height: 22px; border: 2px solid #eee; border-top-color: #888; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 10px; }
       @keyframes spin { to { transform: rotate(360deg); } }
@@ -592,16 +599,16 @@
                 // 全体作成数 qty を掛ける
                 const stepMultiplier = s.stepTarget * qty;
 
-                // ★ ヘッダー: 右側数値列の上だけに [基準値] × [作成数] ＝ [必要数]
+                // ★ ヘッダー: 材料名列の右端から数値列の上に揃えて表示
                 const headerHTML = s.mats.length > 0
                   ? `<div class="step-mat-header">
                       <div class="smh-spacer"></div>
                       <div class="smh-formula">
-                        <span class="smh-lbl">[基準値]</span>
+                        <span class="smh-lbl smh-base">[基準値]</span>
                         <span class="smh-op">×</span>
-                        <span class="smh-lbl">[作成数]</span>
+                        <span class="smh-lbl smh-mult">[作成数]</span>
                         <span class="smh-op">＝</span>
-                        <span class="smh-lbl">[必要数]</span>
+                        <span class="smh-lbl smh-need">[必要数]</span>
                       </div>
                     </div>`
                   : "";
