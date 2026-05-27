@@ -93,52 +93,54 @@
       .sub-steps { display: flex; flex-direction: column; gap: 0; padding-left: 8px; }
       .sub-step { background: #fff; border: 0.5px solid #e8e6e0; border-radius: 6px; padding: 7px 10px; margin-bottom: 2px; }
       .proc-badge { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; background: #e8eaf6; color: #1a237e; border: 1px solid #9fa8da; margin-bottom: 4px; font-weight: 600; }
-      /* ★ 細分化ステップ材料ヘッダー */
+      /* ★ 細分化ステップ材料 */
+      .step-mats { display: flex; flex-direction: column; gap: 3px; }
+
+      /* ヘッダー: 右側の数値列の上だけに [基準値] × [作成数] ＝ [必要数] */
       .step-mat-header {
-        display: grid; grid-template-columns: 1fr 46px 46px 60px;
-        gap: 4px; align-items: center;
-        padding: 3px 0 5px; margin-bottom: 2px;
+        display: flex; align-items: center;
+        padding: 0 0 3px; margin-bottom: 2px;
         border-bottom: 1px solid #f0ede8;
+        font-size: 10px; color: #aaa; font-weight: 600;
       }
-      .step-mat-header span {
-        font-size: 10px; color: #bbb; font-weight: 600;
-        letter-spacing: 0.04em; text-align: center;
+      .step-mat-header .smh-spacer { flex: 1; }  /* 材料名列分の空白 */
+      .step-mat-header .smh-formula {
+        display: flex; align-items: center; gap: 0;
+        white-space: nowrap;
       }
-      .step-mat-header span:first-child { text-align: left; }
-      .step-mats { display: flex; flex-direction: column; gap: 2px; }
-      /* ★ 細分化の材料行: 基準量 × 作成数 ＝ 必要量 グリッド */
+      .smh-lbl { padding: 0 4px; }
+      .smh-op  { padding: 0 2px; color: #ccc; }
+
+      /* 材料行: 材料名(flex:1)  数値 × 数値 ＝ 数値 */
       .step-mat {
-        font-size: 12px; color: #555;
-        display: grid; grid-template-columns: 1fr 46px 46px 60px;
-        gap: 4px; align-items: center;
+        display: flex; align-items: center;
+        font-size: 12px; color: #555; gap: 0;
       }
-      .step-mat-base { color: #555; font-weight: 500; text-align: center; }
-      .step-mat-mult { color: #aaa; font-size: 11px; text-align: center; }
-      .step-mat-needed {
-        text-align: center; font-weight: 700;
-        background: #e8f5e9; border: 1px solid #a5d6a7;
-        border-radius: 5px; padding: 1px 4px;
-        color: #2e7d32; font-size: 11px;
-      }
-      .step-mat-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
-      .step-mat-qty { color: #1a1a1a; font-weight: 600; }
+      .step-mat-name { flex: 1; color: #333; min-width: 0; }
+      .step-mat-formula { display: flex; align-items: center; gap: 0; white-space: nowrap; }
+      .smf-base  { width: 32px; text-align: right; font-weight: 600; color: #1a1a1a; font-size: 12px; }
+      .smf-op    { width: 18px; text-align: center; color: #bbb; font-size: 11px; }
+      .smf-mult  { width: 32px; text-align: right; color: #888; font-size: 11px; }
+      .smf-eq    { width: 18px; text-align: center; color: #bbb; font-size: 11px; }
+      .smf-need  { width: 40px; text-align: right; font-weight: 700; color: #2e7d32; font-size: 12px; }
+      .smf-need.empty { color: #ccc; font-weight: 400; }
+
+      /* 代替品行 */
       .step-mat-alt {
-        font-size: 11px; color: #3a5aad;
-        display: grid; grid-template-columns: 1fr 46px 46px 60px;
-        gap: 4px; align-items: center;
-        padding-left: 14px;
+        display: flex; align-items: center;
+        font-size: 11px; color: #3a5aad; gap: 0;
+        padding-left: 10px;
       }
-      .step-mat-alt-connector { font-size: 10px; color: #9fa8da; white-space: nowrap; grid-column: 1; }
-      .step-mat-alt-name { font-size: 11px; color: #3a5aad; }
-      .step-mat-alt-base { color: #555; font-weight: 500; text-align: center; font-size: 11px; }
-      .step-mat-alt-mult { color: #aaa; font-size: 10px; text-align: center; }
-      .step-mat-alt-needed {
-        text-align: center; font-weight: 700;
-        background: #e8eaf6; border: 1px solid #9fa8da;
-        border-radius: 5px; padding: 1px 4px;
-        color: #3949ab; font-size: 11px;
-      }
-      .step-mat-alt-needed.empty { background: #f5f4f0; border-color: #e0ddd5; color: #bbb; font-weight: 400; }
+      .step-mat-alt-name { flex: 1; color: #3a5aad; min-width: 0; }
+      .step-mat-alt-connector { color: #9fa8da; font-size: 10px; margin-right: 4px; flex-shrink: 0; }
+      .step-mat-alt-formula { display: flex; align-items: center; gap: 0; white-space: nowrap; }
+      .smaf-base { width: 32px; text-align: right; font-weight: 600; color: #3a5aad; font-size: 11px; }
+      .smaf-op   { width: 18px; text-align: center; color: #bbb; font-size: 10px; }
+      .smaf-mult { width: 32px; text-align: right; color: #888; font-size: 10px; }
+      .smaf-eq   { width: 18px; text-align: center; color: #bbb; font-size: 10px; }
+      .smaf-need { width: 40px; text-align: right; font-weight: 700; color: #3949ab; font-size: 11px; }
+      .smaf-need.empty { color: #ccc; font-weight: 400; }
+      .step-mat-qty { color: #1a1a1a; font-weight: 600; }
       .step-result { font-size: 12px; color: #2e7d32; font-weight: 600; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #e0ddd5; }
       .step-connector { text-align: center; font-size: 12px; color: #1565c0; padding: 3px 0; font-weight: 600; }
       .state-msg { text-align: center; padding: 60px 20px; color: #bbb; font-size: 14px; }
@@ -590,39 +592,50 @@
                 // 全体作成数 qty を掛ける
                 const stepMultiplier = s.stepTarget * qty;
 
-                // ★ ヘッダーラベル（材料がある場合のみ）
+                // ★ ヘッダー: 右側数値列の上だけに [基準値] × [作成数] ＝ [必要数]
                 const headerHTML = s.mats.length > 0
                   ? `<div class="step-mat-header">
-                      <span>材料名</span>
-                      <span>基準量</span>
-                      <span>×作成数</span>
-                      <span>＝必要量</span>
+                      <div class="smh-spacer"></div>
+                      <div class="smh-formula">
+                        <span class="smh-lbl">[基準値]</span>
+                        <span class="smh-op">×</span>
+                        <span class="smh-lbl">[作成数]</span>
+                        <span class="smh-op">＝</span>
+                        <span class="smh-lbl">[必要数]</span>
+                      </div>
                     </div>`
                   : "";
 
                 const matsHTML = s.mats.map((m) => {
                   const needed = calcNeeded(m.baseQty, stepMultiplier);
-                  const neededHTML = needed !== null
-                    ? `<span class="step-mat-needed">＝${needed}</span>`
-                    : `<span class="step-mat-needed empty">—</span>`;
+                  const needStr = needed !== null ? String(needed) : "—";
+                  const needCls = needed !== null ? "smf-need" : "smf-need empty";
                   const baseDisplay = m.baseQty || "—";
                   const altHTML = (m.alts || []).map((a) => {
                     const altNeeded = calcNeeded(a.baseQty, stepMultiplier);
-                    const altNeededHTML = altNeeded !== null
-                      ? `<span class="step-mat-alt-needed">＝${altNeeded}</span>`
-                      : `<span class="step-mat-alt-needed empty">—</span>`;
+                    const altNeedStr = altNeeded !== null ? String(altNeeded) : "—";
+                    const altNeedCls = altNeeded !== null ? "smaf-need" : "smaf-need empty";
                     return `<div class="step-mat-alt">
-                      <span class="step-mat-alt-connector">└ ${a.connector} ${a.name}</span>
-                      <span class="step-mat-alt-base">${a.baseQty || "—"}</span>
-                      <span class="step-mat-alt-mult">×${stepMultiplier}</span>
-                      ${altNeededHTML}
+                      <span class="step-mat-alt-connector">└ ${a.connector}</span>
+                      <span class="step-mat-alt-name">${a.name}</span>
+                      <div class="step-mat-alt-formula">
+                        <span class="smaf-base">${a.baseQty || "—"}</span>
+                        <span class="smaf-op">×</span>
+                        <span class="smaf-mult">${stepMultiplier}</span>
+                        <span class="smaf-eq">＝</span>
+                        <span class="${altNeedCls}">${altNeedStr}</span>
+                      </div>
                     </div>`;
                   }).join("");
                   return `<div class="step-mat">
-                    <span>${m.name}</span>
-                    <span class="step-mat-base">${baseDisplay}</span>
-                    <span class="step-mat-mult">×${stepMultiplier}</span>
-                    ${neededHTML}
+                    <span class="step-mat-name">${m.name}</span>
+                    <div class="step-mat-formula">
+                      <span class="smf-base">${baseDisplay}</span>
+                      <span class="smf-op">×</span>
+                      <span class="smf-mult">${stepMultiplier}</span>
+                      <span class="smf-eq">＝</span>
+                      <span class="${needCls}">${needStr}</span>
+                    </div>
                   </div>${altHTML}`;
                 }).join("");
 
