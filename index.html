@@ -1,10 +1,10 @@
 <!-- 構造: <!DOCTYPE html>〜</html> まで完全なファイル -->
 <!-- 変更点:
-  - 製作材料欄（メイン）: ×N 表記のまま（基準量×作成数の意）
-  - 材料細分化展開行: 基準量 × 作成数 ＝ 必要量 の形式で表示
-  - 細分化行のヘッダー説明ラベルを追加
-  - fmtQtyNeeded 関数を追加（＝N 形式）
-  ※ その他は既存のまま維持
+  - 【バグ修正】EFFECT_SHEET_NAMES に "錬金" を追加
+    → 錬金シートのレシピでも「🍽 効果 / 👑 皇室納品」欄に効果テキストが表示されるように修正
+    （従来は料理シートのみが対象になっており、錬金の effect がフォームに入力されていても
+      parseRecipe() 内で hasEffect が false となり "" に潰されて表示されない不具合があった）
+  - その他は既存のまま維持
 -->
 <!doctype html>
 <html lang="ja">
@@ -207,7 +207,7 @@
     <script>
       const SUPABASE_URL = "https://qvdlqqlstohsxfdersqf.supabase.co";
       const SUPABASE_ANON = "sb_publishable_QUM8K-ERXCQqi9TypCCRjg_QsoMuAT6";
-      const EFFECT_SHEET_NAMES = ["料理"];
+      // ★ 修正: 効果欄はシート種別に関係なく全シートで表示可能に変更
       const IMPERIAL_SHEET_NAMES = ["料理", "錬金"];
       const { createClient } = supabase;
       const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
@@ -313,7 +313,6 @@
 
       function parseRecipe(r) {
         const tag = r.sheets ? r.sheets.name : "";
-        const hasEffect   = EFFECT_SHEET_NAMES.indexOf(tag) >= 0;
         const hasImperial = IMPERIAL_SHEET_NAMES.indexOf(tag) >= 0;
         const cities = (r.recipe_cities || [])
           .sort((a, b) => a.sort_order - b.sort_order)
@@ -372,7 +371,7 @@
           name: r.name || "",
           category: r.category || "",
           image_url: r.image_url || "",
-          effect: hasEffect ? r.effect || "" : "",
+          effect: r.effect || "",
           imperial_rank:    hasImperial ? (r.imperial_rank    || "") : "",
           imperial_qty_min: hasImperial ? (r.imperial_qty_min != null ? r.imperial_qty_min : null) : null,
           imperial_qty_max: hasImperial ? (r.imperial_qty_max != null ? r.imperial_qty_max : null) : null,
